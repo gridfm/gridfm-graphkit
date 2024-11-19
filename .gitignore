@@ -1,0 +1,10 @@
+venv
+venv_pp
+data
+__pycache__/
+*.pyc
+.vscode
+gridFM.egg-info
+mlruns
+runs
+*.pt

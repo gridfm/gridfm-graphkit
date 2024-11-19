@@ -1,0 +1,28 @@
+network: "GBreducednetwork"
+data:
+  input_dim: 9
+  output_dim: 6
+  edge_dim: 2
+  # Normalization method to use. Available options:
+  # - "minmax": Scales data between the minimum and maximum values.
+  # - "standard": Standardizes data to have zero mean and unit variance.
+  # - "baseMVAnorm": Divides data by a baseMVA value for normalization, need to specify the baseMVA parameter separately
+  # - "identity": Does not apply any normalization, leaves data unchanged.
+  normalization: "standard"
+  mask_dim: 6
+  mask_ratio: 0.5
+  mask_value: 0
+  scenarios: 35000
+training:
+  batch_size: 16
+  num_layers: 3
+  hidden_size: 32
+  attention_head: 8
+  epochs: 100
+optimizer:
+  learning_rate: 0.001
+  lr_decay: 0.5
+  lr_patience: 3
+data_split:
+  val_ratio: 0.1
+  test_ratio: 0.1
