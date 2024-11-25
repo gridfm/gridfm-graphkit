@@ -4,7 +4,7 @@ import pandas as pd
 def compute_mean_loss(loss_list):
     return torch.sqrt(torch.cat(loss_list, dim=0).mean(dim=0)) if loss_list else None
 
-def postprocess_results(RMSE_loss_PQ, RMSE_loss_PV, RMSE_loss_REF, MAE_loss_PQ, MAE_loss_PV, MAE_loss_REF):
+def training_stats_to_dataframe(RMSE_loss_PQ, RMSE_loss_PV, RMSE_loss_REF, MAE_loss_PQ, MAE_loss_PV, MAE_loss_REF):
     RMSE_pq = compute_mean_loss(RMSE_loss_PQ).tolist()
     RMSE_pv = compute_mean_loss(RMSE_loss_PV).tolist()
     RMSE_ref = compute_mean_loss(RMSE_loss_REF).tolist()

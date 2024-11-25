@@ -1,0 +1,4 @@
+training:
+  hidden_size: [64,128]
+  attention_head: [4,8,12]
+seed: [0,100,200]

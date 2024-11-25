@@ -1,4 +1,5 @@
 network: "GBreducednetwork"
+seed: 42
 data:
   input_dim: 9
   output_dim: 6
@@ -16,12 +17,14 @@ data:
 training:
   batch_size: 16
   num_layers: 3
-  hidden_size: 32
+  hidden_size: 64
   attention_head: 8
   epochs: 100
 optimizer:
   learning_rate: 0.001
-  lr_decay: 0.5
+  beta1: 0.9
+  beta2: 0.999
+  lr_decay: 0.7
   lr_patience: 3
 data_split:
   val_ratio: 0.1

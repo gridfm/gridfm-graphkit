@@ -1,4 +1,5 @@
-network: "GBreducednetwork"
+network: "case24"
+seed: 42
 data:
   input_dim: 9
   output_dim: 6
@@ -8,20 +9,22 @@ data:
   # - "standard": Standardizes data to have zero mean and unit variance.
   # - "baseMVAnorm": Divides data by a baseMVA value for normalization, need to specify the baseMVA parameter separately
   # - "identity": Does not apply any normalization, leaves data unchanged.
-  normalization: "standard"
+  normalization: "minmax"
   mask_dim: 6
   mask_ratio: 0.5
-  mask_value: 0
-  scenarios: 35000
+  mask_value: -1.0
+  scenarios: 34000
 training:
   batch_size: 16
   num_layers: 3
-  hidden_size: 32
+  hidden_size: 64
   attention_head: 8
   epochs: 100
 optimizer:
   learning_rate: 0.001
-  lr_decay: 0.5
+  beta1: 0.9
+  beta2: 0.999
+  lr_decay: 0.7
   lr_patience: 3
 data_split:
   val_ratio: 0.1
