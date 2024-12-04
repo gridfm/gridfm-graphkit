@@ -15,13 +15,13 @@ data:
   mask_value: -1.0
   scenarios: 99000
 training:
-  batch_size: 16
-  num_layers: 3
+  batch_size: 32
+  num_layers: 5
   hidden_size: 64
   attention_head: 8
   epochs: 100
 optimizer:
-  learning_rate: 0.001
+  learning_rate: 0.0001
   beta1: 0.9
   beta2: 0.999
   lr_decay: 0.7

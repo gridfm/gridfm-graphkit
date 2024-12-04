@@ -16,7 +16,7 @@ data:
   scenarios: 34000
 training:
   batch_size: 16
-  num_layers: 3
+  num_layers: 6
   hidden_size: 64
   attention_head: 8
   epochs: 100

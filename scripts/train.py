@@ -257,12 +257,23 @@ if __name__ == "__main__":
         default=None,
         help="Path to grid.yaml file. No grid search by default",
     )
+    parser.add_argument(
+        "--exp",
+        type=str,
+        default=None,
+        help="Experiment name for mlflow, None by default",
+    )
     args = parser.parse_args()
 
     # Initialize mlflow
-    exp_name = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     mlflow.set_tracking_uri("file:../mlruns")
-    experiment_name = f"exp_{exp_name}"
+
+    exp_name = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    if args.exp is None:
+        experiment_name = f"exp_{exp_name}"
+    else:
+        experiment_name = f"{args.exp}"
+
     mlflow.set_experiment(experiment_name)
 
     if args.grid:  # Only perform grid search if grid parameter file is provided

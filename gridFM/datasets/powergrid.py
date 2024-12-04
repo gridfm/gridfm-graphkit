@@ -47,7 +47,7 @@ class GridDatasetMem(InMemoryDataset):
 
     @property
     def processed_file_names(self):
-        return [f"data_full_{self.norm_method}.pt"]
+        return [f"data_full_{self.norm_method}_{self.mask_ratio}.pt"]
 
     def download(self):
         pass
