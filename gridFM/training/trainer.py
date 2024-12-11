@@ -6,6 +6,7 @@ from torch.utils.data import DataLoader
 import matplotlib.pyplot as plt
 from gridFM.training.plugins import TrainerPlugin
 from tqdm import tqdm
+from gridFM.training.callbacks import EarlyStopper
 
 
 class Trainer:
@@ -15,6 +16,7 @@ class Trainer:
         optimizer: Optimizer,
         device,
         loss_fn: nn.Module,
+        early_stopper: EarlyStopper,
         train_dataloader: DataLoader,
         val_dataloader: DataLoader = None,
         lr_scheduler=None,
@@ -25,6 +27,7 @@ class Trainer:
         self.train_dataloader = train_dataloader
         self.val_dataloader = val_dataloader
         self.device = device
+        self.early_stopper = early_stopper
         self.loss_fn = loss_fn
         self.plugins = plugins
         self.lr_scheduler = lr_scheduler
@@ -99,7 +102,10 @@ class Trainer:
             self.lr_scheduler.step(val_loss)
         for plugin in self.plugins:
             plugin.step(epoch, step=highest_step, end_of_epoch=True)
+        return val_loss
 
     def train(self, start_epoch: int = 0, epochs: int = 1, prev_step: int = -1):
         for epoch in tqdm(range(start_epoch, start_epoch + epochs), desc="Epochs"):
-            self.__one_epoch(epoch, prev_step)
+            val_loss = self.__one_epoch(epoch, prev_step)
+            if self.early_stopper.early_stop(val_loss, self.model):
+                break

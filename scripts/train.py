@@ -15,17 +15,16 @@ import mlflow.pytorch
 import argparse
 from gridFM.training.trainer import Trainer
 from gridFM.training.plugins import MLflowLoggerPlugin
+from gridFM.training.callbacks import EarlyStopper
+
 from gridFM.datasets.utils import split_dataset
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 import yaml
 import random
 
-# Check if CUDA is available
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-print(f"Using device: {device}")
 
+def run_training(config_path, grid_params, experiment_name, device):
 
-def run_training(config_path, grid_params, experiment_name):
     # Define log directories
     run_name = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     run_dir = os.path.join("../runs", run_name)
@@ -114,6 +113,11 @@ def run_training(config_path, grid_params, experiment_name):
         patience=args.optimizer.lr_patience,
     )
 
+    best_model_path = os.path.join(run_dir, "best_model.pth")
+    early_stopper = EarlyStopper(
+        best_model_path, args.callbacks.patience, args.callbacks.tol
+    )
+
     with mlflow.start_run() as run:
         experiment = mlflow.get_experiment_by_name(experiment_name)
         experiment_id = experiment.experiment_id
@@ -133,6 +137,7 @@ def run_training(config_path, grid_params, experiment_name):
             optimizer,
             device,
             masked_loss,
+            early_stopper,
             train_loader,
             val_loader,
             lr_scheduler=scheduler,
@@ -144,15 +149,25 @@ def run_training(config_path, grid_params, experiment_name):
 
         # Save model
         torch.save(model, os.path.join(run_dir, "model.pth"))
-        
-        # Save mask 
+
+        # Save mask
         if args.data.learn_mask:
             mask_path = os.path.join(run_dir, "mask_value.txt")
             np.savetxt(mask_path, model.mask_value.numpy(force=True))
             mlflow.log_artifact(mask_path)
 
-        
-        
+        # load best_model
+        best_model = torch.load(os.path.join(run_dir, "best_model.pth"))
+
+
+        # Save best_mask
+        if args.data.learn_mask:
+            best_mask_path = os.path.join(run_dir, "best_mask_value.txt")
+            np.savetxt(best_mask_path, best_model.mask_value.numpy(force=True))
+            mlflow.log_artifact(best_mask_path)
+
+        # set model to eval mode
+        best_model.eval()
 
         # Initialize lists to store losses for each node type
         RMSE_loss_PQ = []
@@ -176,17 +191,17 @@ def run_training(config_path, grid_params, experiment_name):
                 mask_PV = input_features[:, PV] == 1
                 mask_REF = input_features[:, REF] == 1
 
-                input_features[mask_PQ, VM] = model.mask_value[VM]
-                input_features[mask_PQ, VA] = model.mask_value[VA]
+                input_features[mask_PQ, VM] = best_model.mask_value[VM]
+                input_features[mask_PQ, VA] = best_model.mask_value[VA]
 
-                input_features[mask_PV, QG] = model.mask_value[QG]
-                input_features[mask_PV, VA] = model.mask_value[VA]
+                input_features[mask_PV, QG] = best_model.mask_value[QG]
+                input_features[mask_PV, VA] = best_model.mask_value[VA]
 
-                input_features[mask_REF, PG] = model.mask_value[PG]
-                input_features[mask_REF, QG] = model.mask_value[QG]
+                input_features[mask_REF, PG] = best_model.mask_value[PG]
+                input_features[mask_REF, QG] = best_model.mask_value[QG]
 
                 # Forward pass
-                output = model(input_features, batch.edge_index, batch.edge_attr)
+                output = best_model(input_features, batch.edge_index, batch.edge_attr)
 
                 # Denormalize the output and target
                 output_denorm = node_normalizer.inverse_transform(output.cpu())
@@ -281,6 +296,10 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
+    # Check if CUDA is available
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(f"Using device: {device}")
+
     # Initialize mlflow
     mlflow.set_tracking_uri("file:../mlruns")
 
@@ -306,7 +325,7 @@ if __name__ == "__main__":
             print(
                 f"\nGrid search: {i + 1}/{len(grid_combinations)} with params: {grid_params}"
             )
-            run_training(args.config, grid_params, experiment_name)
+            run_training(args.config, grid_params, experiment_name, device)
     else:
         print("No grid search config file provided. Running single training")
-        run_training(args.config, {}, experiment_name)
+        run_training(args.config, {}, experiment_name, device)

@@ -30,3 +30,6 @@ optimizer:
 data_split:
   val_ratio: 0.1
   test_ratio: 0.1
+callbacks:
+  patience: -1 # -1 means no early stopping, 0 means stop training the first time the validation loss increases
+  tol: 0 # tolerance for considering the validation loss as worse than best one so far

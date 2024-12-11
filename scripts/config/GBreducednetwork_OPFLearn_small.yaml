@@ -14,15 +14,15 @@ data:
   mask_ratio: 0.5
   mask_value: -1.0
   learn_mask: False
-  scenarios: 99000
+  scenarios: 10000
 training:
-  batch_size: 32
-  num_layers: 5
-  hidden_size: 64
-  attention_head: 8
-  epochs: 100
+  batch_size: 512
+  num_layers: 1
+  hidden_size: 4
+  attention_head: 1
+  epochs: 300
 optimizer:
-  learning_rate: 0.0001
+  learning_rate: 0.01
   beta1: 0.9
   beta2: 0.999
   lr_decay: 0.7
@@ -33,4 +33,3 @@ data_split:
 callbacks:
   patience: -1 # -1 means no early stopping, 0 means stop training the first time the validation loss increases
   tol: 0 # tolerance for considering the validation loss as worse than best one so far
-
