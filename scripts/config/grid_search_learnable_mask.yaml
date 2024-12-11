@@ -1,0 +1,5 @@
+data:
+  learn_mask: [True, False]
+  normalization: ["minmax"]
+  mask_value: [-1,0]
+seed: [0,100]

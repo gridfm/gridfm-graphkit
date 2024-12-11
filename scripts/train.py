@@ -1,5 +1,5 @@
 from gridFM.models.graphTransformer import GraphTransformer
-from gridFM.datasets.powergrid import GridDataset, GridDatasetMem
+from gridFM.datasets.powergrid import GridDatasetMem
 from gridFM.io.param_handler import *
 from gridFM.utils.loss import masked_loss
 from gridFM.utils.post_processing import *
@@ -23,6 +23,7 @@ import random
 # Check if CUDA is available
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"Using device: {device}")
+
 
 def run_training(config_path, grid_params, experiment_name):
     # Define log directories
@@ -70,7 +71,6 @@ def run_training(config_path, grid_params, experiment_name):
         edge_normalizer=edge_normalizer,
         mask_ratio=args.data.mask_ratio,
         mask_dim=args.data.mask_dim,
-        mask_value=args.data.mask_value,
     )
 
     train_dataset, val_dataset, test_dataset = split_dataset(
@@ -96,10 +96,17 @@ def run_training(config_path, grid_params, experiment_name):
         edge_dim=args.data.edge_dim,
         heads=args.training.attention_head,
         num_layers=args.training.num_layers,
+        mask_dim=args.data.mask_dim,
+        mask_value=args.data.mask_value,
+        learn_mask=args.data.learn_mask,
     ).to(device)
 
     # Optimizer and learning rate scheduler
-    optimizer = torch.optim.Adam(model.parameters(), lr=args.optimizer.learning_rate, betas=(args.optimizer.beta1,args.optimizer.beta2))
+    optimizer = torch.optim.Adam(
+        model.parameters(),
+        lr=args.optimizer.learning_rate,
+        betas=(args.optimizer.beta1, args.optimizer.beta2),
+    )
     scheduler = ReduceLROnPlateau(
         optimizer,
         mode="min",
@@ -137,6 +144,15 @@ def run_training(config_path, grid_params, experiment_name):
 
         # Save model
         torch.save(model, os.path.join(run_dir, "model.pth"))
+        
+        # Save mask 
+        if args.data.learn_mask:
+            mask_path = os.path.join(run_dir, "mask_value.txt")
+            np.savetxt(mask_path, model.mask_value.numpy(force=True))
+            mlflow.log_artifact(mask_path)
+
+        
+        
 
         # Initialize lists to store losses for each node type
         RMSE_loss_PQ = []
@@ -160,14 +176,14 @@ def run_training(config_path, grid_params, experiment_name):
                 mask_PV = input_features[:, PV] == 1
                 mask_REF = input_features[:, REF] == 1
 
-                input_features[mask_PQ, VM] = args.data.mask_value
-                input_features[mask_PQ, VA] = args.data.mask_value
+                input_features[mask_PQ, VM] = model.mask_value[VM]
+                input_features[mask_PQ, VA] = model.mask_value[VA]
 
-                input_features[mask_PV, QG] = args.data.mask_value
-                input_features[mask_PV, VA] = args.data.mask_value
+                input_features[mask_PV, QG] = model.mask_value[QG]
+                input_features[mask_PV, VA] = model.mask_value[VA]
 
-                input_features[mask_REF, PG] = args.data.mask_value
-                input_features[mask_REF, QG] = args.data.mask_value
+                input_features[mask_REF, PG] = model.mask_value[PG]
+                input_features[mask_REF, QG] = model.mask_value[QG]
 
                 # Forward pass
                 output = model(input_features, batch.edge_index, batch.edge_attr)
@@ -239,7 +255,7 @@ def run_training(config_path, grid_params, experiment_name):
         with open(log_file_path, "w") as log_file:
             log_file.write("Dataset node_stats: " + str(dataset.node_stats) + "\n")
             log_file.write("Dataset edge_stats: " + str(dataset.edge_stats) + "\n")
-        
+
         mlflow.log_artifact(log_file_path)
 
 

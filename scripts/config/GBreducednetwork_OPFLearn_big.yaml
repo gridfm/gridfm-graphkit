@@ -17,12 +17,12 @@ data:
   scenarios: 99000
 training:
   batch_size: 32
-  num_layers: 5
-  hidden_size: 64
-  attention_head: 8
+  num_layers: 3
+  hidden_size: 256
+  attention_head: 12
   epochs: 100
 optimizer:
-  learning_rate: 0.0001
+  learning_rate: 0.00005
   beta1: 0.9
   beta2: 0.999
   lr_decay: 0.7

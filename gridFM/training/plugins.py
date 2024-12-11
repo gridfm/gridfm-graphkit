@@ -54,6 +54,7 @@ class MLflowLoggerPlugin(TrainerPlugin):
         self.steps = steps
         self.train_loss = []
         self.val_loss = []
+        self.mask_grad_norm = []
         self.current_lr = None
         if params:
             # Log parameters to MLflow at the beginning of training
@@ -76,6 +77,8 @@ class MLflowLoggerPlugin(TrainerPlugin):
             self.current_lr = metrics["learning_rate"]
         if "val_loss" in metrics:
             self.val_loss.append(metrics["val_loss"])
+        if "mask_grad_norm" in metrics:
+            self.mask_grad_norm.append(metrics["mask_grad_norm"])
 
         if end_of_epoch:
             mlflow.log_metric(
@@ -84,8 +87,17 @@ class MLflowLoggerPlugin(TrainerPlugin):
                 step=epoch,
             )
             mlflow.log_metric(
-                "val_loss_epoch", sum(self.val_loss) / len(self.val_loss), step=epoch
+                "val_loss_epoch",
+                sum(self.val_loss) / len(self.val_loss),
+                step=epoch,
             )
             mlflow.log_metric("learning_rate", self.current_lr, step=epoch)
+            if len(self.mask_grad_norm) > 0:
+                mlflow.log_metric(
+                "mask_grad_norm",
+                sum(self.mask_grad_norm) / len(self.mask_grad_norm),
+                step=epoch,
+            )
             self.train_loss = []
             self.val_loss = []
+            self.mask_grad_norm = []

@@ -38,6 +38,12 @@ class Trainer:
         mask: torch.Tensor = None,
         val: bool = False,
     ):
+
+        # expand the learnable mask to the input shape
+        mask_value_expanded = self.model.mask_value.expand(input.shape[0], -1)
+        # The line below will overwrite the last mask values, which is fine as long as the features which are masked do not change between batches
+        # set the learnable mask to the inout where it should be masked
+        input[:, : mask.shape[1]][mask] = mask_value_expanded[mask]
         output = self.model(input, edge_index, edge_attr)
 
         if mask is not None:
@@ -68,6 +74,9 @@ class Trainer:
             )
             current_lr = self.optimizer.param_groups[0]["lr"]
             metrics = {"train_loss": loss.item(), "learning_rate": current_lr}
+
+            if self.model.learn_mask:
+                metrics["mask_grad_norm"] = self.model.mask_value.grad.norm().item()
 
             for plugin in self.plugins:
                 plugin.step(epoch, step, metrics=metrics)
