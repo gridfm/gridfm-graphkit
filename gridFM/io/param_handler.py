@@ -1,6 +1,7 @@
 import yaml
 import argparse
 from gridFM.datasets.data_normalization import *
+from gridFM.utils.loss import *
 import itertools
 
 
@@ -159,8 +160,38 @@ def load_normalizer(args):
     elif method == "standard":
         return Standardizer(), Standardizer()
     elif method == "baseMVAnorm":
-        return BaseMVANormalizer(baseMVA=args.data.baseMVA), IdentityNormalizer()
+        return BaseMVANormalizer(
+            node_data=True, baseMVA_orig=args.data.baseMVA
+        ), BaseMVANormalizer(node_data=False, baseMVA_orig=args.data.baseMVA)
     elif method == "identity":
         return IdentityNormalizer(), IdentityNormalizer()
     else:
         raise ValueError(f"Unknown normalization method: {method}")
+
+def get_loss_function(args):
+    """
+    Load the appropriate loss function
+
+    Args:
+        args (NestedNamespace): contains configs.
+
+    Returns:
+        nn.Module: Loss function
+
+    Raises:
+        ValueError: If an unknown loss function is specified.
+    """
+    loss_functions = []
+    for loss_name in args.training.losses:
+        if loss_name == "MSE":
+            loss_functions.append(MSELoss())
+        elif loss_name == "MaskedMSE":
+            loss_functions.append(MaskedLoss())
+        elif loss_name == "SCE":
+            loss_functions.append(SCELoss())
+        elif loss_name == "PBE":
+            loss_functions.append(PBELoss())
+        else:
+            raise ValueError(f"Unknown loss function: {loss_name}")
+
+    return MixedLoss(loss_functions=loss_functions, weights=args.training.loss_weights)

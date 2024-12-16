@@ -10,9 +10,11 @@ data:
   # - "baseMVAnorm": Divides data by a baseMVA value for normalization, need to specify the baseMVA parameter separately
   # - "identity": Does not apply any normalization, leaves data unchanged.
   normalization: "minmax"
+  baseMVA: 100
   mask_dim: 6
   mask_ratio: 0.5
-  mask_value: -1.0
+  mask_value: 0.0
+  learn_mask: False
   scenarios: 35000
 training:
   batch_size: 16
@@ -20,6 +22,13 @@ training:
   hidden_size: 64
   attention_head: 8
   epochs: 100
+  # Losses to use during training. Available losses:
+  # - "MSE": Mean Squared Error
+  # - "MaskedMSE": Masked Mean Squared Error
+  # - "SCE": Scaled Cosing Error
+  # - "PBE": Power Balance Equation loss
+  losses: ["MaskedMSE"]
+  loss_weights: [1.0]
 optimizer:
   learning_rate: 0.001
   beta1: 0.9
@@ -29,3 +38,6 @@ optimizer:
 data_split:
   val_ratio: 0.1
   test_ratio: 0.1
+callbacks:
+  patience: -1 # -1 means no early stopping, 0 means stop training the first time the validation loss increases
+  tol: 0 # tolerance for considering the validation loss as worse than best one so far

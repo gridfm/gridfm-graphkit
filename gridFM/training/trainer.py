@@ -5,6 +5,7 @@ from torch.optim import Optimizer
 from torch.utils.data import DataLoader
 import matplotlib.pyplot as plt
 from gridFM.training.plugins import TrainerPlugin
+from gridFM.datasets.data_normalization import *
 from tqdm import tqdm
 from gridFM.training.callbacks import EarlyStopper
 
@@ -24,13 +25,13 @@ class Trainer:
     ):
         self.model = model
         self.optimizer = optimizer
-        self.train_dataloader = train_dataloader
-        self.val_dataloader = val_dataloader
         self.device = device
         self.early_stopper = early_stopper
         self.loss_fn = loss_fn
-        self.plugins = plugins
+        self.train_dataloader = train_dataloader
+        self.val_dataloader = val_dataloader
         self.lr_scheduler = lr_scheduler
+        self.plugins = plugins
 
     def __one_step(
         self,
@@ -49,17 +50,14 @@ class Trainer:
         input[:, : mask.shape[1]][mask] = mask_value_expanded[mask]
         output = self.model(input, edge_index, edge_attr)
 
-        if mask is not None:
-            loss = self.loss_fn(output, label, mask)
-        else:
-            loss = self.loss_fn(output, label)
+        loss_dict = self.loss_fn(output, label, edge_index, edge_attr, mask)
 
         if not val:
             self.optimizer.zero_grad()
-            loss.backward()
+            loss_dict['loss'].backward()
             self.optimizer.step()
 
-        return loss
+        return loss_dict
 
     def __one_epoch(self, epoch: int, prev_step: int):
         self.model.train()
@@ -72,14 +70,16 @@ class Trainer:
 
             mask = getattr(batch, "mask", None)
 
-            loss = self.__one_step(
+            loss_dict = self.__one_step(
                 batch.x, batch.edge_index, batch.y, batch.edge_attr, mask
-            )
+            ) 
             current_lr = self.optimizer.param_groups[0]["lr"]
-            metrics = {"train_loss": loss.item(), "learning_rate": current_lr}
+            metrics = {}
+            metrics['Training Loss'] = loss_dict['loss'].item()
+            metrics['Learning Rate'] = current_lr
 
             if self.model.learn_mask:
-                metrics["mask_grad_norm"] = self.model.mask_value.grad.norm().item()
+                metrics["Mask Gradient Norm"] = self.model.mask_value.grad.norm().item()
 
             for plugin in self.plugins:
                 plugin.step(epoch, step, metrics=metrics)
@@ -90,11 +90,12 @@ class Trainer:
             for batch in self.val_dataloader:
                 batch = batch.to(self.device)
                 mask = getattr(batch, "mask", None)
-                loss = self.__one_step(
+                metrics = self.__one_step(
                     batch.x, batch.edge_index, batch.y, batch.edge_attr, mask, True
                 )
-                metrics = {"val_loss": loss.item()}
-                val_loss += loss.item()
+                val_loss += metrics['loss'].item()
+                metrics["Validation Loss"] = metrics.pop('loss').item()
+                
                 for plugin in self.plugins:
                     plugin.step(epoch, step, metrics=metrics)
         val_loss /= len(self.val_dataloader)

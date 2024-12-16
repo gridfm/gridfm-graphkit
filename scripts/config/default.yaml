@@ -1,4 +1,4 @@
-network: "GBreducednetwork"
+network: "case24"
 seed: 42
 data:
   input_dim: 9
@@ -13,13 +13,14 @@ data:
   mask_dim: 6
   mask_ratio: 0.5
   mask_value: -1.0
-  scenarios: 35000
+  scenarios: 500
 training:
   batch_size: 16
   num_layers: 3
   hidden_size: 32
   attention_head: 8
-  epochs: 100
+  epochs: 10
+  loss_weight: 0
 optimizer:
   learning_rate: 0.001
   beta1: 0.9

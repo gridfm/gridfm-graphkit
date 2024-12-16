@@ -46,25 +46,18 @@ class TrainerPlugin:
                 to change.
         """
         pass
-
-
 class MLflowLoggerPlugin(TrainerPlugin):
     def __init__(self, steps: Optional[int] = None, params: dict = None):
         super().__init__(steps=steps)  # Initialize the steps from the base class
         self.steps = steps
-        self.train_loss = []
-        self.val_loss = []
-        self.mask_grad_norm = []
-        self.current_lr = None
+        self.metrics_history = {}  # Dictionary to hold lists of all metrics over time
         if params:
             # Log parameters to MLflow at the beginning of training
             mlflow.log_params(params)
 
-    def step(
-        self, epoch: int, step: int, metrics: Dict = {}, end_of_epoch: bool = False
-    ):
+    def step(self, epoch: int, step: int, metrics: Dict = {}, end_of_epoch: bool = False):
         """
-        Logs metrics to MLflow at each specified step and at the end of each epoch.
+        Logs metrics to MLflow dynamically at each specified step and at the end of each epoch.
 
         Args:
             epoch (int): The current epoch number.
@@ -72,32 +65,17 @@ class MLflowLoggerPlugin(TrainerPlugin):
             metrics (Dict): Dictionary of metrics to log, e.g., {'train_loss': value}.
             end_of_epoch (bool): Flag indicating whether this is the end of the epoch.
         """
-        if "train_loss" in metrics:
-            self.train_loss.append(metrics["train_loss"])
-            self.current_lr = metrics["learning_rate"]
-        if "val_loss" in metrics:
-            self.val_loss.append(metrics["val_loss"])
-        if "mask_grad_norm" in metrics:
-            self.mask_grad_norm.append(metrics["mask_grad_norm"])
+        for metric_name, metric_value in metrics.items():
+            # Add metric to history
+            if metric_name not in self.metrics_history:
+                self.metrics_history[metric_name] = []
+            self.metrics_history[metric_name].append(metric_value)
 
         if end_of_epoch:
-            mlflow.log_metric(
-                "train_loss_epoch",
-                sum(self.train_loss) / len(self.train_loss),
-                step=epoch,
-            )
-            mlflow.log_metric(
-                "val_loss_epoch",
-                sum(self.val_loss) / len(self.val_loss),
-                step=epoch,
-            )
-            mlflow.log_metric("learning_rate", self.current_lr, step=epoch)
-            if len(self.mask_grad_norm) > 0:
-                mlflow.log_metric(
-                "mask_grad_norm",
-                sum(self.mask_grad_norm) / len(self.mask_grad_norm),
-                step=epoch,
-            )
-            self.train_loss = []
-            self.val_loss = []
-            self.mask_grad_norm = []
+            for metric_name, values in self.metrics_history.items():
+                if values:  # Avoid division by zero or empty lists
+                    avg_value = sum(values) / len(values)
+                    mlflow.log_metric(f"{metric_name}", avg_value, step=epoch)
+
+            # Clear metrics for the next epoch
+            self.metrics_history = {}

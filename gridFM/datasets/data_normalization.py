@@ -31,6 +31,10 @@ class MinMaxNormalizer(Normalizer):
         self.min_val = None
         self.max_val = None
 
+    def to(self, device):
+        self.min_val = self.min_val.to(device)
+        self.max_val = self.max_val.to(device)
+
     def fit(self, data: np.ndarray) -> dict:
         """
         Calculate min and max values for each feature from the data.
@@ -88,6 +92,10 @@ class Standardizer(Normalizer):
         self.mean = None
         self.std = None
 
+    def to(self, device):
+        self.mean = self.mean.to(device)
+        self.std = self.std.to(device)
+
     def fit(self, data: np.ndarray) -> dict:
         """
         Calculate mean and standard deviation for each feature from the data.
@@ -141,10 +149,16 @@ class Standardizer(Normalizer):
 
 
 class BaseMVANormalizer(Normalizer):
-    def __init__(self, baseMVA=None):
-        self.baseMVA = baseMVA
+    def __init__(self, node_data: bool, baseMVA_orig: float = 100.0):
+        # baseMVA_orig is the one provided by the MATPOWER casefiles
+        self.node_data = node_data
+        self.baseMVA_orig = baseMVA_orig
+        self.baseMVA = None
 
-    def fit(self, data: np.ndarray) -> dict:
+    def to(self, device):
+        pass
+
+    def fit(self, data: np.ndarray, baseMVA: float = None) -> dict:
         """
         No need to compute baseMVA
 
@@ -155,14 +169,21 @@ class BaseMVANormalizer(Normalizer):
             dict: Dictionary containing baseMVA value.
         """
 
-        return {"baseMVA": self.baseMVA}
+        if self.node_data:
+            self.baseMVA = torch.tensor(data[:, [PD, QD, PG, QG]].max(), dtype=torch.float)
+        else:
+            self.baseMVA = baseMVA
+
+
+        return {"baseMVA_orig": self.baseMVA_orig, "baseMVA": self.baseMVA}
 
     def fit_from_dict(self, params: dict):
         if self.baseMVA is None:
             self.baseMVA = params.get("baseMVA")
+        if self.baseMVA_orig is None:
+            self.baseMVA_orig = params.get("baseMVA_orig")
 
     def transform(self, data: torch.Tensor) -> torch.Tensor:
-        raise NotImplementedError
         """
         Args:
             data (torch.Tensor): Input tensor to be normalized.
@@ -170,22 +191,25 @@ class BaseMVANormalizer(Normalizer):
         Returns:
             torch.Tensor: Data divided by BaseMVA.
         """
+
         if self.baseMVA is None:
             raise ValueError("BaseMVA is not specified")
 
         if self.baseMVA == 0:
             raise ZeroDivisionError("BaseMVA is 0.")
         
-        data[:, PD] = data[:, PD] / self.baseMVA
-        data[:, QD] = data[:, QD] / self.baseMVA
-        data[:, PG] = data[:, PG] / self.baseMVA
-        data[:, QG] = data[:, QG] / self.baseMVA
-        data[:, VA] = data[:, VA] * torch.tensor(math.pi) / 180.0
+        if self.node_data:        
+            data[:, PD] = data[:, PD] / self.baseMVA
+            data[:, QD] = data[:, QD] / self.baseMVA
+            data[:, PG] = data[:, PG] / self.baseMVA
+            data[:, QG] = data[:, QG] / self.baseMVA
+            data[:, VA] = data[:, VA] * torch.pi / 180.0
+        else:
+            data = data * self.baseMVA_orig / self.baseMVA
 
         return data
 
     def inverse_transform(self, normalized_data: torch.Tensor) -> torch.Tensor:
-        raise NotImplementedError
         """
         Args:
             normalized_data (torch.Tensor): Normalized data.
@@ -195,8 +219,17 @@ class BaseMVANormalizer(Normalizer):
         """
         if self.baseMVA is None:
             raise ValueError("fit must be called before inverse_transform.")
+        
+        if self.node_data:
+            normalized_data[:, PD] = normalized_data[:, PD] * self.baseMVA
+            normalized_data[:, QD] = normalized_data[:, QD] * self.baseMVA
+            normalized_data[:, PG] = normalized_data[:, PG] * self.baseMVA
+            normalized_data[:, QG] = normalized_data[:, QG] * self.baseMVA
+            normalized_data[:, VA] = normalized_data[:, VA] * 180.0 / torch.pi
+        else:
+            normalized_data = normalized_data * self.baseMVA / self.baseMVA_orig
 
-        return normalized_data * self.baseMVA
+        return normalized_data
 
 
 class IdentityNormalizer(Normalizer):

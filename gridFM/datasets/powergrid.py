@@ -76,7 +76,12 @@ class GridDatasetMem(InMemoryDataset):
         node_attr = node_df[["Pd", "Qd", "Pg", "Qg", "Vm", "Va"]].values
 
         self.node_stats = self.node_normalizer.fit(node_attr)
-        self.edge_stats = self.edge_normalizer.fit(edge_attr)
+        
+        if isinstance(self.node_normalizer, BaseMVANormalizer):
+            self.edge_stats = self.edge_normalizer.fit(edge_attr, self.node_normalizer.baseMVA)
+        else:
+            self.edge_stats = self.edge_normalizer.fit(edge_attr)
+
 
         # Save calculated statistics for future use
         node_stats_path = osp.join(

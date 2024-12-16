@@ -1,3 +1,9 @@
 data:
-  mask_ratio: [0.3, 0.4, 0.5, 0.6, 0.7]
+  normalization: ["baseMVAnorm"]
+  mask_ratio: [0.2, 0.33, 0.5, 0.7]
+training:
+  losses: [["PBE"]]
+  loss_weights: [[1.0]]
+optimizer:
+  learning_rate: [0.0001]
 seed: [0,100,200]

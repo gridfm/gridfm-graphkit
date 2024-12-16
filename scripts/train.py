@@ -1,7 +1,7 @@
 from gridFM.models.graphTransformer import GraphTransformer
 from gridFM.datasets.powergrid import GridDatasetMem
 from gridFM.io.param_handler import *
-from gridFM.utils.loss import masked_loss
+from gridFM.utils.loss import MaskedLoss, MixedLoss
 from gridFM.utils.post_processing import *
 from gridFM.datasets.data_normalization import *
 from gridFM.datasets.globals import *
@@ -117,7 +117,12 @@ def run_training(config_path, grid_params, experiment_name, device):
     early_stopper = EarlyStopper(
         best_model_path, args.callbacks.patience, args.callbacks.tol
     )
+    node_normalizer.to(device)
+    edge_normalizer.to(device)
 
+    loss_fn = get_loss_function(args)
+
+    # loss_fn = MaskedLoss()
     with mlflow.start_run() as run:
         experiment = mlflow.get_experiment_by_name(experiment_name)
         experiment_id = experiment.experiment_id
@@ -133,13 +138,13 @@ def run_training(config_path, grid_params, experiment_name, device):
 
         mlflow_plugin = MLflowLoggerPlugin(steps=10, params=args.flatten())
         trainer = Trainer(
-            model,
-            optimizer,
-            device,
-            masked_loss,
-            early_stopper,
-            train_loader,
-            val_loader,
+            model=model,
+            optimizer=optimizer,
+            device=device,
+            loss_fn=loss_fn,
+            early_stopper=early_stopper,
+            train_dataloader=train_loader,
+            val_dataloader=val_loader,
             lr_scheduler=scheduler,
             plugins=[mlflow_plugin],
         )
@@ -157,7 +162,7 @@ def run_training(config_path, grid_params, experiment_name, device):
             mlflow.log_artifact(mask_path)
 
         # load best_model
-        best_model = torch.load(os.path.join(run_dir, "best_model.pth"))
+        best_model = torch.load(os.path.join(run_dir, "best_model.pth"), weights_only=False)
 
 
         # Save best_mask
@@ -204,50 +209,50 @@ def run_training(config_path, grid_params, experiment_name, device):
                 output = best_model(input_features, batch.edge_index, batch.edge_attr)
 
                 # Denormalize the output and target
-                output_denorm = node_normalizer.inverse_transform(output.cpu())
-                target_denorm = node_normalizer.inverse_transform(batch.y.cpu())
+                output_denorm = node_normalizer.inverse_transform(output)
+                target_denorm = node_normalizer.inverse_transform(batch.y)
 
                 # Compute per-feature RMSE and MAE for each node type
                 if mask_PQ.any():  # Check if any nodes of type PQ exist in this batch
                     RMSE_loss_PQ.append(
                         F.mse_loss(
-                            output_denorm[mask_PQ.cpu()],
-                            target_denorm[mask_PQ.cpu()],
+                            output_denorm[mask_PQ],
+                            target_denorm[mask_PQ],
                             reduction="none",
                         )
                     )
                     MAE_loss_PQ.append(
                         torch.abs(
-                            output_denorm[mask_PQ.cpu()] - target_denorm[mask_PQ.cpu()]
+                            output_denorm[mask_PQ] - target_denorm[mask_PQ]
                         )
                     )
 
                 if mask_PV.any():  # Check if any nodes of type PV exist in this batch
                     RMSE_loss_PV.append(
                         F.mse_loss(
-                            output_denorm[mask_PV.cpu()],
-                            target_denorm[mask_PV.cpu()],
+                            output_denorm[mask_PV],
+                            target_denorm[mask_PV],
                             reduction="none",
                         )
                     )
                     MAE_loss_PV.append(
                         torch.abs(
-                            output_denorm[mask_PV.cpu()] - target_denorm[mask_PV.cpu()]
+                            output_denorm[mask_PV] - target_denorm[mask_PV]
                         )
                     )
 
                 if mask_REF.any():  # Check if any nodes of type REF exist in this batch
                     RMSE_loss_REF.append(
                         F.mse_loss(
-                            output_denorm[mask_REF.cpu()],
-                            target_denorm[mask_REF.cpu()],
+                            output_denorm[mask_REF],
+                            target_denorm[mask_REF],
                             reduction="none",
                         )
                     )
                     MAE_loss_REF.append(
                         torch.abs(
-                            output_denorm[mask_REF.cpu()]
-                            - target_denorm[mask_REF.cpu()]
+                            output_denorm[mask_REF]
+                            - target_denorm[mask_REF]
                         )
                     )
         df = training_stats_to_dataframe(
