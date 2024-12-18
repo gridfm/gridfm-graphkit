@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 from gridFM.datasets.globals import *
 import math
 
+
 class Normalizer(ABC):
     @abstractmethod
     def fit(self, data: np.ndarray) -> dict:
@@ -197,6 +198,7 @@ class BaseMVANormalizer(Normalizer):
 
         if self.baseMVA == 0:
             raise ZeroDivisionError("BaseMVA is 0.")
+
         
         if self.node_data:        
             data[:, PD] = data[:, PD] / self.baseMVA

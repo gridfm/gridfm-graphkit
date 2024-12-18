@@ -168,6 +168,7 @@ def load_normalizer(args):
     else:
         raise ValueError(f"Unknown normalization method: {method}")
 
+
 def get_loss_function(args):
     """
     Load the appropriate loss function

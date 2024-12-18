@@ -56,7 +56,6 @@ class GAT(nn.Module):
                 torch.zeros(mask_dim) + mask_value, requires_grad=False
             )
 
-
     def forward(self, x, edge_index, edge_attr):
         for conv in self.layers:
             x = conv(x, edge_index, edge_attr)

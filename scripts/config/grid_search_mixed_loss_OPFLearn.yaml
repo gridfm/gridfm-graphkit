@@ -1,8 +1,0 @@
-data:
-  normalization: ["baseMVAnorm"]
-training:
-  loss: ["Mixed"]
-  loss_weight: [0.0, 1.0, 0.1, 0.01, 0.001, 0.0001]
-optimizer:
-  learning_rate: [0.00005]
-seed: [0,100,200]

@@ -15,3 +15,5 @@ REF = 8
 G = 0
 B = 1
 
+FEATURES_IDX = {"PD": PD, "QD": QD, "PG": PG, "QG": QG, "VM": VM, "VA": VA}
+BUS_TYPES = ["PQ", "PV", "REF"]

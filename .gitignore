@@ -8,3 +8,5 @@ gridFM.egg-info
 mlruns
 runs
 *.pt
+test_nb
+.DS_Store

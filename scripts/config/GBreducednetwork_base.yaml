@@ -1,5 +1,6 @@
 network: "GBreducednetwork"
 seed: 42
+verbose: False
 data:
   input_dim: 9
   output_dim: 6

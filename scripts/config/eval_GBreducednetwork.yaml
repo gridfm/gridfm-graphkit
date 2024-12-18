@@ -1,0 +1,13 @@
+network: "GBreducednetwork"
+seed: 42
+training:
+  batch_size: 32
+data:
+  normalization: "minmax"
+  mask_dim: 6
+  scenarios: 30000
+  mask_ratio: 0.5 # doesnt matter for PF and OPF evaluation
+data_split:
+  val_ratio: 0.1
+  test_ratio: 0.1
+
