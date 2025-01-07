@@ -1,8 +1,0 @@
-data:
-  normalization: ["baseMVAnorm"]
-training:
-  losses: [["MaskedMSE", "PBE"]]
-  loss_weights: [[1.0, 0.0], [0.0, 1.0], [1.0, 0.1], [0.1, 1.0], [1.0, 0.01], [0.01, 1.0]]
-optimizer:
-  learning_rate: [0.0001]
-seed: [0,100,200]

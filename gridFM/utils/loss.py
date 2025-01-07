@@ -54,13 +54,16 @@ class PBELoss(nn.Module):
         super(PBELoss, self).__init__()
 
     def forward(self, pred, target, edge_index, edge_attr, mask):
+        # Create a temporary copy of pred to avoid modifying it
+        temp_pred = pred.clone()
+
         # If a value is not masked, then use the original one
         unmasked = mask == False
-        pred[unmasked] = target[unmasked]
+        temp_pred[unmasked] = target[unmasked]
 
         # Voltage magnitudes and angles
-        V_m = pred[:, VM]  # Voltage magnitudes
-        V_a = pred[:, VA]  # Voltage angles
+        V_m = temp_pred[:, VM]  # Voltage magnitudes
+        V_a = temp_pred[:, VA]  # Voltage angles
 
         # Compute the complex voltage vector V
         V = V_m * torch.exp(1j * V_a)
@@ -83,8 +86,8 @@ class PBELoss(nn.Module):
         S_injection = torch.diag(V) @ Y_bus_conj @ V_conj
 
         # Compute net power balance
-        net_P = pred[:, PG] - pred[:, PD]
-        net_Q = pred[:, QG] - pred[:, QD]
+        net_P = temp_pred[:, PG] - temp_pred[:, PD]
+        net_Q = temp_pred[:, QG] - temp_pred[:, QD]
         S_net_power_balance = net_P + 1j * net_Q
 
         # Power balance loss

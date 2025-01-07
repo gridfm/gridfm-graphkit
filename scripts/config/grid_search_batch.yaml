@@ -1,5 +1,0 @@
-training:
-  batch_size: [8,16,32,64]
-optimizer:
-  learning_rate: [0.001, 0.0005, 0.0001]
-seed: [0,100,200]

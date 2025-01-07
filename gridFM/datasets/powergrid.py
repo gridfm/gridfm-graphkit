@@ -12,7 +12,6 @@ class GridDatasetMem(InMemoryDataset):
     def __init__(
         self,
         root: str,
-        scenarios: int,
         norm_method: str,
         node_normalizer: Normalizer,
         edge_normalizer: Normalizer,
@@ -22,7 +21,6 @@ class GridDatasetMem(InMemoryDataset):
         pre_transform: Optional[Callable] = None,
         pre_filter: Optional[Callable] = None,
     ):
-        self.max_scenarios = scenarios
         self.norm_method = norm_method
         self.node_normalizer = node_normalizer
         self.edge_normalizer = edge_normalizer
@@ -62,12 +60,6 @@ class GridDatasetMem(InMemoryDataset):
         # Check the unique scenarios available
         scenarios = node_df["scenario"].unique()
 
-        if self.max_scenarios > len(scenarios):
-            raise ValueError(
-                f"max_scenarios ({self.max_scenarios}) is greater than the number of "
-                f"available scenarios ({len(scenarios)})"
-            )
-
         edge_index = torch.tensor(
             edge_df[["index1", "index2"]].values.T, dtype=torch.long
         )
@@ -99,7 +91,7 @@ class GridDatasetMem(InMemoryDataset):
 
         data_list = []
         # Iterate over each scenario to process and save each graph
-        for idx in tqdm(range(self.max_scenarios)):
+        for idx in tqdm(range(len(scenarios))):
 
             # Filter node and edge data for the current scenario
             node_data = node_df[node_df["scenario"] == scenarios[idx]]

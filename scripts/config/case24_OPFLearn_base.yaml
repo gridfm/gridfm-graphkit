@@ -1,4 +1,4 @@
-network: "case24_OPFLearn"
+networks: ["case24_OPFLearn"]
 seed: 42
 verbose: False
 data:
@@ -16,7 +16,7 @@ data:
   mask_ratio: 0.5
   mask_value: 0.0
   learn_mask: False
-  scenarios: 99000
+  scenarios: [99000]
 training:
   batch_size: 32
   num_layers: 5

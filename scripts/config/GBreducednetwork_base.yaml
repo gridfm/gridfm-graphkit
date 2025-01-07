@@ -1,4 +1,4 @@
-network: "GBreducednetwork"
+networks: ["GBreducednetwork"]
 seed: 42
 verbose: False
 data:
@@ -16,7 +16,7 @@ data:
   mask_ratio: 0.5
   mask_value: 0.0
   learn_mask: False
-  scenarios: 35000
+  scenarios: [35000]
 training:
   batch_size: 16
   num_layers: 7

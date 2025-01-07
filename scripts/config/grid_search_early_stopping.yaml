@@ -1,5 +1,0 @@
-callbacks:
-  patience: [-1,0,5]
-  tol: [0,0.02]
-data:
-  normalization: ["standard"]

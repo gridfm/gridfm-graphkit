@@ -1,4 +1,4 @@
-network: "case24"
+networks: ["case24"]
 seed: 42
 verbose: False
 data:
@@ -16,7 +16,7 @@ data:
   mask_ratio: 0.5
   mask_value: 0.0
   learn_mask: False
-  scenarios: 34000
+  scenarios: [34000]
 training:
   batch_size: 16
   num_layers: 6

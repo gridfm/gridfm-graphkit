@@ -16,10 +16,13 @@ from gridFM.training.plugins import MLflowLoggerPlugin
 from gridFM.training.callbacks import EarlyStopper
 from gridFM.datasets.utils import split_dataset
 from torch.optim.lr_scheduler import ReduceLROnPlateau
+from torch.utils.data import ConcatDataset
 import yaml
 import random
 from gridFM.evaluation.node_level import eval_node_level_task
 import plotly.io as pio
+import warnings
+from torch.utils.data import Subset
 
 
 def run_training(config_path, grid_params, device):
@@ -61,35 +64,62 @@ def run_training(config_path, grid_params, device):
         random.seed(args.seed)
         np.random.seed(args.seed)
 
-        # Create normalizer
-        node_normalizer, edge_normalizer = load_normalizer(args=args)
+        node_normalizers = []
+        edge_normalizers = []
+        datasets = []
+        train_datasets = []
+        val_datasets = []
+        test_datasets = []
 
-        # Create torch dataset and split
-        data_path = os.path.join(os.getcwd(), "..", "data", args.network)
-        dataset = GridDatasetMem(
-            root=data_path,
-            scenarios=args.data.scenarios,
-            norm_method=args.data.normalization,
-            node_normalizer=node_normalizer,
-            edge_normalizer=edge_normalizer,
-            mask_ratio=args.data.mask_ratio,
-            mask_dim=args.data.mask_dim,
-        )
+        for i, network in enumerate(args.networks):
+            node_normalizer, edge_normalizer = load_normalizer(args=args)
+            node_normalizers.append(node_normalizer)
+            edge_normalizers.append(edge_normalizer)
 
-        train_dataset, val_dataset, test_dataset = split_dataset(
-            dataset, data_dir, args.data_split.val_ratio, args.data_split.test_ratio
-        )
+            # Create torch dataset and split
+            data_path = os.path.join(os.getcwd(), "..", "data", network)
+            dataset = GridDatasetMem(
+                root=data_path,
+                norm_method=args.data.normalization,
+                node_normalizer=node_normalizer,
+                edge_normalizer=edge_normalizer,
+                mask_ratio=args.data.mask_ratio,
+                mask_dim=args.data.mask_dim,
+            )
+            datasets.append(dataset)
+            
+            num_scenarios = args.data.scenarios[i]
+            if num_scenarios > len(dataset):
+                warnings.warn(
+                    f"Requested number of scenarios ({num_scenarios}) exceeds dataset size ({len(dataset)}). "
+                    "Using the full dataset instead."
+                )
+                num_scenarios = len(dataset)
+
+            # Create a subset
+            subset_indices = list(range(num_scenarios))
+            dataset = Subset(dataset, subset_indices)
+
+            train_dataset, val_dataset, test_dataset = split_dataset(
+                dataset, data_dir, args.data_split.val_ratio, args.data_split.test_ratio
+            )
+
+            train_datasets.append(train_dataset)
+            val_datasets.append(val_dataset)
+            test_datasets.append(test_dataset)
+
+        train_dataset_multi = ConcatDataset(train_datasets)
+        val_dataset_multi = ConcatDataset(val_datasets)
 
         # Create DataLoaders
         train_loader = DataLoader(
-            train_dataset, batch_size=args.training.batch_size, shuffle=True
+            train_dataset_multi, batch_size=args.training.batch_size, shuffle=True
         )
         val_loader = DataLoader(
-            val_dataset, batch_size=args.training.batch_size, shuffle=False
+            val_dataset_multi, batch_size=args.training.batch_size, shuffle=False
         )
-        test_loader = DataLoader(
-            test_dataset, batch_size=args.training.batch_size, shuffle=False
-        )
+        test_loaders = [DataLoader(i, batch_size=args.training.batch_size, shuffle=False) for i in test_datasets]
+
 
         # Create model
         model = GraphTransformer(
@@ -122,8 +152,9 @@ def run_training(config_path, grid_params, device):
             best_model_path, args.callbacks.patience, args.callbacks.tol
         )
 
-        node_normalizer.to(device)
-        edge_normalizer.to(device)
+        for i in range(len(node_normalizers)):
+            node_normalizers[i].to(device)
+            edge_normalizers[i].to(device)
 
         loss_fn = get_loss_function(args)
 
@@ -139,7 +170,6 @@ def run_training(config_path, grid_params, device):
             lr_scheduler=scheduler,
             plugins=[mlflow_plugin],
         )
-
         # Train model
         trainer.train(0, args.training.epochs)
 
@@ -160,35 +190,39 @@ def run_training(config_path, grid_params, device):
             best_mask_path = os.path.join(model_dir, "best_mask_value.txt")
             np.savetxt(best_mask_path, best_model.mask_value.numpy(force=True))
 
-        for task in ["PF", "OPF"]:
-            df, figs = eval_node_level_task(
-                best_model,
-                task,
-                test_loader,
-                args.data.mask_dim,
-                node_normalizer,
-                device,
-                args.verbose
-            )
-            # Log metric results
-            df_path = os.path.join(test_dir, f"{task}_metrics_results.csv")
-            df.to_csv(df_path)
+        for i, network in enumerate(args.networks):
+            for task in ["PF", "OPF"]:
+                df, figs = eval_node_level_task(
+                    best_model,
+                    task,
+                    test_loaders[i],
+                    args.data.mask_dim,
+                    node_normalizers[i],
+                    device,
+                    args.verbose
+                )
+                # Log metric results
+                df_path = os.path.join(test_dir, f"{task}_metrics_results_{network}.csv")
+                df.to_csv(df_path)
 
-            plot_paths = os.path.join(test_dir, f"{task}_evaluation_plots.html")
-            with open(plot_paths, "a") as f:
-                for fig in figs:
-                    f.write(pio.to_html(fig, full_html=False, include_plotlyjs="cdn"))
+                plot_paths = os.path.join(test_dir, f"{task}_evaluation_plots_{network}.html")
+                with open(plot_paths, "a") as f:
+                    for fig in figs:
+                        f.write(pio.to_html(fig, full_html=False, include_plotlyjs="cdn"))
 
-        # Log node and edge stats
-        log_file_path = os.path.join(artifact_dir, "stats.log")
-        with open(log_file_path, "w") as log_file:
-            log_file.write("Dataset node_stats: " + str(dataset.node_stats) + "\n")
-            log_file.write("Dataset edge_stats: " + str(dataset.edge_stats) + "\n")
+            # Log node and edge stats
+            log_file_path = os.path.join(artifact_dir, f"stats_{network}.log")
+            with open(log_file_path, "w") as log_file:
+                log_file.write("Dataset node_stats: " + str(datasets[i].node_stats) + "\n")
+                log_file.write("Dataset edge_stats: " + str(datasets[i].edge_stats) + "\n")
 
         eval_cmd_path = os.path.join(artifact_dir, "EVAL_CMD.txt")
         with open(eval_cmd_path, "w") as f:
             f.write(
-                f"python3 eval.py --config {config_dest} --model_exp_id {run.info.experiment_id} --model_run_id {run.info.run_id} --model_name best_model --eval_name YOUR_EVAL_NAME"
+                f"python3 eval.py --model_exp_id {run.info.experiment_id} --model_run_id {run.info.run_id} --model_name best_model --config {config_dest} --eval_name YOUR_EVAL_NAME \n"
+            )
+            f.write(
+                f"python eval.py --model_exp_id {run.info.experiment_id} --model_run_id {run.info.run_id} --model_name best_model --config {config_dest} --eval_name YOUR_EVAL_NAME"
             )
 
 

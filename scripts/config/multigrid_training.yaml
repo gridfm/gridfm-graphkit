@@ -1,5 +1,6 @@
-network: "GBreducednetwork_OPFLearn"
+networks: ["case24", "GBreducednetwork", "case57", "case30_ieee", "case118"]
 seed: 42
+verbose: False
 data:
   input_dim: 9
   output_dim: 6
@@ -8,28 +9,27 @@ data:
   # - "minmax": Scales data between the minimum and maximum values.
   # - "standard": Standardizes data to have zero mean and unit variance.
   # - "baseMVAnorm": Divides data by a baseMVA value for normalization, need to specify the baseMVA parameter separately
-  # - "log": Applies log normalization, preserving sign of original data, i.e. $x \to sign(x) \log(|x|+1)$ 
   # - "identity": Does not apply any normalization, leaves data unchanged.
-  normalization: "minmax"
+  normalization: "baseMVAnorm"
   baseMVA: 100
   mask_dim: 6
   mask_ratio: 0.5
   mask_value: 0.0
   learn_mask: False
-  scenarios: 1000
+  scenarios: [14500,14500,14500,14500,14500]
 training:
-  batch_size: 32
-  num_layers: 2
-  hidden_size: 32
-  attention_head: 1
-  epochs: 10
+  batch_size: 16
+  num_layers: 6
+  hidden_size: 64
+  attention_head: 8
+  epochs: 100
   # Losses to use during training. Available losses:
   # - "MSE": Mean Squared Error
   # - "MaskedMSE": Masked Mean Squared Error
   # - "SCE": Scaled Cosing Error
   # - "PBE": Power Balance Equation loss
-  losses: ["MaskedMSE"]
-  loss_weights: [1.0]
+  losses: ["MaskedMSE", "PBE"]
+  loss_weights: [0.01, 0.99]
 optimizer:
   learning_rate: 0.0001
   beta1: 0.9
