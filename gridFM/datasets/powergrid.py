@@ -59,60 +59,58 @@ class GridDatasetMem(InMemoryDataset):
 
         # Check the unique scenarios available
         scenarios = node_df["scenario"].unique()
+        # Ensure node and edge data match
+        assert (scenarios == edge_df["scenario"].unique()).all()
 
-        edge_index = torch.tensor(
-            edge_df[["index1", "index2"]].values.T, dtype=torch.long
-        )
+        ## normalize node attributes
+        cols_to_normalize = ["Pd", "Qd", "Pg", "Qg", "Vm", "Va"]
+        to_normalize = node_df[cols_to_normalize].values
+        self.node_stats = self.node_normalizer.fit(to_normalize)
+        node_df[cols_to_normalize] = self.node_normalizer.transform(to_normalize)
 
-        edge_attr = edge_df[["G", "B"]].values
-        node_attr = node_df[["Pd", "Qd", "Pg", "Qg", "Vm", "Va"]].values
-
-        self.node_stats = self.node_normalizer.fit(node_attr)
-        
+        ## normalize edge attributes
+        cols_to_normalize = ["G", "B"]
+        to_normalize = edge_df[cols_to_normalize].values
         if isinstance(self.node_normalizer, BaseMVANormalizer):
-            self.edge_stats = self.edge_normalizer.fit(edge_attr, self.node_normalizer.baseMVA)
+            self.edge_stats = self.edge_normalizer.fit(
+                to_normalize, self.node_normalizer.baseMVA
+            )
         else:
-            self.edge_stats = self.edge_normalizer.fit(edge_attr)
+            self.edge_stats = self.edge_normalizer.fit(to_normalize)
+        edge_df[cols_to_normalize] = self.edge_normalizer.transform(to_normalize)
 
-
-        # Save calculated statistics for future use
+        ## save stats
         node_stats_path = osp.join(
             self.processed_dir, f"node_stats_{self.norm_method}.pt"
         )
         edge_stats_path = osp.join(
             self.processed_dir, f"edge_stats_{self.norm_method}.pt"
         )
-
         torch.save(self.node_stats, node_stats_path)
         torch.save(self.edge_stats, edge_stats_path)
 
-        edge_attr = torch.tensor(edge_attr, dtype=torch.float)
-        edge_attr = self.edge_normalizer.transform(edge_attr)
+        # Create groupby objects for scenarios
+        node_groups = node_df.groupby("scenario")
+        edge_groups = edge_df.groupby("scenario")
 
         data_list = []
-        # Iterate over each scenario to process and save each graph
-        for idx in tqdm(range(len(scenarios))):
-
-            # Filter node and edge data for the current scenario
-            node_data = node_df[node_df["scenario"] == scenarios[idx]]
-
-            # Create node features tensor (N, node_features)
+        for scenario_idx in tqdm(scenarios):
+            ## NODE DATA
+            node_data = node_groups.get_group(scenario_idx)
             x = torch.tensor(
                 node_data[
                     ["Pd", "Qd", "Pg", "Qg", "Vm", "Va", "PQ", "PV", "REF"]
                 ].values,
                 dtype=torch.float,
             )
-            y = torch.tensor(
-                node_data[["Pd", "Qd", "Pg", "Qg", "Vm", "Va"]].values,
-                dtype=torch.float,
-            )
+            y = x[:, : self.mask_dim]
 
-            # Do not normalize the encoded type
-            x[:, : self.mask_dim] = self.node_normalizer.transform(
-                x[:, : self.mask_dim]
+            ## EDGE DATA
+            edge_data = edge_groups.get_group(scenario_idx)
+            edge_attr = torch.tensor(edge_data[["G", "B"]].values, dtype=torch.float)
+            edge_index = torch.tensor(
+                edge_data[["index1", "index2"]].values.T, dtype=torch.long
             )
-            y = self.node_normalizer.transform(y)
 
             mask = torch.rand(x.size(0), self.mask_dim) < self.mask_ratio
 
@@ -121,4 +119,5 @@ class GridDatasetMem(InMemoryDataset):
                 x=x, edge_index=edge_index, edge_attr=edge_attr, y=y, mask=mask
             )
             data_list.append(graph_data)
+
         self.save(data_list, self.processed_paths[0])

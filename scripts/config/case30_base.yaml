@@ -1,4 +1,4 @@
-networks: [case300]
+networks: [case30_ieee]
 seed: 42
 verbose: False
 data:
@@ -16,7 +16,7 @@ data:
   mask_ratio: 0.5
   mask_value: 0.0
   learn_mask: False
-  scenarios: [20000]
+  scenarios: [80000]
 training:
   batch_size: 16
   num_layers: 6
