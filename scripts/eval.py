@@ -13,6 +13,8 @@ import yaml
 import random
 from gridFM.evaluation.node_level import eval_node_level_task
 import plotly.io as pio
+from torch.utils.data import ConcatDataset, Subset
+import warnings
 
 
 def run_eval(config_path, eval_name, model_exp_id, model_run_id, model_name, device):
@@ -32,7 +34,9 @@ def run_eval(config_path, eval_name, model_exp_id, model_run_id, model_name, dev
             "model",
             model_name + ".pth",
         )
-        model = torch.load(model_path, weights_only=False)
+        model = torch.load(model_path, weights_only=False, map_location=device).to(
+            device
+        )
 
         # Start a nested run
         with mlflow.start_run(
@@ -75,62 +79,86 @@ def run_eval(config_path, eval_name, model_exp_id, model_run_id, model_name, dev
             random.seed(args.seed)
             np.random.seed(args.seed)
 
-            # Create normalizer
-            node_normalizer, edge_normalizer = load_normalizer(args=args)
+            node_normalizers = []
+            edge_normalizers = []
+            datasets = []
+            test_datasets = []
 
-            # Create torch dataset and split
-            data_path = os.path.join(os.getcwd(), "..", "data", args.network)
-            dataset = GridDatasetMem(
-                root=data_path,
-                scenarios=args.data.scenarios,
-                norm_method=args.data.normalization,
-                node_normalizer=node_normalizer,
-                edge_normalizer=edge_normalizer,
-                mask_ratio=args.data.mask_ratio,
-                mask_dim=args.data.mask_dim,
-            )
+            for i, network in enumerate(args.networks):
+                node_normalizer, edge_normalizer = load_normalizer(args=args)
+                node_normalizers.append(node_normalizer)
+                edge_normalizers.append(edge_normalizer)
 
-            node_normalizer.to(device)
-            edge_normalizer.to(device)
+                # Create torch dataset and split
+                data_path = os.path.join(os.getcwd(), "..", "data", network)
+                dataset = GridDatasetMem(
+                    root=data_path,
+                    norm_method=args.data.normalization,
+                    node_normalizer=node_normalizer,
+                    edge_normalizer=edge_normalizer,
+                    mask_ratio=args.data.mask_ratio,
+                    mask_dim=args.data.mask_dim,
+                )
+                datasets.append(dataset)
 
-            _, _, test_dataset = split_dataset(
-                dataset, data_dir, args.data_split.val_ratio, args.data_split.test_ratio
-            )
+                num_scenarios = args.data.scenarios[i]
+                if num_scenarios > len(dataset):
+                    warnings.warn(
+                        f"Requested number of scenarios ({num_scenarios}) exceeds dataset size ({len(dataset)}). "
+                        "Using the full dataset instead."
+                    )
+                    num_scenarios = len(dataset)
 
-            test_loader = DataLoader(
-                test_dataset, batch_size=args.training.batch_size, shuffle=False
-            )
+                subset_indices = list(range(num_scenarios))
+                dataset = Subset(dataset, subset_indices)
+
+                node_normalizer.to(device)
+                edge_normalizer.to(device)
+
+                _, _, test_dataset = split_dataset(
+                    dataset,
+                    data_dir,
+                    args.data_split.val_ratio,
+                    args.data_split.test_ratio,
+                )
+
+                test_datasets.append(test_dataset)
+
+            test_loaders = [
+                DataLoader(i, batch_size=args.training.batch_size, shuffle=False)
+                for i in test_datasets
+            ]
 
             mlflow.log_params(args.flatten())
+            for i, network in enumerate(args.networks):
+                for task in ["PF", "OPF"]:
+                    df, figs = eval_node_level_task(
+                        model,
+                        task,
+                        test_loaders[i],
+                        args.data.mask_dim,
+                        node_normalizers[i],
+                        device,
+                        args.verbose,
+                    )
+                    # Log metric results
+                    df_path = os.path.join(test_dir, f"{task}_metrics_results_{network}.csv")
+                    df.to_csv(df_path)
 
-            for task in ["PF", "OPF"]:
-                df, figs = eval_node_level_task(
-                    model,
-                    task,
-                    test_loader,
-                    args.data.mask_dim,
-                    node_normalizer,
-                    device,
-                    args.verbose
-                )
-                # Log metric results
-                df_path = os.path.join(test_dir, f"{task}_metrics_results.csv")
-                df.to_csv(df_path)
+                    plot_paths = os.path.join(test_dir, f"{task}_evaluation_plots_{network}.html")
+                    with open(plot_paths, "a") as f:
+                        for fig in figs:
+                            f.write(
+                                pio.to_html(fig, full_html=False, include_plotlyjs="cdn")
+                            )
 
-                plot_paths = os.path.join(test_dir, f"{task}_evaluation_plots.html")
-                with open(plot_paths, "a") as f:
-                    for fig in figs:
-                        f.write(
-                            pio.to_html(fig, full_html=False, include_plotlyjs="cdn")
-                        )
+                # Log node and edge stats
+                log_file_path = os.path.join(artifact_dir, f"stats_{network}.log")
 
-            # Log node and edge stats
-            log_file_path = os.path.join(artifact_dir, "stats.log")
-
-            # Write the print statements to the log file
-            with open(log_file_path, "w") as log_file:
-                log_file.write("Dataset node_stats: " + str(dataset.node_stats) + "\n")
-                log_file.write("Dataset edge_stats: " + str(dataset.edge_stats) + "\n")
+                # Write the print statements to the log file
+                with open(log_file_path, "w") as log_file:
+                    log_file.write("Dataset node_stats: " + str(datasets[i].node_stats) + "\n")
+                    log_file.write("Dataset edge_stats: " + str(datasets[i].edge_stats) + "\n")
 
 
 if __name__ == "__main__":
