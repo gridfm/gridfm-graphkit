@@ -6,9 +6,9 @@ from gridFM.datasets.globals import *
 import torch.nn as nn
 
 
-class MaskedLoss(nn.Module):
+class MaskedMSELoss(nn.Module):
     def __init__(self, reduction="mean"):
-        super(MaskedLoss, self).__init__()
+        super(MaskedMSELoss, self).__init__()
         self.reduction = reduction
 
     def forward(self, pred, target, edge_index=None, edge_attr=None, mask=None):

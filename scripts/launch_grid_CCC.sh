@@ -8,11 +8,13 @@ PYTHON_SCRIPT="./train.py"
 GRID_CONFIG_FILE=""
 CONFIG_FILE=""
 EXP_NAME=""
+DATA_PATH=""
 
-if [ $# -eq 3 ]; then
+if [ $# -eq 4 ]; then
     CONFIG_FILE=$1
     GRID_CONFIG_FILE=$2
     EXP_NAME=$3
+    DATA_PATH=$4
 fi
 # Display GPU status
 nvidia-smi
@@ -22,9 +24,9 @@ echo "Activating virtual environment at $VENV_PATH"
 source "$VENV_PATH/bin/activate"
 
 # Run the Python script
-if [ -n "$GRID_CONFIG_FILE" ] && [ -n "$CONFIG_FILE" ] && [ -n "$EXP_NAME" ]; then
-    echo "Running $PYTHON_SCRIPT with config: $CONFIG_FILE and additional grid configuration: $GRID_CONFIG_FILE"
-    python "$PYTHON_SCRIPT" --config "$CONFIG_FILE" --grid "$GRID_CONFIG_FILE" --exp "$EXP_NAME"
+if [ -n "$GRID_CONFIG_FILE" ] && [ -n "$CONFIG_FILE" ] && [ -n "$EXP_NAME" ] && [ -n "$DATA_PATH" ]; then
+    echo "Running $PYTHON_SCRIPT with config: $CONFIG_FILE and additional grid configuration: $GRID_CONFIG_FILE, data_path: $DATA_PATH"
+    python "$PYTHON_SCRIPT" --config "$CONFIG_FILE" --grid "$GRID_CONFIG_FILE" --exp "$EXP_NAME" --data_path "$DATA_PATH"
 else
     echo "Running $PYTHON_SCRIPT without grid or additional configuration"
     python "$PYTHON_SCRIPT"

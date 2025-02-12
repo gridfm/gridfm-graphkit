@@ -1,8 +1,8 @@
 seed: 42
 verbose: False
 data:
-  networks: ["GBreducednetwork"]
-  scenarios: [8500]
+  networks: ["case118_ieee"]
+  scenarios: [300000]
   normalization: "baseMVAnorm"
   baseMVA: 100
   mask_value: 0.0
@@ -17,13 +17,13 @@ model:
   output_dim: 6
   edge_dim: 2
   pe_dim: 20
-  num_layers: 6
+  num_layers: 8
   hidden_size: 256
   attention_head: 8
   dropout: 0.1
 training:
-  batch_size: 16
-  epochs: 150
+  batch_size: 32
+  epochs: 200
   losses: ["MaskedMSE", "PBE"]
   loss_weights: [0.01, 0.99]
 optimizer:
@@ -31,7 +31,7 @@ optimizer:
   beta1: 0.9
   beta2: 0.999
   lr_decay: 0.7
-  lr_patience: 5
+  lr_patience: 10
 callbacks:
   patience: -1 
   tol: 0 

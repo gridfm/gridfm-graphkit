@@ -40,6 +40,8 @@ class Trainer:
         label: torch.Tensor,
         edge_attr: torch.Tensor,
         mask: torch.Tensor = None,
+        batch: torch.Tensor = None,
+        pe: torch.Tensor = None,
         val: bool = False,
     ):
 
@@ -48,7 +50,7 @@ class Trainer:
         # The line below will overwrite the last mask values, which is fine as long as the features which are masked do not change between batches
         # set the learnable mask to the inout where it should be masked
         input[:, : mask.shape[1]][mask] = mask_value_expanded[mask]
-        output = self.model(input, edge_index, edge_attr)
+        output = self.model(input, pe, edge_index, edge_attr, batch)
 
         loss_dict = self.loss_fn(output, label, edge_index, edge_attr, mask)
 
@@ -71,7 +73,7 @@ class Trainer:
             mask = getattr(batch, "mask", None)
 
             loss_dict = self.__one_step(
-                batch.x, batch.edge_index, batch.y, batch.edge_attr, mask
+                batch.x, batch.edge_index, batch.y, batch.edge_attr, mask, batch.batch, batch.pe
             ) 
             current_lr = self.optimizer.param_groups[0]["lr"]
             metrics = {}
@@ -91,7 +93,7 @@ class Trainer:
                 batch = batch.to(self.device)
                 mask = getattr(batch, "mask", None)
                 metrics = self.__one_step(
-                    batch.x, batch.edge_index, batch.y, batch.edge_attr, mask, True
+                    batch.x, batch.edge_index, batch.y, batch.edge_attr, mask, batch.batch, batch.pe, True
                 )
                 val_loss += metrics['loss'].item()
                 metrics["Validation Loss"] = metrics.pop('loss').item()

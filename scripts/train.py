@@ -1,4 +1,3 @@
-from gridFM.models.graphTransformer import GraphTransformer
 from gridFM.datasets.powergrid import GridDatasetMem
 from gridFM.io.param_handler import *
 from gridFM.datasets.data_normalization import *
@@ -25,7 +24,7 @@ import warnings
 from torch.utils.data import Subset
 
 
-def run_training(config_path, grid_params, device):
+def run_training(config_path, grid_params, data_path, device):
 
     with mlflow.start_run() as run:
 
@@ -71,15 +70,16 @@ def run_training(config_path, grid_params, device):
         val_datasets = []
         test_datasets = []
 
-        for i, network in enumerate(args.networks):
+        for i, network in enumerate(args.data.networks):
             node_normalizer, edge_normalizer = load_normalizer(args=args)
             node_normalizers.append(node_normalizer)
             edge_normalizers.append(edge_normalizer)
 
             # Create torch dataset and split
-            data_path = os.path.join(os.getcwd(), "..", "data", network)
+            data_path_network = os.path.join(data_path, network)
+            print(f"Loading {network} dataset")
             dataset = GridDatasetMem(
-                root=data_path,
+                root=data_path_network,
                 norm_method=args.data.normalization,
                 node_normalizer=node_normalizer,
                 edge_normalizer=edge_normalizer,
@@ -101,7 +101,7 @@ def run_training(config_path, grid_params, device):
             dataset = Subset(dataset, subset_indices)
 
             train_dataset, val_dataset, test_dataset = split_dataset(
-                dataset, data_dir, args.data_split.val_ratio, args.data_split.test_ratio
+                dataset, data_dir, args.data.val_ratio, args.data.test_ratio
             )
 
             train_datasets.append(train_dataset)
@@ -122,17 +122,13 @@ def run_training(config_path, grid_params, device):
 
 
         # Create model
-        model = GraphTransformer(
-            input_dim=args.data.input_dim,
-            hidden_dim=args.training.hidden_size,
-            output_dim=args.data.output_dim,
-            edge_dim=args.data.edge_dim,
-            heads=args.training.attention_head,
-            num_layers=args.training.num_layers,
-            mask_dim=args.data.mask_dim,
-            mask_value=args.data.mask_value,
-            learn_mask=args.data.learn_mask,
-        ).to(device)
+        model = load_model(args=args)
+
+        print(model)
+        print("Model parameters: ", sum(p.numel() for p in model.parameters() if p.requires_grad))
+
+        # Move the model to device
+        model = model.to(device)
 
         # Optimizer and learning rate scheduler
         optimizer = torch.optim.Adam(
@@ -190,17 +186,19 @@ def run_training(config_path, grid_params, device):
             best_mask_path = os.path.join(model_dir, "best_mask_value.txt")
             np.savetxt(best_mask_path, best_model.mask_value.numpy(force=True))
 
-        for i, network in enumerate(args.networks):
-            for task in ["PF", "OPF"]:
+        for i, network in enumerate(args.data.networks):
+            for task in ["PF", "OPF", "Reconstruction"]:
                 df, figs = eval_node_level_task(
-                    best_model,
-                    task,
-                    test_loaders[i],
-                    args.data.mask_dim,
-                    node_normalizers[i],
-                    device,
-                    args.verbose
+                    model=best_model,
+                    task=task,
+                    test_loader=test_loaders[i],
+                    mask_dim=args.data.mask_dim,
+                    mask_ratio=args.data.mask_ratio,
+                    node_normalizer=node_normalizers[i],
+                    device=device,
+                    plot_dist=args.verbose
                 )
+
                 # Log metric results
                 df_path = os.path.join(test_dir, f"{task}_metrics_results_{network}.csv")
                 df.to_csv(df_path)
@@ -246,6 +244,13 @@ if __name__ == "__main__":
         default=None,
         help="Experiment name for mlflow, None by default",
     )
+    default_data_path = os.path.join(os.getcwd(), "..", "data")
+    parser.add_argument(
+        "--data_path",
+        type=str,
+        default=default_data_path,
+        help=f"Data root directory (default: {default_data_path})",
+    )
     args = parser.parse_args()
 
     # Check if CUDA is available
@@ -277,7 +282,7 @@ if __name__ == "__main__":
             print(
                 f"\nGrid search: {i + 1}/{len(grid_combinations)} with params: {grid_params}"
             )
-            run_training(args.config, grid_params, device)
+            run_training(args.config, grid_params, args.data_path, device)
     else:
         print("No grid search config file provided. Running single training")
-        run_training(args.config, {}, device)
+        run_training(args.config, {}, args.data_path, device)

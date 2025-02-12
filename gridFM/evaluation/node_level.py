@@ -9,7 +9,7 @@ from typing import Callable, List, Tuple
 from torch.utils.data import DataLoader
 from torch.nn import Module
 import plotly.graph_objects as go
-
+from gridFM.utils.loss import *
 
 def get_dist_plot(
     data: np.ndarray, data_type: str, bus_types: List[str], n_buses: int
@@ -161,6 +161,26 @@ def PF_mask(
     return input_features
 
 
+def random_mask(
+    model: Module,
+    batch: Tensor,
+) -> Tensor:
+    """
+    Applies masking to input features for the Power Flow (PF) problem.
+
+    Args:
+        model (object): The model.
+        input_features (Tensor): Input feature matrix.
+
+    Returns:
+        Tensor: Masked input features.
+    """
+    mask_value_expanded = model.mask_value.expand(batch.x.shape[0], -1)
+        # The line below will overwrite the last mask values, which is fine as long as the features which are masked do not change between batches
+        # set the learnable mask to the inout where it should be masked
+    batch.x[:, : batch.mask.shape[1]][batch.mask] = mask_value_expanded[batch.mask]
+    return batch.x
+
 def training_stats_to_dataframe(
     rmse_PQ: np.ndarray,
     rmse_PV: np.ndarray,
@@ -170,6 +190,8 @@ def training_stats_to_dataframe(
     mae_REF: np.ndarray,
     overall_RMSE: np.ndarray,
     overall_MAE: np.ndarray,
+    overall_active_loss: float,
+    overall_reactive_loss: float
 ) -> pd.DataFrame:
     """
     Converts training statistics into a pandas DataFrame.
@@ -181,6 +203,8 @@ def training_stats_to_dataframe(
         MAE_loss_PQ (np.ndarray): MAE losses for each feature at PQ nodes.
         MAE_loss_PV (np.ndarray): MAE losses for each feature at PV nodes.
         MAE_loss_REF (np.ndarray): MAE losses for each feature at REF nodes.
+        overall_active_loss (float): Mean active power loss across nodes
+        overall_reactive_loss (float): Mean reactive power loss across nodes
 
     Returns:
         pd.DataFrame: DataFrame containing aggregated statistics.
@@ -196,6 +220,8 @@ def training_stats_to_dataframe(
             "MAE-REF",
             "Overall RMSE",
             "Overall MAE",
+            "Avg. active res. (MW)",
+            "Avg. reactive res. (MVar)"
         ],
         "Pd (MW)": [
             rmse_PQ[0],
@@ -206,6 +232,8 @@ def training_stats_to_dataframe(
             mae_REF[0],
             overall_RMSE[0],
             overall_MAE[0],
+            overall_active_loss,
+            overall_reactive_loss,
         ],
         "Qd (MVar)": [
             rmse_PQ[1],
@@ -216,6 +244,8 @@ def training_stats_to_dataframe(
             mae_REF[1],
             overall_RMSE[1],
             overall_MAE[1],
+            " ",
+            " ",
         ],
         "Pg (MW)": [
             rmse_PQ[2],
@@ -226,6 +256,8 @@ def training_stats_to_dataframe(
             mae_REF[2],
             overall_RMSE[2],
             overall_MAE[2],
+            " ",
+            " ",
         ],
         "Qg (MVar)": [
             rmse_PQ[3],
@@ -236,6 +268,8 @@ def training_stats_to_dataframe(
             mae_REF[3],
             overall_RMSE[3],
             overall_MAE[3],
+            " ",
+            " ",
         ],
         "Vm (p.u.)": [
             rmse_PQ[4],
@@ -246,6 +280,8 @@ def training_stats_to_dataframe(
             mae_REF[4],
             overall_RMSE[4],
             overall_MAE[4],
+            " ",
+            " ",
         ],
         "Va (degree)": [
             rmse_PQ[5],
@@ -256,6 +292,8 @@ def training_stats_to_dataframe(
             mae_REF[5],
             overall_RMSE[5],
             overall_MAE[5],
+            " ",
+            " ",
         ],
     }
     return pd.DataFrame(data)
@@ -266,6 +304,7 @@ def eval_node_level_task(
     task: str,
     test_loader: DataLoader,
     mask_dim: int,
+    mask_ratio: float,
     node_normalizer: object,
     device: torch.device,
     plot_dist: bool = True,
@@ -293,31 +332,47 @@ def eval_node_level_task(
     all_mask_PQ = []
     all_mask_PV = []
     all_mask_REF = []
+    all_active_loss = []
+    all_reactive_loss = []
+
+    loss_PBE = PBELoss()
 
     with torch.no_grad():
         for batch in test_loader:
             batch = batch.to(device)
 
-            input_features = torch.cat((batch.y, batch.x[:, mask_dim:]), dim=1)
-
-            mask_PQ = input_features[:, PQ] == 1
-            mask_PV = input_features[:, PV] == 1
-            mask_REF = input_features[:, REF] == 1
+            mask_PQ = batch.x[:, PQ] == 1
+            mask_PV = batch.x[:, PV] == 1
+            mask_REF = batch.x[:, REF] == 1
 
             # Mask input features
             if task == "PF":
+                input_features = torch.cat((batch.y, batch.x[:, mask_dim:]), dim=1)
                 input_features = PF_mask(
                     model, input_features, mask_PQ, mask_PV, mask_REF
                 )
             elif task == "OPF":
+                input_features = torch.cat((batch.y, batch.x[:, mask_dim:]), dim=1)
                 input_features = OPF_mask(
                     model, input_features, mask_PQ, mask_PV, mask_REF
+                )
+            elif task == "Reconstruction":
+                input_features = random_mask(
+                    model, batch
                 )
             else:
                 raise ValueError(f"Unknown task: {task}")
 
             # Forward pass
-            output = model(input_features, batch.edge_index, batch.edge_attr)
+            output = model(input_features, batch.pe, batch.edge_index, batch.edge_attr, batch.batch)
+
+            if isinstance(node_normalizer, BaseMVANormalizer):
+                loss_PBE_dict = loss_PBE(output, batch.y, batch.edge_index, batch.edge_attr, batch.mask)
+                all_active_loss.append(loss_PBE_dict["Active Power Loss in p.u."]*node_normalizer.baseMVA)
+                all_reactive_loss.append(loss_PBE_dict["Reactive Power Loss in p.u."]*node_normalizer.baseMVA)
+            else:
+                all_active_loss.append(-1.0)
+                all_reactive_loss.append(-1.0)
 
             # Denormalize
             output_denorm = node_normalizer.inverse_transform(output)
@@ -358,6 +413,9 @@ def eval_node_level_task(
     overall_RMSE = np.sqrt(np.mean(squared_residuals, axis=0))
     overall_MAE = np.mean(absolute_residuals, axis=0)
 
+    overall_active_loss = np.mean(all_active_loss)
+    overall_reactive_loss = np.mean(all_reactive_loss)
+
     figs = []
 
     if plot_dist:
@@ -374,6 +432,8 @@ def eval_node_level_task(
         mae_REF,
         overall_RMSE,
         overall_MAE,
+        overall_active_loss, 
+        overall_reactive_loss
     )
 
     return df, figs

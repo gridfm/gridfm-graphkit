@@ -3,6 +3,8 @@ import argparse
 from gridFM.datasets.data_normalization import *
 from gridFM.utils.loss import *
 import itertools
+from gridFM.models.graphTransformer import GNN_TransformerConv
+from gridFM.models.gps_transformer import GPSTransformer
 
 
 class NestedNamespace(argparse.Namespace):
@@ -187,7 +189,7 @@ def get_loss_function(args):
         if loss_name == "MSE":
             loss_functions.append(MSELoss())
         elif loss_name == "MaskedMSE":
-            loss_functions.append(MaskedLoss())
+            loss_functions.append(MaskedMSELoss())
         elif loss_name == "SCE":
             loss_functions.append(SCELoss())
         elif loss_name == "PBE":
@@ -196,3 +198,48 @@ def get_loss_function(args):
             raise ValueError(f"Unknown loss function: {loss_name}")
 
     return MixedLoss(loss_functions=loss_functions, weights=args.training.loss_weights)
+
+
+def load_model(args):
+    """
+    Load the appropriate model
+
+    Args:
+        args (NestedNamespace): contains configs.
+
+    Returns:
+        nn.Module: The selected model initialized with the provided configurations.
+
+    Raises:
+        ValueError: If an unknown model type is specified.
+    """
+    model_type = args.model.type
+
+    if model_type == "GNN_TransformerConv":
+        return GNN_TransformerConv(
+            input_dim=args.model.input_dim,
+            hidden_dim=args.model.hidden_size,
+            output_dim=args.model.output_dim,
+            edge_dim=args.model.edge_dim,
+            num_layers=args.model.num_layers,
+            heads=args.model.attention_head,
+            mask_dim=args.data.mask_dim,
+            mask_value=args.data.mask_value,
+            learn_mask=args.data.learn_mask
+        )
+    elif model_type == "GPSTransformer":
+        return GPSTransformer(
+            input_dim=args.model.input_dim,
+            hidden_dim=args.model.hidden_size,
+            output_dim=args.model.output_dim,
+            edge_dim=args.model.edge_dim,
+            pe_dim=args.model.pe_dim,
+            heads=args.model.attention_head,
+            num_layers=args.model.num_layers,
+            dropout=args.model.dropout,
+            mask_dim=args.data.mask_dim,
+            mask_value=args.data.mask_value,
+            learn_mask=args.data.learn_mask
+        )
+    else:
+        raise ValueError(f"Unknown model type: {model_type}")

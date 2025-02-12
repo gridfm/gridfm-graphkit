@@ -17,7 +17,7 @@ from torch.utils.data import ConcatDataset, Subset
 import warnings
 
 
-def run_eval(config_path, eval_name, model_exp_id, model_run_id, model_name, device):
+def run_eval(config_path, eval_name, model_exp_id, model_run_id, model_name, data_path, device):
 
     # Start the parent run using the provided experiment ID and run ID
     # This is necessary to create a child run
@@ -84,15 +84,16 @@ def run_eval(config_path, eval_name, model_exp_id, model_run_id, model_name, dev
             datasets = []
             test_datasets = []
 
-            for i, network in enumerate(args.networks):
+            for i, network in enumerate(args.data.networks):
                 node_normalizer, edge_normalizer = load_normalizer(args=args)
                 node_normalizers.append(node_normalizer)
                 edge_normalizers.append(edge_normalizer)
 
                 # Create torch dataset and split
-                data_path = os.path.join(os.getcwd(), "..", "data", network)
+                data_path_network = os.path.join(data_path, network)
+                print(f"Loading {network} dataset")
                 dataset = GridDatasetMem(
-                    root=data_path,
+                    root=data_path_network,
                     norm_method=args.data.normalization,
                     node_normalizer=node_normalizer,
                     edge_normalizer=edge_normalizer,
@@ -118,8 +119,8 @@ def run_eval(config_path, eval_name, model_exp_id, model_run_id, model_name, dev
                 _, _, test_dataset = split_dataset(
                     dataset,
                     data_dir,
-                    args.data_split.val_ratio,
-                    args.data_split.test_ratio,
+                    args.data.val_ratio,
+                    args.data.test_ratio,
                 )
 
                 test_datasets.append(test_dataset)
@@ -130,16 +131,17 @@ def run_eval(config_path, eval_name, model_exp_id, model_run_id, model_name, dev
             ]
 
             mlflow.log_params(args.flatten())
-            for i, network in enumerate(args.networks):
-                for task in ["PF", "OPF"]:
+            for i, network in enumerate(args.data.networks):
+                for task in ["PF", "OPF", "Reconstruction"]:
                     df, figs = eval_node_level_task(
-                        model,
-                        task,
-                        test_loaders[i],
-                        args.data.mask_dim,
-                        node_normalizers[i],
-                        device,
-                        args.verbose,
+                        model=model,
+                        task=task,
+                        test_loader=test_loaders[i],
+                        mask_dim=args.data.mask_dim,
+                        mask_ratio=args.data.mask_ratio,
+                        node_normalizer=node_normalizers[i],
+                        device=device,
+                        plot_dist=args.verbose
                     )
                     # Log metric results
                     df_path = os.path.join(test_dir, f"{task}_metrics_results_{network}.csv")
@@ -199,6 +201,14 @@ if __name__ == "__main__":
         help="Name to give to the eval",
     )
 
+    default_data_path = os.path.join(os.getcwd(), "..", "data")
+    parser.add_argument(
+        "--data_path",
+        type=str,
+        default=default_data_path,
+        help=f"Data root directory (default: {default_data_path})",
+    )
+
     args = parser.parse_args()
 
     # Check if CUDA is available
@@ -215,5 +225,6 @@ if __name__ == "__main__":
         args.model_exp_id,
         args.model_run_id,
         args.model_name,
+        args.data_path,
         device,
     )

@@ -31,11 +31,6 @@ class EarlyStopper:
         # check if the valid loss is worse than the best one so far, accounting for tolerance
         elif validation_loss > (self.min_validation_loss + self.tol):
             self.counter += 1
-            print(
-                "{} epochs of no improvement of the validation loss.".format(
-                    self.counter
-                )
-            )
 
             if self.patience != -1 and self.counter > self.patience:
                 print(

@@ -1,4 +1,5 @@
 from gridFM.datasets.data_normalization import *
+from gridFM.datasets.transforms import *
 import os.path as osp
 import torch
 from torch_geometric.data import Dataset, Data, InMemoryDataset
@@ -6,6 +7,7 @@ import pandas as pd
 from tqdm import tqdm
 from gridFM.datasets.data_normalization import Normalizer
 from typing import Optional, Callable
+from torch_geometric.transforms import AddRandomWalkPE
 
 
 class GridDatasetMem(InMemoryDataset):
@@ -118,6 +120,10 @@ class GridDatasetMem(InMemoryDataset):
             graph_data = Data(
                 x=x, edge_index=edge_index, edge_attr=edge_attr, y=y, mask=mask
             )
+            transform = AddEdgeWeights()
+            graph_data = transform(graph_data)
+            pe_transform = AddRandomWalkPE(walk_length=20, attr_name="pe")
+            graph_data = pe_transform(graph_data)
             data_list.append(graph_data)
 
         self.save(data_list, self.processed_paths[0])

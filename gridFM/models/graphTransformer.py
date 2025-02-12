@@ -3,7 +3,7 @@ from torch import nn
 import torch
 
 
-class GraphTransformer(nn.Module):
+class GNN_TransformerConv(nn.Module):
     def __init__(
         self,
         input_dim,
@@ -14,9 +14,9 @@ class GraphTransformer(nn.Module):
         heads=1,
         mask_dim=6,
         mask_value=-1,
-        learn_mask=True,
+        learn_mask=False,
     ):
-        super(GraphTransformer, self).__init__()
+        super(GNN_TransformerConv, self).__init__()
         self.num_layers = num_layers
         self.hidden_dim = hidden_dim
         self.edge_dim = edge_dim
@@ -57,7 +57,7 @@ class GraphTransformer(nn.Module):
                 torch.zeros(mask_dim) + mask_value, requires_grad=False
             )
 
-    def forward(self, x, edge_index, edge_attr):
+    def forward(self, x, pe, edge_index, edge_attr, batch):
 
         for conv in self.layers:
             x = conv(x, edge_index, edge_attr)
