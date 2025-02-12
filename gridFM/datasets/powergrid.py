@@ -66,20 +66,28 @@ class GridDatasetMem(InMemoryDataset):
 
         ## normalize node attributes
         cols_to_normalize = ["Pd", "Qd", "Pg", "Qg", "Vm", "Va"]
-        to_normalize = node_df[cols_to_normalize].values
+        to_normalize = torch.tensor(
+            node_df[cols_to_normalize].values, dtype=torch.float
+        )
         self.node_stats = self.node_normalizer.fit(to_normalize)
-        node_df[cols_to_normalize] = self.node_normalizer.transform(to_normalize)
+        node_df[cols_to_normalize] = self.node_normalizer.transform(
+            to_normalize
+        ).numpy()
 
         ## normalize edge attributes
         cols_to_normalize = ["G", "B"]
-        to_normalize = edge_df[cols_to_normalize].values
+        to_normalize = torch.tensor(
+            edge_df[cols_to_normalize].values, dtype=torch.float
+        )
         if isinstance(self.node_normalizer, BaseMVANormalizer):
             self.edge_stats = self.edge_normalizer.fit(
                 to_normalize, self.node_normalizer.baseMVA
             )
         else:
             self.edge_stats = self.edge_normalizer.fit(to_normalize)
-        edge_df[cols_to_normalize] = self.edge_normalizer.transform(to_normalize)
+        edge_df[cols_to_normalize] = self.edge_normalizer.transform(
+            to_normalize
+        ).numpy()
 
         ## save stats
         node_stats_path = osp.join(

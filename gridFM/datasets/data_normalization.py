@@ -7,7 +7,7 @@ import math
 
 class Normalizer(ABC):
     @abstractmethod
-    def fit(self, data: np.ndarray) -> dict:
+    def fit(self, data: torch.Tensor) -> dict:
         """Calculate the parameters required for normalization."""
         pass
 
@@ -36,18 +36,18 @@ class MinMaxNormalizer(Normalizer):
         self.min_val = self.min_val.to(device)
         self.max_val = self.max_val.to(device)
 
-    def fit(self, data: np.ndarray) -> dict:
+    def fit(self, data: torch.Tensor) -> dict:
         """
         Calculate min and max values for each feature from the data.
 
         Args:
-            data (np.ndarray): Input data tensor.
+            data (torch.Tensor): Input data tensor.
 
         Returns:
             dict: Dictionary containing min and max values for each feature.
         """
-        self.min_val = torch.tensor(data.min(axis=0), dtype=torch.float)
-        self.max_val = torch.tensor(data.max(axis=0), dtype=torch.float)
+        self.min_val, _ = data.min(axis=0)
+        self.max_val, _ = data.max(axis=0)
 
         return {"min_value": self.min_val, "max_value": self.max_val}
 
@@ -75,7 +75,7 @@ class MinMaxNormalizer(Normalizer):
     def inverse_transform(self, normalized_data: torch.Tensor) -> torch.Tensor:
         """
         Args:
-            normalized_data (np.ndarray): Normalized data.
+            normalized_data (torch.Tensor): Normalized data.
 
         Returns:
             torch.Tensor: Denormalized data.
@@ -97,18 +97,18 @@ class Standardizer(Normalizer):
         self.mean = self.mean.to(device)
         self.std = self.std.to(device)
 
-    def fit(self, data: np.ndarray) -> dict:
+    def fit(self, data: torch.Tensor) -> dict:
         """
         Calculate mean and standard deviation for each feature from the data.
 
         Args:
-            data (np.ndarray): Input data tensor.
+            data (torch.Tensor): Input data tensor.
 
         Returns:
             dict: Dictionary containing mean and standard deviation for each feature.
         """
-        self.mean = torch.tensor(data.mean(axis=0), dtype=torch.float)
-        self.std = torch.tensor(data.std(axis=0), dtype=torch.float)
+        self.mean = data.mean(axis=0)
+        self.std = data.std(axis=0)
 
         return {"mean_value": self.mean, "std_value": self.std}
 
@@ -121,7 +121,7 @@ class Standardizer(Normalizer):
     def transform(self, data: torch.Tensor) -> torch.Tensor:
         """
         Args:
-            data (np.ndarray): Input tensor to be standardized.
+            data (torch.Tensor): Input tensor to be standardized.
 
         Returns:
             torch.Tensor: Standardized data.
@@ -136,7 +136,7 @@ class Standardizer(Normalizer):
     def inverse_transform(self, normalized_data: torch.Tensor) -> torch.Tensor:
         """
         Args:
-            normalized_data (np.ndarray): Standardized data.
+            normalized_data (torch.Tensor): Standardized data.
 
         Returns:
             torch.Tensor: Denormalized data.
@@ -159,22 +159,21 @@ class BaseMVANormalizer(Normalizer):
     def to(self, device):
         pass
 
-    def fit(self, data: np.ndarray, baseMVA: float = None) -> dict:
+    def fit(self, data: torch.Tensor, baseMVA: float = None) -> dict:
         """
         No need to compute baseMVA
 
         Args:
-            data (np.ndarray): Input data tensor.
+            data (torch.Tensor): Input data tensor.
 
         Returns:
             dict: Dictionary containing baseMVA value.
         """
 
         if self.node_data:
-            self.baseMVA = torch.tensor(data[:, [PD, QD, PG, QG]].max(), dtype=torch.float)
+            self.baseMVA = data[:, [PD, QD, PG, QG]].max()
         else:
             self.baseMVA = baseMVA
-
 
         return {"baseMVA_orig": self.baseMVA_orig, "baseMVA": self.baseMVA}
 
@@ -199,8 +198,7 @@ class BaseMVANormalizer(Normalizer):
         if self.baseMVA == 0:
             raise ZeroDivisionError("BaseMVA is 0.")
 
-        
-        if self.node_data:        
+        if self.node_data:
             data[:, PD] = data[:, PD] / self.baseMVA
             data[:, QD] = data[:, QD] / self.baseMVA
             data[:, PG] = data[:, PG] / self.baseMVA
@@ -221,7 +219,7 @@ class BaseMVANormalizer(Normalizer):
         """
         if self.baseMVA is None:
             raise ValueError("fit must be called before inverse_transform.")
-        
+
         if self.node_data:
             normalized_data[:, PD] = normalized_data[:, PD] * self.baseMVA
             normalized_data[:, QD] = normalized_data[:, QD] * self.baseMVA
@@ -235,12 +233,12 @@ class BaseMVANormalizer(Normalizer):
 
 
 class IdentityNormalizer(Normalizer):
-    def fit(self, data: np.ndarray) -> dict:
+    def fit(self, data: torch.Tensor) -> dict:
         """
         No parameters to compute for IdentityNormalizer.
 
         Args:
-            data (np.ndarray): Input data tensor.
+            data (torch.Tensor): Input data tensor.
 
         Returns:
             dict: An empty dictionary, as no parameters are computed.

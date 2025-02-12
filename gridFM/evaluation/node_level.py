@@ -11,6 +11,7 @@ from torch.nn import Module
 import plotly.graph_objects as go
 from gridFM.utils.loss import *
 
+
 def get_dist_plot(
     data: np.ndarray, data_type: str, bus_types: List[str], n_buses: int
 ) -> go.Figure:
@@ -176,10 +177,11 @@ def random_mask(
         Tensor: Masked input features.
     """
     mask_value_expanded = model.mask_value.expand(batch.x.shape[0], -1)
-        # The line below will overwrite the last mask values, which is fine as long as the features which are masked do not change between batches
-        # set the learnable mask to the inout where it should be masked
+    # The line below will overwrite the last mask values, which is fine as long as the features which are masked do not change between batches
+    # set the learnable mask to the inout where it should be masked
     batch.x[:, : batch.mask.shape[1]][batch.mask] = mask_value_expanded[batch.mask]
     return batch.x
+
 
 def training_stats_to_dataframe(
     rmse_PQ: np.ndarray,
@@ -191,7 +193,7 @@ def training_stats_to_dataframe(
     overall_RMSE: np.ndarray,
     overall_MAE: np.ndarray,
     overall_active_loss: float,
-    overall_reactive_loss: float
+    overall_reactive_loss: float,
 ) -> pd.DataFrame:
     """
     Converts training statistics into a pandas DataFrame.
@@ -221,7 +223,7 @@ def training_stats_to_dataframe(
             "Overall RMSE",
             "Overall MAE",
             "Avg. active res. (MW)",
-            "Avg. reactive res. (MVar)"
+            "Avg. reactive res. (MVar)",
         ],
         "Pd (MW)": [
             rmse_PQ[0],
@@ -357,19 +359,26 @@ def eval_node_level_task(
                     model, input_features, mask_PQ, mask_PV, mask_REF
                 )
             elif task == "Reconstruction":
-                input_features = random_mask(
-                    model, batch
-                )
+                input_features = random_mask(model, batch)
             else:
                 raise ValueError(f"Unknown task: {task}")
 
             # Forward pass
-            output = model(input_features, batch.pe, batch.edge_index, batch.edge_attr, batch.batch)
+            output = model(
+                input_features, batch.pe, batch.edge_index, batch.edge_attr, batch.batch
+            )
 
             if isinstance(node_normalizer, BaseMVANormalizer):
-                loss_PBE_dict = loss_PBE(output, batch.y, batch.edge_index, batch.edge_attr, batch.mask)
-                all_active_loss.append(loss_PBE_dict["Active Power Loss in p.u."]*node_normalizer.baseMVA)
-                all_reactive_loss.append(loss_PBE_dict["Reactive Power Loss in p.u."]*node_normalizer.baseMVA)
+                loss_PBE_dict = loss_PBE(
+                    output, batch.y, batch.edge_index, batch.edge_attr, batch.mask
+                )
+                all_active_loss.append(
+                    loss_PBE_dict["Active Power Loss in p.u."] * node_normalizer.baseMVA
+                )
+                all_reactive_loss.append(
+                    loss_PBE_dict["Reactive Power Loss in p.u."]
+                    * node_normalizer.baseMVA
+                )
             else:
                 all_active_loss.append(-1.0)
                 all_reactive_loss.append(-1.0)
@@ -432,8 +441,8 @@ def eval_node_level_task(
         mae_REF,
         overall_RMSE,
         overall_MAE,
-        overall_active_loss, 
-        overall_reactive_loss
+        overall_active_loss,
+        overall_reactive_loss,
     )
 
     return df, figs
