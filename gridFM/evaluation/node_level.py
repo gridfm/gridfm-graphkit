@@ -1,15 +1,15 @@
-from gridFM.datasets.globals import *
+from gridFM.datasets.globals import BUS_TYPES, FEATURES_IDX, PQ, PV, REF
+from gridFM.datasets.data_normalization import BaseMVANormalizer
+from gridFM.datasets.transforms import AddRandomMask, AddPFMask, AddOPFMask
+from gridFM.utils.loss import PBELoss
+
 import torch
 import numpy as np
 import pandas as pd
-import plotly.express as px
-import torch.nn.functional as F
-from torch import Tensor
-from typing import Callable, List, Tuple
+from typing import List, Tuple
 from torch.utils.data import DataLoader
-from torch.nn import Module
 import plotly.graph_objects as go
-from gridFM.utils.loss import *
+from torch_geometric.data import Dataset
 
 
 def get_dist_plot(
@@ -52,135 +52,6 @@ def get_dist_plot(
         )
         figs.append(fig)
     return figs
-
-
-def OPF_mask(
-    model: Module,
-    input_features: Tensor,
-    mask_PQ: Tensor,
-    mask_PV: Tensor,
-    mask_REF: Tensor,
-) -> Tensor:
-    """
-    Applies masking to input features for the Optimal Power Flow (OPF) problem.
-    see Appendix A https://invenia.github.io/blog/2021/06/18/opf-intro/
-
-    Args:
-        model (object): The model.
-        input_features (Tensor): Input feature matrix.
-        mask_PQ (Tensor): Mask indicating PQ nodes.
-        mask_PV (Tensor): Mask indicating PV nodes.
-        mask_REF (Tensor): Mask indicating REF nodes.
-
-    Returns:
-        Tensor: Masked input features.
-    """
-
-    # Mask for PQ nodes = loads only
-    # PD not masked (we know the demand at load elements)
-    # QD not masked (we know the demand at load elements)
-    # PG is zero (no gen)
-    # QG is zero (no gen)
-    input_features[mask_PQ, VM] = model.mask_value[VM]
-    input_features[mask_PQ, VA] = model.mask_value[VA]
-
-    # Mask for PV nodes
-    # PD not masked (we know the demand at load elements)
-    # QD not masked (we know the demand at load elements)
-    input_features[mask_PV, PG] = model.mask_value[
-        PG
-    ]  # need to find active power generation
-    input_features[mask_PV, QG] = model.mask_value[
-        QG
-    ]  # need to find reactive power generation
-    input_features[mask_PV, VM] = model.mask_value[VM]
-    input_features[mask_PV, VA] = model.mask_value[VA]
-
-    # Mask for REF nodes (like PV)
-    # PD not masked (we know the demand at load elements)
-    # QD not masked (we know the demand at load elements)
-    input_features[mask_REF, PG] = model.mask_value[PG]
-    input_features[mask_REF, QG] = model.mask_value[QG]
-    input_features[mask_REF, VM] = model.mask_value[VM]
-    input_features[mask_REF, VA] = model.mask_value[VA]
-
-    return input_features
-
-
-def PF_mask(
-    model: Module,
-    input_features: Tensor,
-    mask_PQ: Tensor,
-    mask_PV: Tensor,
-    mask_REF: Tensor,
-) -> Tensor:
-    """
-    Applies masking to input features for the Power Flow (PF) problem.
-
-    Args:
-        model (object): The model.
-        input_features (Tensor): Input feature matrix.
-        mask_PQ (Tensor): Mask indicating PQ nodes.
-        mask_PV (Tensor): Mask indicating PV nodes.
-        mask_REF (Tensor): Mask indicating REF nodes.
-
-    Returns:
-        Tensor: Masked input features.
-    """
-    # Power flow problem masking
-
-    # Mask for PQ
-    # PD is given
-    # QD is given
-    # PG is zero
-    # QG is zero
-    input_features[mask_PQ, VM] = model.mask_value[VM]
-    input_features[mask_PQ, VA] = model.mask_value[VA]
-
-    # Mask for PQ
-    # PD is given
-    # QD is given
-    # PG is given (results of OPF)
-    input_features[mask_PV, QG] = model.mask_value[
-        QG
-    ]  # -> reactive power generated is changed during PF
-    input_features[mask_PV, VA] = model.mask_value[VA]
-    # VM is know
-
-    # Mask for REF
-    # PD is given
-    # QD is given
-    input_features[mask_REF, PG] = model.mask_value[
-        PG
-    ]  # -> slack used to ensure power balance
-    input_features[mask_REF, QG] = model.mask_value[
-        QG
-    ]  # -> slack used to ensure power balance
-    # VM is given
-    # VA is given
-
-    return input_features
-
-
-def random_mask(
-    model: Module,
-    batch: Tensor,
-) -> Tensor:
-    """
-    Applies masking to input features for the Power Flow (PF) problem.
-
-    Args:
-        model (object): The model.
-        input_features (Tensor): Input feature matrix.
-
-    Returns:
-        Tensor: Masked input features.
-    """
-    mask_value_expanded = model.mask_value.expand(batch.x.shape[0], -1)
-    # The line below will overwrite the last mask values, which is fine as long as the features which are masked do not change between batches
-    # set the learnable mask to the inout where it should be masked
-    batch.x[:, : batch.mask.shape[1]][batch.mask] = mask_value_expanded[batch.mask]
-    return batch.x
 
 
 def training_stats_to_dataframe(
@@ -302,6 +173,7 @@ def training_stats_to_dataframe(
 
 
 def eval_node_level_task(
+    dataset: Dataset,
     model: torch.nn.Module,
     task: str,
     test_loader: DataLoader,
@@ -339,6 +211,18 @@ def eval_node_level_task(
 
     loss_PBE = PBELoss()
 
+    # Mask input features
+    if task == "PF":
+        dataset.change_transform(AddPFMask())
+    elif task == "OPF":
+        dataset.change_transform(AddOPFMask())
+    elif task == "Reconstruction":
+        dataset.change_transform(
+            AddRandomMask(mask_dim=mask_dim, mask_ratio=mask_ratio)
+        )
+    else:
+        raise ValueError(f"Unknown task: {task}")
+
     with torch.no_grad():
         for batch in test_loader:
             batch = batch.to(device)
@@ -347,25 +231,14 @@ def eval_node_level_task(
             mask_PV = batch.x[:, PV] == 1
             mask_REF = batch.x[:, REF] == 1
 
-            # Mask input features
-            if task == "PF":
-                input_features = torch.cat((batch.y, batch.x[:, mask_dim:]), dim=1)
-                input_features = PF_mask(
-                    model, input_features, mask_PQ, mask_PV, mask_REF
-                )
-            elif task == "OPF":
-                input_features = torch.cat((batch.y, batch.x[:, mask_dim:]), dim=1)
-                input_features = OPF_mask(
-                    model, input_features, mask_PQ, mask_PV, mask_REF
-                )
-            elif task == "Reconstruction":
-                input_features = random_mask(model, batch)
-            else:
-                raise ValueError(f"Unknown task: {task}")
+            mask_value_expanded = model.mask_value.expand(batch.x.shape[0], -1)
+            batch.x[:, : batch.mask.shape[1]][batch.mask] = mask_value_expanded[
+                batch.mask
+            ]
 
             # Forward pass
             output = model(
-                input_features, batch.pe, batch.edge_index, batch.edge_attr, batch.batch
+                batch.x, batch.pe, batch.edge_index, batch.edge_attr, batch.batch
             )
 
             if isinstance(node_normalizer, BaseMVANormalizer):
@@ -396,7 +269,7 @@ def eval_node_level_task(
 
     n_buses = int((batch.batch == 0).sum())  # Number of buses in graph
     bus_types = [
-        BUS_TYPES[np.argmax(row[mask_dim:])] for row in input_features[:n_buses].cpu()
+        BUS_TYPES[np.argmax(row[mask_dim:])] for row in batch.x[:n_buses].cpu()
     ]  # Ugly hack to get bus types from input features
 
     # Concatenate all outputs, targets, and masks
@@ -444,5 +317,5 @@ def eval_node_level_task(
         overall_active_loss,
         overall_reactive_loss,
     )
-
+    dataset.reset_transform()
     return df, figs

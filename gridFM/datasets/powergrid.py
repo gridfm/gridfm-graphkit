@@ -1,11 +1,11 @@
-from gridFM.datasets.data_normalization import *
-from gridFM.datasets.transforms import *
+from gridFM.datasets.data_normalization import Normalizer, BaseMVANormalizer
+from gridFM.datasets.transforms import AddEdgeWeights
+
 import os.path as osp
 import torch
-from torch_geometric.data import Dataset, Data, InMemoryDataset
+from torch_geometric.data import Data, InMemoryDataset
 import pandas as pd
 from tqdm import tqdm
-from gridFM.datasets.data_normalization import Normalizer
 from typing import Optional, Callable
 from torch_geometric.transforms import AddRandomWalkPE
 
@@ -17,7 +17,7 @@ class GridDatasetMem(InMemoryDataset):
         norm_method: str,
         node_normalizer: Normalizer,
         edge_normalizer: Normalizer,
-        mask_ratio: float = 0.5,
+        pe_dim: int,
         mask_dim: int = 6,
         transform: Optional[Callable] = None,
         pre_transform: Optional[Callable] = None,
@@ -26,8 +26,9 @@ class GridDatasetMem(InMemoryDataset):
         self.norm_method = norm_method
         self.node_normalizer = node_normalizer
         self.edge_normalizer = edge_normalizer
-        self.mask_ratio = mask_ratio
+        self.pe_dim = pe_dim
         self.mask_dim = mask_dim
+        self.original_transform = None
 
         super().__init__(root, transform, pre_transform, pre_filter)
 
@@ -50,7 +51,7 @@ class GridDatasetMem(InMemoryDataset):
 
     @property
     def processed_file_names(self):
-        return [f"data_full_{self.norm_method}_{self.mask_ratio}.pt"]
+        return [f"data_full_{self.norm_method}.pt"]
 
     def download(self):
         pass
@@ -122,16 +123,23 @@ class GridDatasetMem(InMemoryDataset):
                 edge_data[["index1", "index2"]].values.T, dtype=torch.long
             )
 
-            mask = torch.rand(x.size(0), self.mask_dim) < self.mask_ratio
-
             # Create the Data object
-            graph_data = Data(
-                x=x, edge_index=edge_index, edge_attr=edge_attr, y=y, mask=mask
-            )
-            transform = AddEdgeWeights()
-            graph_data = transform(graph_data)
-            pe_transform = AddRandomWalkPE(walk_length=20, attr_name="pe")
+            graph_data = Data(x=x, edge_index=edge_index, edge_attr=edge_attr, y=y)
+            pe_pre_transform = AddEdgeWeights()
+            graph_data = pe_pre_transform(graph_data)
+            pe_transform = AddRandomWalkPE(walk_length=self.pe_dim, attr_name="pe")
             graph_data = pe_transform(graph_data)
             data_list.append(graph_data)
 
         self.save(data_list, self.processed_paths[0])
+
+    def change_transform(self, new_transform):
+        self.original_transform = self.transform
+        self.transform = new_transform
+
+    def reset_transform(self):
+        if self.original_transform is None:
+            raise ValueError(
+                "The original transform is None or the function change_transform needs to be called before"
+            )
+        self.transform = self.original_transform

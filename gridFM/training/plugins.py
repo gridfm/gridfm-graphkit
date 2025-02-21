@@ -46,6 +46,8 @@ class TrainerPlugin:
                 to change.
         """
         pass
+
+
 class MLflowLoggerPlugin(TrainerPlugin):
     def __init__(self, steps: Optional[int] = None, params: dict = None):
         super().__init__(steps=steps)  # Initialize the steps from the base class
@@ -55,7 +57,9 @@ class MLflowLoggerPlugin(TrainerPlugin):
             # Log parameters to MLflow at the beginning of training
             mlflow.log_params(params)
 
-    def step(self, epoch: int, step: int, metrics: Dict = {}, end_of_epoch: bool = False):
+    def step(
+        self, epoch: int, step: int, metrics: Dict = {}, end_of_epoch: bool = False
+    ):
         """
         Logs metrics to MLflow dynamically at each specified step and at the end of each epoch.
 

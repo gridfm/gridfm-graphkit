@@ -1,27 +1,34 @@
 from gridFM.datasets.powergrid import GridDatasetMem
-from gridFM.io.param_handler import *
-from gridFM.datasets.data_normalization import *
-from gridFM.datasets.globals import *
+from gridFM.training.trainer import Trainer
+from gridFM.training.plugins import MLflowLoggerPlugin
+from gridFM.training.callbacks import EarlyStopper
+from gridFM.datasets.utils import split_dataset
+from gridFM.evaluation.node_level import eval_node_level_task
+from gridFM.io.param_handler import (
+    NestedNamespace,
+    merge_dict,
+    load_normalizer,
+    load_model,
+    get_loss_function,
+    get_transform,
+    param_combination_gen,
+)
+
 import torch
 from torch_geometric.loader import DataLoader
-import torch.nn.functional as F
+from torch.optim.lr_scheduler import ReduceLROnPlateau
+from torch.utils.data import ConcatDataset
+from torch.utils.data import Subset
+import numpy as np
 import os
 import mlflow
 from datetime import datetime
 import mlflow.pytorch
 import argparse
-from gridFM.training.trainer import Trainer
-from gridFM.training.plugins import MLflowLoggerPlugin
-from gridFM.training.callbacks import EarlyStopper
-from gridFM.datasets.utils import split_dataset
-from torch.optim.lr_scheduler import ReduceLROnPlateau
-from torch.utils.data import ConcatDataset
 import yaml
 import random
-from gridFM.evaluation.node_level import eval_node_level_task
 import plotly.io as pio
 import warnings
-from torch.utils.data import Subset
 
 
 def run_training(config_path, grid_params, data_path, device):
@@ -83,11 +90,12 @@ def run_training(config_path, grid_params, data_path, device):
                 norm_method=args.data.normalization,
                 node_normalizer=node_normalizer,
                 edge_normalizer=edge_normalizer,
-                mask_ratio=args.data.mask_ratio,
+                pe_dim=args.model.pe_dim,
                 mask_dim=args.data.mask_dim,
+                transform=get_transform(args=args),
             )
             datasets.append(dataset)
-            
+
             num_scenarios = args.data.scenarios[i]
             if num_scenarios > len(dataset):
                 warnings.warn(
@@ -99,6 +107,9 @@ def run_training(config_path, grid_params, data_path, device):
             # Create a subset
             subset_indices = list(range(num_scenarios))
             dataset = Subset(dataset, subset_indices)
+
+            node_normalizer.to(device)
+            edge_normalizer.to(device)
 
             train_dataset, val_dataset, test_dataset = split_dataset(
                 dataset, data_dir, args.data.val_ratio, args.data.test_ratio
@@ -118,14 +129,19 @@ def run_training(config_path, grid_params, data_path, device):
         val_loader = DataLoader(
             val_dataset_multi, batch_size=args.training.batch_size, shuffle=False
         )
-        test_loaders = [DataLoader(i, batch_size=args.training.batch_size, shuffle=False) for i in test_datasets]
-
+        test_loaders = [
+            DataLoader(i, batch_size=args.training.batch_size, shuffle=False)
+            for i in test_datasets
+        ]
 
         # Create model
         model = load_model(args=args)
 
         print(model)
-        print("Model parameters: ", sum(p.numel() for p in model.parameters() if p.requires_grad))
+        print(
+            "Model parameters: ",
+            sum(p.numel() for p in model.parameters() if p.requires_grad),
+        )
 
         # Move the model to device
         model = model.to(device)
@@ -147,10 +163,6 @@ def run_training(config_path, grid_params, data_path, device):
         early_stopper = EarlyStopper(
             best_model_path, args.callbacks.patience, args.callbacks.tol
         )
-
-        for i in range(len(node_normalizers)):
-            node_normalizers[i].to(device)
-            edge_normalizers[i].to(device)
 
         loss_fn = get_loss_function(args)
 
@@ -188,31 +200,45 @@ def run_training(config_path, grid_params, data_path, device):
 
         for i, network in enumerate(args.data.networks):
             for task in ["PF", "OPF", "Reconstruction"]:
+                mask_ratio = getattr(
+                    args.data, "mask_ratio", 0.5
+                )  # Default to 0.5 if mask_ratio doesn't exist
                 df, figs = eval_node_level_task(
+                    dataset=datasets[i],
                     model=best_model,
                     task=task,
                     test_loader=test_loaders[i],
                     mask_dim=args.data.mask_dim,
-                    mask_ratio=args.data.mask_ratio,
+                    mask_ratio=mask_ratio,
                     node_normalizer=node_normalizers[i],
                     device=device,
-                    plot_dist=args.verbose
+                    plot_dist=args.verbose,
                 )
 
                 # Log metric results
-                df_path = os.path.join(test_dir, f"{task}_metrics_results_{network}.csv")
+                df_path = os.path.join(
+                    test_dir, f"{task}_metrics_results_{network}.csv"
+                )
                 df.to_csv(df_path)
 
-                plot_paths = os.path.join(test_dir, f"{task}_evaluation_plots_{network}.html")
+                plot_paths = os.path.join(
+                    test_dir, f"{task}_evaluation_plots_{network}.html"
+                )
                 with open(plot_paths, "a") as f:
                     for fig in figs:
-                        f.write(pio.to_html(fig, full_html=False, include_plotlyjs="cdn"))
+                        f.write(
+                            pio.to_html(fig, full_html=False, include_plotlyjs="cdn")
+                        )
 
             # Log node and edge stats
             log_file_path = os.path.join(artifact_dir, f"stats_{network}.log")
             with open(log_file_path, "w") as log_file:
-                log_file.write("Dataset node_stats: " + str(datasets[i].node_stats) + "\n")
-                log_file.write("Dataset edge_stats: " + str(datasets[i].edge_stats) + "\n")
+                log_file.write(
+                    "Dataset node_stats: " + str(datasets[i].node_stats) + "\n"
+                )
+                log_file.write(
+                    "Dataset edge_stats: " + str(datasets[i].edge_stats) + "\n"
+                )
 
         eval_cmd_path = os.path.join(artifact_dir, "EVAL_CMD.txt")
         with open(eval_cmd_path, "w") as f:

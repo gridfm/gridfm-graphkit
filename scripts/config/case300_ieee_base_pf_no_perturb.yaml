@@ -5,6 +5,7 @@ data:
   scenarios: [19000]
   normalization: "baseMVAnorm"
   baseMVA: 100
+  mask_type: "rnd"
   mask_value: 0.0
   mask_ratio: 0.5
   mask_dim: 6

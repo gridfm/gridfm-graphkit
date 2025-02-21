@@ -1,8 +1,8 @@
 seed: 42
 verbose: False
 data:
-  networks: ["case30_ieee"]
-  scenarios: [276000]
+  networks: ["case89_pegase"]
+  scenarios: [160000]
   normalization: "baseMVAnorm"
   baseMVA: 100
   mask_type: "rnd"
@@ -13,19 +13,20 @@ data:
   val_ratio: 0.1
   test_ratio: 0.1
 model:
-  type: "GNN_TransformerConv"
+  type: "GPSTransformer"
   input_dim: 9
   output_dim: 6
   edge_dim: 2
   pe_dim: 20
-  num_layers: 6
-  hidden_size: 64
+  num_layers: 8
+  hidden_size: 256
   attention_head: 8
+  dropout: 0.2
 training:
-  batch_size: 16
-  epochs: 150
+  batch_size: 32
+  epochs: 200
   losses: ["MaskedMSE", "PBE"]
-  loss_weights: [0.9, 0.1]
+  loss_weights: [0.01, 0.99]
 optimizer:
   learning_rate: 0.0001
   beta1: 0.9

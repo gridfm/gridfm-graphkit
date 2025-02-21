@@ -1,13 +1,12 @@
+from gridFM.training.plugins import TrainerPlugin
+from gridFM.training.callbacks import EarlyStopper
+
 from typing import List
 import torch
 from torch import nn
 from torch.optim import Optimizer
 from torch.utils.data import DataLoader
-import matplotlib.pyplot as plt
-from gridFM.training.plugins import TrainerPlugin
-from gridFM.datasets.data_normalization import *
 from tqdm import tqdm
-from gridFM.training.callbacks import EarlyStopper
 
 
 class Trainer:
@@ -56,7 +55,7 @@ class Trainer:
 
         if not val:
             self.optimizer.zero_grad()
-            loss_dict['loss'].backward()
+            loss_dict["loss"].backward()
             self.optimizer.step()
 
         return loss_dict
@@ -73,12 +72,18 @@ class Trainer:
             mask = getattr(batch, "mask", None)
 
             loss_dict = self.__one_step(
-                batch.x, batch.edge_index, batch.y, batch.edge_attr, mask, batch.batch, batch.pe
-            ) 
+                batch.x,
+                batch.edge_index,
+                batch.y,
+                batch.edge_attr,
+                mask,
+                batch.batch,
+                batch.pe,
+            )
             current_lr = self.optimizer.param_groups[0]["lr"]
             metrics = {}
-            metrics['Training Loss'] = loss_dict['loss'].item()
-            metrics['Learning Rate'] = current_lr
+            metrics["Training Loss"] = loss_dict["loss"].item()
+            metrics["Learning Rate"] = current_lr
 
             if self.model.learn_mask:
                 metrics["Mask Gradient Norm"] = self.model.mask_value.grad.norm().item()
@@ -93,11 +98,18 @@ class Trainer:
                 batch = batch.to(self.device)
                 mask = getattr(batch, "mask", None)
                 metrics = self.__one_step(
-                    batch.x, batch.edge_index, batch.y, batch.edge_attr, mask, batch.batch, batch.pe, True
+                    batch.x,
+                    batch.edge_index,
+                    batch.y,
+                    batch.edge_attr,
+                    mask,
+                    batch.batch,
+                    batch.pe,
+                    True,
                 )
-                val_loss += metrics['loss'].item()
-                metrics["Validation Loss"] = metrics.pop('loss').item()
-                
+                val_loss += metrics["loss"].item()
+                metrics["Validation Loss"] = metrics.pop("loss").item()
+
                 for plugin in self.plugins:
                     plugin.step(epoch, step, metrics=metrics)
         val_loss /= len(self.val_dataloader)

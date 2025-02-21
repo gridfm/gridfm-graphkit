@@ -1,8 +1,6 @@
+from gridFM.datasets.globals import PD, QD, PG, QG, VA
 import torch
-import numpy as np
 from abc import ABC, abstractmethod
-from gridFM.datasets.globals import *
-import math
 
 
 class Normalizer(ABC):

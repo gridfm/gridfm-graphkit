@@ -1,8 +1,8 @@
+from gridFM.datasets.globals import PD, QD, PG, QG, VM, VA, G, B
+
 import torch.nn.functional as F
 import torch
 from torch_geometric.utils import to_torch_coo_tensor
-from gridFM.datasets.data_normalization import *
-from gridFM.datasets.globals import *
 import torch.nn as nn
 
 
@@ -48,9 +48,7 @@ class SCELoss(nn.Module):
 
 
 class PBELoss(nn.Module):
-    def __init__(
-        self, visualization=False
-    ):
+    def __init__(self, visualization=False):
         super(PBELoss, self).__init__()
 
         self.visualization = visualization
@@ -91,7 +89,6 @@ class PBELoss(nn.Module):
         net_P = temp_pred[:, PG] - temp_pred[:, PD]
         net_Q = temp_pred[:, QG] - temp_pred[:, QD]
         S_net_power_balance = net_P + 1j * net_Q
-        
 
         # Power balance loss
         loss = torch.mean(
@@ -110,15 +107,19 @@ class PBELoss(nn.Module):
                 "Power power loss in p.u.": loss.item(),
                 "Active Power Loss in p.u.": real_loss_power.item(),
                 "Reactive Power Loss in p.u.": imag_loss_power.item(),
-                "Nodal Active Power Loss in p.u.": torch.abs(torch.real(S_net_power_balance - S_injection)),
-                "Nodal Reactive Power Loss in p.u.": torch.abs(torch.imag(S_net_power_balance - S_injection))
+                "Nodal Active Power Loss in p.u.": torch.abs(
+                    torch.real(S_net_power_balance - S_injection)
+                ),
+                "Nodal Reactive Power Loss in p.u.": torch.abs(
+                    torch.imag(S_net_power_balance - S_injection)
+                ),
             }
         else:
             return {
                 "loss": loss,
                 "Power power loss in p.u.": loss.item(),
                 "Active Power Loss in p.u.": real_loss_power.item(),
-                "Reactive Power Loss in p.u.": imag_loss_power.item()
+                "Reactive Power Loss in p.u.": imag_loss_power.item(),
             }
 
 

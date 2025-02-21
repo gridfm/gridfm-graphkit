@@ -29,7 +29,9 @@ class GPSTransformer(nn.Module):
         self.mask_value = mask_value
         self.learn_mask = learn_mask
 
-        assert pe_dim < hidden_dim, "positional encoding dimension must be smaller than model hidden dimension"
+        assert (
+            pe_dim < hidden_dim
+        ), "positional encoding dimension must be smaller than model hidden dimension"
 
         self.layers = nn.ModuleList()
 
@@ -46,16 +48,20 @@ class GPSTransformer(nn.Module):
                 nn.LeakyReLU(),
             )
             self.layers.append(
-                nn.ModuleDict({
-                    "conv": GPSConv(
-                        channels=self.hidden_dim, 
-                        conv=GINEConv(nn=mlp, edge_dim=self.edge_dim), 
-                        heads=self.heads, dropout=self.dropout
-                    ),
-                    "norm": nn.BatchNorm1d(self.hidden_dim)  # BatchNorm after each graph layer
-                })
+                nn.ModuleDict(
+                    {
+                        "conv": GPSConv(
+                            channels=self.hidden_dim,
+                            conv=GINEConv(nn=mlp, edge_dim=self.edge_dim),
+                            heads=self.heads,
+                            dropout=self.dropout,
+                        ),
+                        "norm": nn.BatchNorm1d(
+                            self.hidden_dim
+                        ),  # BatchNorm after each graph layer
+                    }
+                )
             )
-
 
         self.pre_decoder_norm = nn.BatchNorm1d(self.hidden_dim)
         # Fully connected (MLP) layers after the GAT layers
@@ -79,10 +85,12 @@ class GPSTransformer(nn.Module):
 
         x = self.encoder(x)
         x = self.input_norm(x)
-        
-        x = torch.cat((x,x_pe), 1)
+
+        x = torch.cat((x, x_pe), 1)
         for layer in self.layers:
-            x = layer["conv"](x=x, edge_index=edge_index, edge_attr=edge_attr, batch=batch)
+            x = layer["conv"](
+                x=x, edge_index=edge_index, edge_attr=edge_attr, batch=batch
+            )
             x = layer["norm"](x)
 
         x = self.pre_decoder_norm(x)

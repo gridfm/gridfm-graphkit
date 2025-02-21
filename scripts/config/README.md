@@ -27,10 +27,18 @@ This document provides a detailed explanation of the parameters used in the YAML
 - **`baseMVA`**: *(Integer)* The base MVA value specified in the original matpower casefile, needed for `baseMVAnorm` normalization.
   - Default: `100`
 
+- **`mask_type`**: *(String)* Masking strategy.
+  - Options:
+    - `rnd`: Mask each feature with a certain probability that needs to be specified (`mask_ratio`).
+    - `pf`: Power flow problem setup.
+    - `baseMVAnorm`: Optimal power flow problem setup.
+    - `none`: No masking.
+  - Example: `"rnd"`
+
 - **`mask_value`**: *(Float)* Value used to mask data during training.
   - Default: `0.0`
 
-- **`mask_ratio`**: *(Float)* Propability of each feature to be masked.
+- **`mask_ratio`**: *(Float)* Propability of each feature to be masked, needs to be specified only when mask_type is `rnd`.
   - Default: `0.5`
 
 - **`mask_dim`**: *(Integer)* Number of features to mask.

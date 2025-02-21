@@ -1,19 +1,23 @@
 from gridFM.datasets.powergrid import GridDatasetMem
-from gridFM.io.param_handler import *
-from gridFM.datasets.data_normalization import *
-from gridFM.datasets.globals import *
+from gridFM.datasets.utils import split_dataset
+from gridFM.evaluation.node_level import eval_node_level_task
+from gridFM.io.param_handler import (
+    NestedNamespace,
+    load_normalizer,
+    get_transform,
+)
+
 import torch
 from torch_geometric.loader import DataLoader
+from torch.utils.data import Subset
+import numpy as np
 import os
 import mlflow
 import mlflow.pytorch
 import argparse
-from gridFM.datasets.utils import split_dataset
 import yaml
 import random
-from gridFM.evaluation.node_level import eval_node_level_task
 import plotly.io as pio
-from torch.utils.data import ConcatDataset, Subset
 import warnings
 
 
@@ -72,8 +76,9 @@ def eval(model_path, run, config_path, data_path, args, device):
             norm_method=args.data.normalization,
             node_normalizer=node_normalizer,
             edge_normalizer=edge_normalizer,
-            mask_ratio=args.data.mask_ratio,
+            pe_dim=args.model.pe_dim,
             mask_dim=args.data.mask_dim,
+            transform=get_transform(args=args),
         )
         datasets.append(dataset)
 
@@ -108,12 +113,16 @@ def eval(model_path, run, config_path, data_path, args, device):
     mlflow.log_params(args.flatten())
     for i, network in enumerate(args.data.networks):
         for task in ["PF", "OPF", "Reconstruction"]:
+            mask_ratio = getattr(
+                args.data, "mask_ratio", 0.5
+            )  # Default to 0.5 if mask_ratio doesn't exist
             df, figs = eval_node_level_task(
+                dataset=datasets[i],
                 model=model,
                 task=task,
                 test_loader=test_loaders[i],
                 mask_dim=args.data.mask_dim,
-                mask_ratio=args.data.mask_ratio,
+                mask_ratio=mask_ratio,
                 node_normalizer=node_normalizers[i],
                 device=device,
                 plot_dist=args.verbose,

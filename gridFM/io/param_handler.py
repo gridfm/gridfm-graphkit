@@ -1,10 +1,21 @@
-import yaml
-import argparse
-from gridFM.datasets.data_normalization import *
-from gridFM.utils.loss import *
-import itertools
+from gridFM.datasets.data_normalization import (
+    IdentityNormalizer,
+    MinMaxNormalizer,
+    Standardizer,
+    BaseMVANormalizer,
+)
+from gridFM.datasets.transforms import (
+    AddRandomMask,
+    AddPFMask,
+    AddOPFMask,
+    AddIdentityMask,
+)
+from gridFM.utils.loss import PBELoss, MaskedMSELoss, SCELoss, MixedLoss, MSELoss
 from gridFM.models.graphTransformer import GNN_TransformerConv
 from gridFM.models.gps_transformer import GPSTransformer
+
+import argparse
+import itertools
 
 
 class NestedNamespace(argparse.Namespace):
@@ -225,7 +236,7 @@ def load_model(args):
             heads=args.model.attention_head,
             mask_dim=args.data.mask_dim,
             mask_value=args.data.mask_value,
-            learn_mask=args.data.learn_mask
+            learn_mask=args.data.learn_mask,
         )
     elif model_type == "GPSTransformer":
         return GPSTransformer(
@@ -239,7 +250,36 @@ def load_model(args):
             dropout=args.model.dropout,
             mask_dim=args.data.mask_dim,
             mask_value=args.data.mask_value,
-            learn_mask=args.data.learn_mask
+            learn_mask=args.data.learn_mask,
         )
     else:
         raise ValueError(f"Unknown model type: {model_type}")
+
+
+def get_transform(args):
+    """
+    Load the appropriate dataset transform
+
+    Args:
+        args (NestedNamespace): contains configs.
+
+    Returns:
+        BaseTransform: Transformation
+
+    Raises:
+        ValueError: If an unknown transform is specified.
+    """
+    mask_type = args.data.mask_type
+
+    if mask_type == "rnd":
+        return AddRandomMask(
+            mask_dim=args.data.mask_dim, mask_ratio=args.data.mask_ratio
+        )
+    elif mask_type == "pf":
+        return AddPFMask()
+    elif mask_type == "opf":
+        return AddOPFMask()
+    elif mask_type == "none":
+        return AddIdentityMask()
+    else:
+        raise ValueError(f"Unknown transformation: {mask_type}")
