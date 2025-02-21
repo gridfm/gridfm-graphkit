@@ -31,7 +31,7 @@ This document provides a detailed explanation of the parameters used in the YAML
   - Options:
     - `rnd`: Mask each feature with a certain probability that needs to be specified (`mask_ratio`).
     - `pf`: Power flow problem setup.
-    - `baseMVAnorm`: Optimal power flow problem setup.
+    - `opf`: Optimal power flow problem setup.
     - `none`: No masking.
   - Example: `"rnd"`
 
