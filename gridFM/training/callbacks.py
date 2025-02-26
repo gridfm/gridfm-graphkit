@@ -2,7 +2,7 @@ import torch
 
 
 class EarlyStopper:
-    def __init__(self, saving_path, patience=5, tol=0):
+    def __init__(self, saving_path, patience=5, tol=0, min_validation_loss=float("inf")):
         """
         Args:
             patience (int): number of epochs to wait before early stopping
@@ -14,7 +14,7 @@ class EarlyStopper:
         self.patience = patience
         self.tol = tol
         self.counter = 0
-        self.min_validation_loss = float("inf")
+        self.min_validation_loss = min_validation_loss
         self.saving_path = saving_path
 
     def early_stop(self, validation_loss, model):

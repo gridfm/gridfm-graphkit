@@ -1,6 +1,8 @@
 from abc import abstractmethod
 from typing import Dict, Optional
 import mlflow
+import os
+import torch
 
 
 class TrainerPlugin:
@@ -30,7 +32,12 @@ class TrainerPlugin:
 
     @abstractmethod
     def step(
-        self, epoch: int, step: int, metrics: Dict = {}, end_of_epoch: bool = False
+        self,
+        epoch: int,
+        step: int,
+        metrics: Dict = {},
+        end_of_epoch: bool = False,
+        **kwargs,
     ):
         """
         This method is called on every step of training, or with step=None
@@ -58,7 +65,12 @@ class MLflowLoggerPlugin(TrainerPlugin):
             mlflow.log_params(params)
 
     def step(
-        self, epoch: int, step: int, metrics: Dict = {}, end_of_epoch: bool = False
+        self,
+        epoch: int,
+        step: int,
+        metrics: Dict = {},
+        end_of_epoch: bool = False,
+        **kwargs,
     ):
         """
         Logs metrics to MLflow dynamically at each specified step and at the end of each epoch.
@@ -83,3 +95,40 @@ class MLflowLoggerPlugin(TrainerPlugin):
 
             # Clear metrics for the next epoch
             self.metrics_history = {}
+
+
+class CheckpointerPlugin(TrainerPlugin):
+    def __init__(
+        self,
+        checkpoint_dir: str,
+        steps: Optional[int] = None,
+    ):
+        super().__init__(steps=steps)
+        self.checkpoint_dir = checkpoint_dir
+        os.makedirs(self.checkpoint_dir, exist_ok=True)
+
+    def step(
+        self,
+        epoch: int,
+        step: int,
+        metrics: Dict = {},
+        end_of_epoch: bool = False,
+        model=None,
+        optimizer=None,
+        scheduler=None,
+    ):
+        # Check if we should save at this step or end of epoch
+        if not self.run(step, end_of_epoch):
+            return
+
+        checkpoint = {
+            "epoch": epoch,
+            "model_state_dict": model.state_dict() if model else None,
+            "optimizer_state_dict": optimizer.state_dict() if optimizer else None,
+            "scheduler_state_dict": scheduler.state_dict() if scheduler else None,
+        }
+
+        checkpoint_path = os.path.join(
+            self.checkpoint_dir, f"checkpoint_last_epoch.pth"
+        )
+        torch.save(checkpoint, checkpoint_path)

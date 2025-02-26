@@ -116,7 +116,14 @@ class Trainer:
         if self.lr_scheduler is not None:
             self.lr_scheduler.step(val_loss)
         for plugin in self.plugins:
-            plugin.step(epoch, step=highest_step, end_of_epoch=True)
+            plugin.step(
+                epoch,
+                step=highest_step,
+                end_of_epoch=True,
+                model=self.model,
+                optimizer=self.optimizer,
+                scheduler=self.lr_scheduler,
+            )
         return val_loss
 
     def train(self, start_epoch: int = 0, epochs: int = 1, prev_step: int = -1):

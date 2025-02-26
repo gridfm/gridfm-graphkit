@@ -27,12 +27,15 @@ python train.py --config path/to/config.yaml --grid path/to/grid.yaml --exp my_e
 
 ## Command-Line Arguments
 
-| Argument        | Type   | Default                  | Description                                                         |
-|---------------------------------|--------|--------------------------|--------------------------------------------------------------|
-| `--config`      | `str`  | `config/default.yaml`    | **(Required)** Path to the base configuration YAML file.            |
-| `--grid`        | `str`  | `None`                   | **(Optional)** Path to the grid search YAML file. If not provided, grid search is not performed. |
-| `--exp`         | `str`  | `None`                   | **(Optional)** Experiment name for **MLflow** tracking. If not provided, the run won't be logged under a specific experiment and the name assigned to it will be equal to the current timestamp |
-| `--data_path`   | `str`  | `../data` | **(Optional)** Root directory of the dataset. Defaults to the `data` folder one level up from the current working directory. |
+| Argument          | Type   | Default                  | Description                                                         |
+|-------------------|--------|--------------------------|---------------------------------------------------------------------|
+| `--config`        | `str`  | `config/default.yaml`    | **(Required with standard training)** Path to the base configuration YAML file. **Not needed** when using a checkpoint. |
+| `--grid`          | `str`  | `None`                   | **(Optional)** Path to the grid search YAML file. **Not supported** with model checkpoints. |
+| `--exp`           | `str`  | `None`                   | **(Optional)** Experiment name for **MLflow** tracking. If not provided, the run will be logged with a timestamp as its name. Not needed when using a checkpoint. |
+| `--data_path`     | `str`  | `../data`                | **(Optional)** Root directory of the dataset. Defaults to the `data` folder one level up from the current working directory. |
+| `-c`              | `flag` | `False`                  | **(Optional)** Starts training from a checkpoint. Enables checkpoint mode. |
+| `--model_exp_id`  | `str`  | `None`                   | **Required** if `-c` is used. MLflow experiment ID for the model checkpoint.  |
+| `--model_run_id`  | `str`  | `None`                   |  **Required** if `-c` is used. MLflow run ID for the model checkpoint. |
 
 ---
 
@@ -52,6 +55,12 @@ python train.py --config config/gridFMv0.1_pretraining.yaml --grid config/grid_s
 ```bash
 python train.py --config config/gridFMv0.1_pretraining.yaml --data_path /dccstor/gridfm/PowerGraph
 ```
+
+### **4. Training from a Checkpoint**
+```bash
+python train.py -c --model_exp_id 12345 --model_run_id 67890
+```
+
 
 
 # Evaluation Script
