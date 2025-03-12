@@ -1,5 +1,5 @@
 from gridFM.datasets.data_normalization import Normalizer, BaseMVANormalizer
-from gridFM.datasets.transforms import AddEdgeWeights
+from gridFM.datasets.transforms import AddEdgeWeights, AddNormalizedRandomWalkPE
 
 import os.path as osp
 import torch
@@ -7,7 +7,7 @@ from torch_geometric.data import Data, InMemoryDataset
 import pandas as pd
 from tqdm import tqdm
 from typing import Optional, Callable
-from torch_geometric.transforms import AddRandomWalkPE
+from torch import Tensor
 
 
 class GridDatasetMem(InMemoryDataset):
@@ -127,7 +127,7 @@ class GridDatasetMem(InMemoryDataset):
             graph_data = Data(x=x, edge_index=edge_index, edge_attr=edge_attr, y=y)
             pe_pre_transform = AddEdgeWeights()
             graph_data = pe_pre_transform(graph_data)
-            pe_transform = AddRandomWalkPE(walk_length=self.pe_dim, attr_name="pe")
+            pe_transform = AddNormalizedRandomWalkPE(walk_length=self.pe_dim, attr_name="pe")
             graph_data = pe_transform(graph_data)
             data_list.append(graph_data)
 

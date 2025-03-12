@@ -1,7 +1,77 @@
 from gridFM.datasets.globals import PQ, PV, REF, PG, QG, VM, VA, G, B
 
 import torch
+from torch import Tensor
 from torch_geometric.transforms import BaseTransform
+from typing import Optional
+import torch_geometric.typing
+from torch_geometric.data import Data
+from torch_geometric.transforms import BaseTransform
+from torch_geometric.utils import (
+    get_self_loop_attr,
+    is_torch_sparse_tensor,
+    to_edge_index,
+    to_torch_coo_tensor,
+    to_torch_csr_tensor,
+)
+
+class AddNormalizedRandomWalkPE(BaseTransform):
+    r"""Adds the random walk positional encoding from the `"Graph Neural
+    Networks with Learnable Structural and Positional Representations"
+    <https://arxiv.org/abs/2110.07875>`_ paper to the given graph
+    (functional name: :obj:`add_random_walk_pe`).
+
+    Args:
+        walk_length (int): The number of random walk steps.
+        attr_name (str, optional): The attribute name of the data object to add
+            positional encodings to. If set to :obj:`None`, will be
+            concatenated to :obj:`data.x`.
+            (default: :obj:`"random_walk_pe"`)
+    """
+    def __init__(
+        self,
+        walk_length: int,
+        attr_name: Optional[str] = 'random_walk_pe',
+    ) -> None:
+        self.walk_length = walk_length
+        self.attr_name = attr_name
+
+    def forward(self, data: Data) -> Data:
+        assert data.edge_index is not None
+        row, col = data.edge_index
+        N = data.num_nodes
+        assert N is not None
+
+        if N <= 2_000:  # Dense code path for faster computation:
+            adj = torch.zeros((N, N), device=row.device)
+            adj[row, col] = data.edge_weight
+            loop_index = torch.arange(N, device=row.device)
+        elif torch_geometric.typing.WITH_WINDOWS:
+            adj = to_torch_coo_tensor(data.edge_index, data.edge_weight, size=data.size())
+        else:
+            adj = to_torch_csr_tensor(data.edge_index, data.edge_weight, size=data.size())
+        
+
+        row_sums = adj.sum(dim=1, keepdim=True)  # Sum along rows
+        row_sums = row_sums.clamp(min=1e-8)  # Prevent division by zero
+
+        adj = adj / row_sums  # Normalize each row to sum to 1
+
+        def get_pe(out: Tensor) -> Tensor:
+            if is_torch_sparse_tensor(out):
+                return get_self_loop_attr(*to_edge_index(out), num_nodes=N)
+            return out[loop_index, loop_index]
+
+        out = adj
+        pe_list = [get_pe(out)]
+        for _ in range(self.walk_length - 1):
+            out = out @ adj
+            pe_list.append(get_pe(out))
+
+        pe = torch.stack(pe_list, dim=-1)
+        data[self.attr_name] = pe
+
+        return data
 
 
 class AddEdgeWeights(BaseTransform):
