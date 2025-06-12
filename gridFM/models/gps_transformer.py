@@ -4,6 +4,39 @@ import torch
 
 
 class GPSTransformer(nn.Module):
+    """
+    A GPS (Graph Transformer) model based on [GPSConv](https://pytorch-geometric.readthedocs.io/en/latest/generated/torch_geometric.nn.conv.GPSConv.html) and [GINEConv](https://pytorch-geometric.readthedocs.io/en/latest/generated/torch_geometric.nn.conv.GINEConv.html) layers from Pytorch Geometric.
+
+    This model encodes node features and positional encodings separately,
+    then applies multiple graph convolution layers with batch normalization,
+    and finally decodes to the output dimension.
+
+    Args:
+        input_dim (int): Dimension of input node features.
+        hidden_dim (int): Hidden dimension size for all layers.
+        output_dim (int): Dimension of the output node features.
+        edge_dim (int): Dimension of edge features.
+        pe_dim (int): Dimension of the positional encoding.
+            Must be less than hidden_dim.
+        num_layers (int): Number of GPSConv layers.
+        heads (int, optional): Number of attention heads in GPSConv.
+        dropout (float, optional): Dropout rate in GPSConv.
+        mask_dim (int, optional): Dimension of the mask vector.
+        mask_value (float, optional): Initial value for learnable mask parameters. 
+        learn_mask (bool, optional): Whether to learn mask values as parameters. 
+
+    Attributes:
+        layers (nn.ModuleList): List of GPSConv layers with batch normalization.
+        encoder (nn.Sequential): Linear + LeakyReLU encoder for node features.
+        input_norm (nn.BatchNorm1d): Batch normalization for node feature encoder output.
+        pe_norm (nn.BatchNorm1d): Batch normalization for positional encoding input.
+        pre_decoder_norm (nn.BatchNorm1d): Batch normalization before decoder layers.
+        decoder (nn.Sequential): MLP decoder layers to output.
+        mask_value (nn.Parameter): Learnable or fixed mask parameter vector.
+
+    Raises:
+        AssertionError: If `pe_dim` is not less than `hidden_dim`.
+    """
     def __init__(
         self,
         input_dim,
@@ -81,6 +114,19 @@ class GPSTransformer(nn.Module):
             )
 
     def forward(self, x, pe, edge_index, edge_attr, batch):
+        """
+        Forward pass for the GPSTransformer.
+
+        Args:
+            x (Tensor): Input node features of shape [num_nodes, input_dim].
+            pe (Tensor): Positional encoding of shape [num_nodes, pe_dim].
+            edge_index (Tensor): Edge indices for graph convolution.
+            edge_attr (Tensor): Edge feature tensor.
+            batch (Tensor): Batch vector assigning nodes to graphs.
+
+        Returns:
+            output (Tensor): Output node features of shape [num_nodes, output_dim].
+        """
         x_pe = self.pe_norm(pe)
 
         x = self.encoder(x)

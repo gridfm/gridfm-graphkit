@@ -16,10 +16,9 @@ from torch_geometric.utils import (
 )
 
 class AddNormalizedRandomWalkPE(BaseTransform):
-    r"""Adds the random walk positional encoding from the `"Graph Neural
-    Networks with Learnable Structural and Positional Representations"
-    <https://arxiv.org/abs/2110.07875>`_ paper to the given graph
-    (functional name: :obj:`add_random_walk_pe`).
+    r"""Adds the random walk positional encoding from the
+    [Graph Neural Networks with Learnable Structural and Positional Representations](https://arxiv.org/abs/2110.07875)
+    paper to the given graph. This is an adaptation from the original Pytorch Geometric implementation.
 
     Args:
         walk_length (int): The number of random walk steps.
@@ -75,8 +74,10 @@ class AddNormalizedRandomWalkPE(BaseTransform):
 
 
 class AddEdgeWeights(BaseTransform):
-    r"""Computes the magnitude of the complex admittance
-    (stored in edge features) and adds it as an `edge_weight` attribute.
+    """
+    Computes and adds edge weight as the magnitude of complex admittance.
+
+    The magnitude is computed from the G and B components in `data.edge_attr` and stored in `data.edge_weight`.
     """
 
     def forward(self, data):
@@ -96,13 +97,10 @@ class AddEdgeWeights(BaseTransform):
 
 
 class AddIdentityMask(BaseTransform):
-    r"""Creates an identity mask, and adds it as a `mask` attribute.
+    """Creates an identity mask, and adds it as a `mask` attribute.
 
     The mask is generated such that every entry is False, so no masking is actually applied
     """
-
-    def __init__(self):
-        super().__init__()
 
     def forward(self, data):
         assert hasattr(data, "y"), "Data must have ground truth 'y'."
@@ -117,7 +115,7 @@ class AddIdentityMask(BaseTransform):
 
 
 class AddRandomMask(BaseTransform):
-    r"""Creates a random mask, and adds it as a `mask` attribute.
+    """Creates a random mask, and adds it as a `mask` attribute.
 
     The mask is generated such that each entry is `True` with probability
     `mask_ratio` and `False` otherwise.
@@ -141,10 +139,7 @@ class AddRandomMask(BaseTransform):
 
 
 class AddPFMask(BaseTransform):
-    r"""A transform that creates a mask according to the power flow problem and assigns it as a `mask` attribute."""
-
-    def __init__(self):
-        super().__init__()
+    """Creates a mask according to the power flow problem and assigns it as a `mask` attribute."""
 
     def forward(self, data):
         # Ensure the data object has the required attributes
@@ -175,10 +170,7 @@ class AddPFMask(BaseTransform):
 
 
 class AddOPFMask(BaseTransform):
-    r"""A transform that creates a mask according to the optimal power flow problem and assigns it as a `mask` attribute."""
-
-    def __init__(self):
-        super().__init__()
+    """Creates a mask according to the optimal power flow problem and assigns it as a `mask` attribute."""
 
     def forward(self, data):
         # Ensure the data object has the required attributes

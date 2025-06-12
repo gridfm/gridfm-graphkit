@@ -7,6 +7,9 @@ import torch.nn as nn
 
 
 class MaskedMSELoss(nn.Module):
+    """
+    Mean Squared Error loss computed only on masked elements.
+    """
     def __init__(self, reduction="mean"):
         super(MaskedMSELoss, self).__init__()
         self.reduction = reduction
@@ -17,6 +20,7 @@ class MaskedMSELoss(nn.Module):
 
 
 class MSELoss(nn.Module):
+    """Standard Mean Squared Error loss."""
     def __init__(self, reduction="mean"):
         super(MSELoss, self).__init__()
         self.reduction = reduction
@@ -27,6 +31,7 @@ class MSELoss(nn.Module):
 
 
 class SCELoss(nn.Module):
+    """Squared Cosine Embedding Loss with optional masking and normalization."""
     def __init__(self, alpha=3):
         super(SCELoss, self).__init__()
         self.alpha = alpha
@@ -48,6 +53,10 @@ class SCELoss(nn.Module):
 
 
 class PBELoss(nn.Module):
+    """
+    Loss based on the Power Balance Equations.
+    """
+
     def __init__(self, visualization=False):
         super(PBELoss, self).__init__()
 
@@ -124,16 +133,15 @@ class PBELoss(nn.Module):
 
 
 class MixedLoss(nn.Module):
+    """
+    Combines multiple loss functions with weighted sum.
+
+    Args:
+        loss_functions (list[nn.Module]): List of loss functions.
+        weights (list[float]): Corresponding weights for each loss function.
+    """
+
     def __init__(self, loss_functions, weights):
-        """
-        Initialize the MixedLoss class.
-
-        Parameters:
-        - loss_functions (list of nn.Module): A list of loss function objects.
-        - weights (list of float): A list of weights for each loss function.
-
-        The length of loss_functions and weights must match.
-        """
         super(MixedLoss, self).__init__()
 
         assert len(loss_functions) == len(
@@ -148,6 +156,7 @@ class MixedLoss(nn.Module):
         Compute the weighted sum of all specified losses.
 
         Parameters:
+
         - pred: Predictions.
         - target: Ground truth.
         - edge_index: Optional edge index for graph-based losses.
