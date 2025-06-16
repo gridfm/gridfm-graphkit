@@ -1,4 +1,4 @@
-# `GridDatasetMem`
+## `GridDatasetMem`
 
 ::: gridFM.datasets.powergrid.GridDatasetMem
 

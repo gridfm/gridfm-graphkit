@@ -10,6 +10,21 @@ from tqdm import tqdm
 
 
 class Trainer:
+    """
+    A flexible training loop for GridFM models with optional validation, learning rate scheduling,
+    and plugin callbacks for logging or custom behavior.
+
+    Attributes:
+        model (nn.Module): The PyTorch model to train.
+        optimizer (Optimizer): The optimizer used for updating model parameters.
+        device: The device to train on (CPU or CUDA).
+        loss_fn (nn.Module): Loss function that returns a loss dictionary.
+        early_stopper (EarlyStopper): Callback for early stopping based on validation loss.
+        train_dataloader (DataLoader): Dataloader for training data.
+        val_dataloader (DataLoader, optional): Dataloader for validation data.
+        lr_scheduler (optional): Learning rate scheduler.
+        plugins (List[TrainerPlugin]): List of plugin callbacks.
+    """
     def __init__(
         self,
         model: nn.Module,
@@ -127,6 +142,14 @@ class Trainer:
         return val_loss
 
     def train(self, start_epoch: int = 0, epochs: int = 1, prev_step: int = -1):
+        """
+        Main training loop.
+
+        Args:
+            start_epoch (int): Epoch to start training from.
+            epochs (int): Total number of epochs to train.
+            prev_step (int): Previous training step (for logging continuity).
+        """
         for epoch in tqdm(range(start_epoch, start_epoch + epochs), desc="Epochs"):
             val_loss = self.__one_epoch(epoch, prev_step)
             if self.early_stopper.early_stop(val_loss, self.model):

@@ -1,21 +1,51 @@
 # Loss Functions
 
-### `MSELoss`
-
-::: gridFM.utils.loss.MSELoss
-
-### `MaskedMSELoss`
-
-::: gridFM.utils.loss.MaskedMSELoss
-
-### `SCELoss`
-
-::: gridFM.utils.loss.SCELoss
-
-### `PBELoss`
+### `Power Balance Equation Loss`
+  
+$$
+\mathcal{L}_{\text{PBE}} = \frac{1}{N} \sum_{i=1}^N \left| (P_{G,i} - P_{D,i}) + j(Q_{G,i} - Q_{D,i}) - S_{\text{injection}, i} \right|
+$$
 
 ::: gridFM.utils.loss.PBELoss
 
-### `MixedLoss`
+---
+
+### `Mean Squared Error Loss`
+
+$$
+\mathcal{L}_{\text{MSE}} = \frac{1}{N} \sum_{i=1}^N (y_i - \hat{y}_i)^2
+$$
+
+::: gridFM.utils.loss.MSELoss
+
+---
+
+### `Masked Mean Squared Error Loss`
+
+$$
+\mathcal{L}_{\text{MaskedMSE}} = \frac{1}{|M|} \sum_{i \in M} (y_i - \hat{y}_i)^2
+$$
+
+::: gridFM.utils.loss.MaskedMSELoss 
+
+---
+
+### `Scaled Cosine Error Loss`
+
+$$
+\mathcal{L}_{\text{SCE}} = \frac{1}{N} \sum_{i=1}^N \left(1 - \frac{\hat{y}^T_i \cdot y_i}{\|\hat{y}_i\| \|y_i\|}\right)^\alpha \text{ , } \alpha \geq 1
+$$
+
+::: gridFM.utils.loss.SCELoss
+
+---
+
+### `Mixed Loss`
+
+$$
+\mathcal{L}_{\text{Mixed}} = \sum_{m=1}^M w_m \cdot \mathcal{L}_m
+$$
 
 ::: gridFM.utils.loss.MixedLoss
+
+

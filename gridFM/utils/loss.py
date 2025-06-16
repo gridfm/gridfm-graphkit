@@ -31,7 +31,7 @@ class MSELoss(nn.Module):
 
 
 class SCELoss(nn.Module):
-    """Squared Cosine Embedding Loss with optional masking and normalization."""
+    """Scaled Cosine Error Loss with optional masking and normalization."""
     def __init__(self, alpha=3):
         super(SCELoss, self).__init__()
         self.alpha = alpha
