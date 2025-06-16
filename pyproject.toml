@@ -2,6 +2,10 @@
 requires = ["setuptools >= 75.8.0"]
 build-backend = "setuptools.build_meta"
 
+[tool.setuptools.packages.find]
+include = ["gridFM*"]
+namespaces = false
+
 [project]
 name = "gridFM"
 description = "Grid Foundation Model"
