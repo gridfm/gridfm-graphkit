@@ -33,7 +33,7 @@ class Trainer:
         loss_fn: nn.Module,
         early_stopper: EarlyStopper,
         train_dataloader: DataLoader,
-        val_dataloader: DataLoader = None,
+        val_dataloader: DataLoader,
         lr_scheduler=None,
         plugins: List[TrainerPlugin] = [],
     ):

@@ -1,0 +1,38 @@
+seed: 42
+verbose: False
+data:
+  network: "case30_ieee"
+  scenarios: 128
+  normalization: "baseMVAnorm"
+  baseMVA: 100
+  mask_type: "rnd"
+  mask_value: 0.0
+  mask_ratio: 0.5
+  mask_dim: 6
+  learn_mask: False
+  val_ratio: 0.1
+  test_ratio: 0.1
+model:
+  type: "GPSTransformer"
+  input_dim: 9
+  output_dim: 6
+  edge_dim: 2
+  pe_dim: 4
+  num_layers: 2
+  hidden_size: 16
+  attention_head: 2
+  dropout: 0.1
+training:
+  batch_size: 16
+  epochs: 1
+  losses: ["MaskedMSE", "PBE", "MSE", "SCE"]
+  loss_weights: [0.25, 0.25, 0.25, 0.25]
+optimizer:
+  learning_rate: 0.0001
+  beta1: 0.9
+  beta2: 0.999
+  lr_decay: 0.7
+  lr_patience: 10
+callbacks:
+  patience: -1 
+  tol: 0 

@@ -25,31 +25,22 @@ class GPSTransformer(nn.Module):
         mask_value (float, optional): Initial value for learnable mask parameters. 
         learn_mask (bool, optional): Whether to learn mask values as parameters. 
 
-    Attributes:
-        layers (nn.ModuleList): List of GPSConv layers with batch normalization.
-        encoder (nn.Sequential): Linear + LeakyReLU encoder for node features.
-        input_norm (nn.BatchNorm1d): Batch normalization for node feature encoder output.
-        pe_norm (nn.BatchNorm1d): Batch normalization for positional encoding input.
-        pre_decoder_norm (nn.BatchNorm1d): Batch normalization before decoder layers.
-        decoder (nn.Sequential): MLP decoder layers to output.
-        mask_value (nn.Parameter): Learnable or fixed mask parameter vector.
-
     Raises:
         AssertionError: If `pe_dim` is not less than `hidden_dim`.
     """
     def __init__(
         self,
-        input_dim,
-        hidden_dim,
-        output_dim,
-        edge_dim,
-        pe_dim,
-        num_layers,
-        heads=1,
-        dropout=0.0,
-        mask_dim=6,
-        mask_value=-1,
-        learn_mask=True,
+        input_dim: int,
+        hidden_dim: int,
+        output_dim: int,
+        edge_dim: int,
+        pe_dim: int,
+        num_layers: int,
+        heads: int = 1,
+        dropout: float = 0.0,
+        mask_dim: int = 6,
+        mask_value: float = -1.0,
+        learn_mask: bool = True,
     ):
         super(GPSTransformer, self).__init__()
         self.num_layers = num_layers
