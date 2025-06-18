@@ -12,7 +12,18 @@ description = "Grid Foundation Model"
 version = "0.1.0"
 readme = "README.md"
 license = "Apache-2.0" 
-requires-python = ">=3.10"
+requires-python = ">=3.12.10"
+
+authors = [
+  {name = "Matteo Mazzonelli", email = "Matteo.Mazzonelli1@ibm.com"},
+  {name = "Alban Puech", email = "Alban.Puech1@ibm.com"},
+  {name = "Jonas Weiss", email= "jwe@zurich.ibm.com"},
+]
+
+maintainers = [
+  {name = "Matteo Mazzonelli", email = "Matteo.Mazzonelli1@ibm.com"},
+]
+
 dependencies = [
     "mlflow>=3.1.0",
     "nbformat>=5.10.4",
@@ -27,12 +38,17 @@ dependencies = [
     "torchvision>=0.22.1",
 ]
 
-authors = [
-  {name = "Matteo Mazzonelli", email = "Matteo.Mazzonelli1@ibm.com"},
-  {name = "Alban Puech", email = "Alban.Puech1@ibm.com"},
-  {name = "Jonas Weiss", email= "jwe@zurich.ibm.com"},
+[project.optional-dependencies]
+dev = [
+  "mkdocs-material",
+  "mkdocstrings[python]",
 ]
 
-maintainers = [
-  {name = "Matteo Mazzonelli", email = "Matteo.Mazzonelli1@ibm.com"},
+test = [
+  "pytest",
+  "pytest-cov"
 ]
+
+
+[project.scripts]
+gridFM = "gridFM.__main__:main"

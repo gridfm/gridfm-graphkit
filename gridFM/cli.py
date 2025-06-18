@@ -31,11 +31,11 @@ import plotly.io as pio
 import warnings
 
 
-def run_training(config_path, grid_params, data_path, device, run, checkpoint_flag):
+def run_training(config_path, grid_params, data_path, device, run, checkpoint_flag, model_path=None):
 
     # Define log directories
     artifact_dir = os.path.join(
-        "../mlruns", run.info.experiment_id, run.info.run_id, "artifacts"
+        "mlruns", run.info.experiment_id, run.info.run_id, "artifacts"
     )
     config_dir = os.path.join(artifact_dir, "config")
     model_dir = os.path.join(artifact_dir, "model")
@@ -48,7 +48,7 @@ def run_training(config_path, grid_params, data_path, device, run, checkpoint_fl
     os.makedirs(model_dir, exist_ok=True)
     os.makedirs(data_dir, exist_ok=True)
     os.makedirs(test_dir, exist_ok=True)
-
+    
     # Load the base config
     if checkpoint_flag:
         config_path = os.path.join(config_dir, "config.yaml")
@@ -138,7 +138,10 @@ def run_training(config_path, grid_params, data_path, device, run, checkpoint_fl
     ]
 
     # Create model
-    model = load_model(args=args)
+    if model_path:
+        model = torch.load(model_path, weights_only=False, map_location=device)
+    else:
+        model = load_model(args=args)
 
     print(model)
     print(
@@ -249,10 +252,10 @@ def run_training(config_path, grid_params, data_path, device, run, checkpoint_fl
     eval_cmd_path = os.path.join(artifact_dir, "EVAL_CMD.txt")
     with open(eval_cmd_path, "w") as f:
         f.write(
-            f"python3 eval.py --model_exp_id {run.info.experiment_id} --model_run_id {run.info.run_id} --model_name best_model --config {config_dest} --eval_name YOUR_EVAL_NAME \n"
+            f"gridFM predict --model_exp_id {run.info.experiment_id} --model_run_id {run.info.run_id} --model_name best_model --config {config_dest} --eval_name YOUR_EVAL_NAME \n"
         )
         f.write(
-            f"python eval.py --model_exp_id {run.info.experiment_id} --model_run_id {run.info.run_id} --model_name best_model --config {config_dest} --eval_name YOUR_EVAL_NAME"
+            f"gridFM predict --model_exp_id {run.info.experiment_id} --model_run_id {run.info.run_id} --model_name best_model --config {config_dest} --eval_name YOUR_EVAL_NAME"
         )
 
 
@@ -295,7 +298,6 @@ def main_standard(args, device):
                 args.config, {}, args.data_path, device, run, checkpoint_flag=False
             )
 
-
 def main_checkpoint(args, device):
     if args.grid:
         warnings.warn(
@@ -311,62 +313,186 @@ def main_checkpoint(args, device):
     ) as run:
         run_training(args.config, {}, args.data_path, device, run, checkpoint_flag=True)
 
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Training script with grid search")
-    parser.add_argument(
-        "--config",
-        type=str,
-        default="config/default.yaml",
-        help="Path to base config file",
-    )
-    parser.add_argument(
-        "--grid",
-        type=str,
-        default=None,
-        help="Path to grid.yaml file. No grid search by default",
-    )
-    parser.add_argument(
-        "--exp",
-        type=str,
-        default=None,
-        help="Experiment name for mlflow, None by default",
-    )
-    default_data_path = os.path.join(os.getcwd(), "..", "data")
-    parser.add_argument(
-        "--data_path",
-        type=str,
-        default=default_data_path,
-        help=f"Data root directory (default: {default_data_path})",
-    )
-    parser.add_argument(
-        "-c",
-        action="store_true",
-        help="Starts training from a checkpoint",
-    )
-    parser.add_argument(
-        "--model_exp_id",
-        type=str,
-        help="ID of the experiment associated with the model checkpoint",
-        default=None,
-    )
-
-    parser.add_argument(
-        "--model_run_id",
-        type=str,
-        help="ID of the run associated with the model checkpoint",
-        default=None,
-    )
-    args = parser.parse_args()
-
-    # Check if CUDA is available
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(f"Using device: {device}")
-
-    # Initialize mlflow
-    mlflow.set_tracking_uri("file:../mlruns")
-
-    if args.c:
-        main_checkpoint(args=args, device=device)
+def main_fine_tuning(args, device):
+    exp_name = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    if args.exp is None:
+        experiment_name = f"exp_{exp_name}"
     else:
-        main_standard(args=args, device=device)
+        experiment_name = f"{args.exp}"
+
+    mlflow.set_experiment(experiment_name)
+    with mlflow.start_run() as run:
+        run_training(
+            args.config, {}, args.data_path, device, run, checkpoint_flag=False, model_path=args.model_path
+        )
+
+def eval(model_path, run, config_path, data_path, device):
+
+    model = torch.load(model_path, weights_only=False, map_location=device).to(device)
+
+    artifact_dir = os.path.join(
+        "mlruns",
+        run.info.experiment_id,
+        run.info.run_id,
+        "artifacts",
+    )
+
+    # Define log directories
+    config_dir = os.path.join(artifact_dir, "config")
+    data_dir = os.path.join(artifact_dir, "data_idx")
+    test_dir = os.path.join(artifact_dir, "test")
+
+    # Create log directories if they don't exist
+    os.makedirs(config_dir, exist_ok=True)
+    os.makedirs(data_dir, exist_ok=True)
+    os.makedirs(test_dir, exist_ok=True)
+
+    # Load the base config
+    with open(config_path, "r") as f:
+        base_config = yaml.safe_load(f)
+
+    # Save config file
+    config_dest = os.path.join(config_dir, "config.yaml")
+    with open(config_dest, "w") as f:
+        yaml.dump(base_config, f)
+
+    args = NestedNamespace(**base_config)
+
+    # Fix random seed
+    torch.manual_seed(args.seed)
+    random.seed(args.seed)
+    np.random.seed(args.seed)
+
+    node_normalizers = []
+    edge_normalizers = []
+    datasets = []
+    test_datasets = []
+
+    for i, network in enumerate(args.data.networks):
+        node_normalizer, edge_normalizer = load_normalizer(args=args)
+        node_normalizers.append(node_normalizer)
+        edge_normalizers.append(edge_normalizer)
+
+        # Create torch dataset and split
+        data_path_network = os.path.join(data_path, network)
+        print(f"Loading {network} dataset")
+        dataset = GridDatasetMem(
+            root=data_path_network,
+            norm_method=args.data.normalization,
+            node_normalizer=node_normalizer,
+            edge_normalizer=edge_normalizer,
+            pe_dim=args.model.pe_dim,
+            mask_dim=args.data.mask_dim,
+            transform=get_transform(args=args),
+        )
+        datasets.append(dataset)
+
+        num_scenarios = args.data.scenarios[i]
+        if num_scenarios > len(dataset):
+            warnings.warn(
+                f"Requested number of scenarios ({num_scenarios}) exceeds dataset size ({len(dataset)}). "
+                "Using the full dataset instead."
+            )
+            num_scenarios = len(dataset)
+
+        subset_indices = list(range(num_scenarios))
+        dataset = Subset(dataset, subset_indices)
+
+        node_normalizer.to(device)
+        edge_normalizer.to(device)
+
+        _, _, test_dataset = split_dataset(
+            dataset,
+            data_dir,
+            args.data.val_ratio,
+            args.data.test_ratio,
+        )
+
+        test_datasets.append(test_dataset)
+
+    test_loaders = [
+        DataLoader(i, batch_size=args.training.batch_size, shuffle=False)
+        for i in test_datasets
+    ]
+
+    mlflow.log_params(args.flatten())
+    for i, network in enumerate(args.data.networks):
+        for task in ["PF", "OPF", "Reconstruction"]:
+            mask_ratio = getattr(
+                args.data, "mask_ratio", 0.5
+            )  # Default to 0.5 if mask_ratio doesn't exist
+            df, figs = eval_node_level_task(
+                dataset=datasets[i],
+                model=model,
+                task=task,
+                test_loader=test_loaders[i],
+                mask_dim=args.data.mask_dim,
+                mask_ratio=mask_ratio,
+                node_normalizer=node_normalizers[i],
+                device=device,
+                plot_dist=args.verbose,
+            )
+            # Log metric results
+            df_path = os.path.join(test_dir, f"{task}_metrics_results_{network}.csv")
+            df.to_csv(df_path)
+
+            plot_paths = os.path.join(
+                test_dir, f"{task}_evaluation_plots_{network}.html"
+            )
+            with open(plot_paths, "a") as f:
+                for fig in figs:
+                    f.write(pio.to_html(fig, full_html=False, include_plotlyjs="cdn"))
+
+        # Log node and edge stats
+        log_file_path = os.path.join(artifact_dir, f"stats_{network}.log")
+
+        # Write the print statements to the log file
+        with open(log_file_path, "w") as log_file:
+            log_file.write("Dataset node_stats: " + str(datasets[i].node_stats) + "\n")
+            log_file.write("Dataset edge_stats: " + str(datasets[i].edge_stats) + "\n")
+
+
+def main_eval(
+    args,
+    device,
+):
+    if args.model_path is None and (
+        (args.model_exp_id is None)
+        or (args.model_run_id is None)
+        or (args.model_name is None)
+    ):
+        raise ValueError(
+            "Either model_path or (model_exp_id, model_run_id, model_name) must be provided"
+        )
+    if args.model_path is not None:
+        mlflow.set_experiment(args.eval_name)
+        with mlflow.start_run() as run:
+            eval(args.model_path, run, args.config, args.data_path, device)
+
+    else:
+
+        # Start the parent run using the provided experiment ID and run ID
+        # This is necessary to create a child run
+        with mlflow.start_run(
+            experiment_id=args.model_exp_id, run_id=args.model_run_id
+        ) as parent_run:
+
+            # Start a nested run
+            with mlflow.start_run(
+                experiment_id=args.model_exp_id,
+                parent_run_id=args.model_run_id,
+                run_name=args.eval_name,
+                nested=True,
+            ) as nested_run:
+
+                # load model from parent run artifact dir
+                model_path = os.path.join(
+                    "mlruns",
+                    parent_run.info.experiment_id,
+                    parent_run.info.run_id,
+                    "artifacts",
+                    "model",
+                    args.model_name + ".pth",
+                )
+
+                eval(model_path, nested_run, args.config, args.data_path, device)

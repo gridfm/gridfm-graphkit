@@ -11,6 +11,28 @@ from torch import Tensor
 
 
 class GridDatasetMem(InMemoryDataset):
+    """
+    A PyTorch Geometric `InMemoryDataset` for power grid data stored in tabular CSV format.
+    This dataset class reads node and edge data from CSV files, applies normalization using
+    user-specified `Normalizer` instances, and builds graph data objects with edge weights and
+    positional encodings.
+
+    - Reads raw node and edge CSV files (`pf_node.csv`, `pf_edge.csv`).
+    - Applies the normalization method specified on both node and edge features
+    - Stores normalization statistics in the `processed` directory for reuse.
+    - Constructs `torch_geometric.data.Data` objects with edge weights and positional encodings (via random walk embeddings).
+
+    Args:
+        root (str): Root directory where the dataset is stored.
+        norm_method (str): Identifier for normalization method (e.g., "minmax", "standard").
+        node_normalizer (Normalizer): Normalizer used for node features.
+        edge_normalizer (Normalizer): Normalizer used for edge features.
+        pe_dim (int): Length of the random walk used for positional encoding.
+        mask_dim (int, optional): Number of features per-node that could be masked. Usually Pd, Qd, Pg, Qg, Vm, Va
+        transform (callable, optional): Transformation applied at runtime.
+        pre_transform (callable, optional): Transformation applied before saving to disk.
+        pre_filter (callable, optional): Filter to determine which graphs to keep.
+    """
     def __init__(
         self,
         root: str,
@@ -134,10 +156,19 @@ class GridDatasetMem(InMemoryDataset):
         self.save(data_list, self.processed_paths[0])
 
     def change_transform(self, new_transform):
+        """
+        Temporarily switch to a new transform function, used when evaluating different tasks.
+
+        Args:
+            new_transform (Callable): The new transform to use.
+        """
         self.original_transform = self.transform
         self.transform = new_transform
 
     def reset_transform(self):
+        """
+        Reverts the transform to the original one set during initialization, usually called after the evaluation step.
+        """
         if self.original_transform is None:
             raise ValueError(
                 "The original transform is None or the function change_transform needs to be called before"
