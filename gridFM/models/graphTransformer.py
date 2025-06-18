@@ -15,9 +15,10 @@ class GNN_TransformerConv(nn.Module):
         num_layers (int): Number of TransformerConv layers.
         heads (int, optional): Number of attention heads.
         mask_dim (int, optional): Dimension of mask vector.
-        mask_value (float, optional): Initial mask value. 
+        mask_value (float, optional): Initial mask value.
         learn_mask (bool, optional): Whether mask values are learnable.
     """
+
     def __init__(
         self,
         input_dim: int,
@@ -50,7 +51,7 @@ class GNN_TransformerConv(nn.Module):
                     heads=self.heads,
                     edge_dim=self.edge_dim,
                     beta=False,
-                )
+                ),
             )
             # Update the dimension for the next layer
             current_dim = self.hidden_dim * self.heads
@@ -64,11 +65,13 @@ class GNN_TransformerConv(nn.Module):
 
         if learn_mask:
             self.mask_value = nn.Parameter(
-                torch.randn(mask_dim) + mask_value, requires_grad=True
+                torch.randn(mask_dim) + mask_value,
+                requires_grad=True,
             )
         else:
             self.mask_value = nn.Parameter(
-                torch.zeros(mask_dim) + mask_value, requires_grad=False
+                torch.zeros(mask_dim) + mask_value,
+                requires_grad=False,
             )
 
     def forward(self, x, pe, edge_index, edge_attr, batch):

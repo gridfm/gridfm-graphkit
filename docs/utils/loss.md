@@ -1,7 +1,7 @@
 # Loss Functions
 
 ### `Power Balance Equation Loss`
-  
+
 $$
 \mathcal{L}_{\text{PBE}} = \frac{1}{N} \sum_{i=1}^N \left| (P_{G,i} - P_{D,i}) + j(Q_{G,i} - Q_{D,i}) - S_{\text{injection}, i} \right|
 $$
@@ -26,7 +26,7 @@ $$
 \mathcal{L}_{\text{MaskedMSE}} = \frac{1}{|M|} \sum_{i \in M} (y_i - \hat{y}_i)^2
 $$
 
-::: gridFM.utils.loss.MaskedMSELoss 
+::: gridFM.utils.loss.MaskedMSELoss
 
 ---
 
@@ -47,5 +47,3 @@ $$
 $$
 
 ::: gridFM.utils.loss.MixedLoss
-
-

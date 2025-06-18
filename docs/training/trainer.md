@@ -1,6 +1,6 @@
 # Trainer
 
-A flexible, modular training loop designed for GNN models in the GridFM framework.  
+A flexible, modular training loop designed for GNN models in the GridFM framework.
 Handles training, validation, early stopping, learning rate scheduling, and plugin callbacks.
 
 ---

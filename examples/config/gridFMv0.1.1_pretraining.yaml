@@ -9,9 +9,9 @@ data:
   mask_dim: 6
   mask_ratio: 0.5
   mask_value: 0.0
-  learn_mask: False 
+  learn_mask: False
   val_ratio: 0.1
-  test_ratio: 0.1 
+  test_ratio: 0.1
 model:
   type: "GNN_TransformerConv"
   input_dim: 9

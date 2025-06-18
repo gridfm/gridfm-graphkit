@@ -6,7 +6,10 @@ from typing import Tuple
 
 
 def split_dataset(
-    dataset, log_dir: str, val_ratio: float = 0.1, test_ratio: float = 0.1
+    dataset,
+    log_dir: str,
+    val_ratio: float = 0.1,
+    test_ratio: float = 0.1,
 ) -> Tuple[Subset, Subset, Subset]:
     """
     Splits a dataset into training, validation, and test sets, and logs the indices for each split to CSV files for further analysis
@@ -42,13 +45,16 @@ def split_dataset(
 
     # Save indices to CSV files
     pd.DataFrame(train_indices, columns=["index"]).to_csv(
-        os.path.join(log_dir, "train_indices.csv"), index=False
+        os.path.join(log_dir, "train_indices.csv"),
+        index=False,
     )
     pd.DataFrame(val_indices, columns=["index"]).to_csv(
-        os.path.join(log_dir, "val_indices.csv"), index=False
+        os.path.join(log_dir, "val_indices.csv"),
+        index=False,
     )
     pd.DataFrame(test_indices, columns=["index"]).to_csv(
-        os.path.join(log_dir, "test_indices.csv"), index=False
+        os.path.join(log_dir, "test_indices.csv"),
+        index=False,
     )
 
     # Create subsets

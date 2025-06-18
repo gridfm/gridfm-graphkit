@@ -117,7 +117,7 @@ def merge_dict(base, updates):
         if isinstance(value, dict):
             if not isinstance(base[key], dict):
                 raise TypeError(
-                    f"Default config expects  {type(base[key])}, but got a dict at key '{key}'"
+                    f"Default config expects  {type(base[key])}, but got a dict at key '{key}'",
                 )
             # Recursively merge dictionaries
             merge_dict(base[key], value)
@@ -174,7 +174,8 @@ def load_normalizer(args):
         return Standardizer(), Standardizer()
     elif method == "baseMVAnorm":
         return BaseMVANormalizer(
-            node_data=True, baseMVA_orig=args.data.baseMVA
+            node_data=True,
+            baseMVA_orig=args.data.baseMVA,
         ), BaseMVANormalizer(node_data=False, baseMVA_orig=args.data.baseMVA)
     elif method == "identity":
         return IdentityNormalizer(), IdentityNormalizer()
@@ -273,7 +274,8 @@ def get_transform(args):
 
     if mask_type == "rnd":
         return AddRandomMask(
-            mask_dim=args.data.mask_dim, mask_ratio=args.data.mask_ratio
+            mask_dim=args.data.mask_dim,
+            mask_ratio=args.data.mask_ratio,
         )
     elif mask_type == "pf":
         return AddPFMask()

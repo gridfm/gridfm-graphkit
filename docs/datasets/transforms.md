@@ -6,7 +6,7 @@
 
 ::: gridFM.datasets.transforms.AddNormalizedRandomWalkPE
 
-### `AddEdgeWeights` 
+### `AddEdgeWeights`
 
 ::: gridFM.datasets.transforms.AddEdgeWeights
 
@@ -23,5 +23,5 @@
 ::: gridFM.datasets.transforms.AddPFMask
 
 ### `AddOPFMask`
- 
+
 ::: gridFM.datasets.transforms.AddOPFMask

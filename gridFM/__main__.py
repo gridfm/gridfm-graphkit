@@ -3,8 +3,12 @@ import torch
 import mlflow
 from gridFM.cli import main_standard, main_checkpoint, main_eval, main_fine_tuning
 
+
 def main():
-    parser = argparse.ArgumentParser(prog="gridFM", description="Grid Foundation Model CLI")
+    parser = argparse.ArgumentParser(
+        prog="gridFM",
+        description="Grid Foundation Model CLI",
+    )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     # ---- TRAIN SUBCOMMAND ----
@@ -23,7 +27,6 @@ def main():
     train_parser.add_argument("--model_path", type=str, required=True)
     train_parser.add_argument("--exp", type=str, default=None)
     train_parser.add_argument("--data_path", type=str, default="data")
-    
 
     # ---- PREDICT SUBCOMMAND ----
     predict_parser = subparsers.add_parser("predict", help="Run prediction")
@@ -48,6 +51,7 @@ def main():
         main_eval(args, device)
     elif args.command == "finetune":
         main_fine_tuning(args, device)
+
 
 if __name__ == "__main__":
     main()

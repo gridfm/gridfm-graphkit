@@ -80,6 +80,7 @@ class MLflowLoggerPlugin(TrainerPlugin):
         steps (int, optional): Interval in steps to log metrics.
         params (dict, optional): Parameters to log to MLflow at the start.
     """
+
     def __init__(self, steps: Optional[int] = None, params: dict = None):
         super().__init__(steps=steps)  # Initialize the steps from the base class
         self.steps = steps
@@ -132,6 +133,7 @@ class CheckpointerPlugin(TrainerPlugin):
         checkpoint_dir (str): Directory where checkpoints will be saved.
         steps (int, optional): Interval in steps for checkpointing.
     """
+
     def __init__(
         self,
         checkpoint_dir: str,
@@ -175,15 +177,16 @@ class CheckpointerPlugin(TrainerPlugin):
         }
 
         checkpoint_path = os.path.join(
-            self.checkpoint_dir, f"checkpoint_last_epoch.pth"
+            self.checkpoint_dir,
+            "checkpoint_last_epoch.pth",
         )
         torch.save(checkpoint, checkpoint_path)
 
 
 class MetricsTrackerPlugin(TrainerPlugin):
     """
-     Logs metrics at the end of each epoch. Currently only returning the validation loss.
-     """
+    Logs metrics at the end of each epoch. Currently only returning the validation loss.
+    """
 
     def __init__(self):
         super().__init__()
@@ -191,14 +194,13 @@ class MetricsTrackerPlugin(TrainerPlugin):
         self.metrics_history = {}
 
     def step(
-            self,
-            epoch: int,
-            step: int,
-            metrics: Dict = {},
-            end_of_epoch: bool = False,
-            **kwargs
+        self,
+        epoch: int,
+        step: int,
+        metrics: Dict = {},
+        end_of_epoch: bool = False,
+        **kwargs,
     ):
-
         for metric_name, metric_value in metrics.items():
             # Add metric to history
             if metric_name not in self.metrics_history:

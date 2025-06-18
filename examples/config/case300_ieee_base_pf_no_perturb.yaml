@@ -34,5 +34,5 @@ optimizer:
   lr_decay: 0.7
   lr_patience: 100
 callbacks:
-  patience: -1 
-  tol: 0 
+  patience: -1
+  tol: 0

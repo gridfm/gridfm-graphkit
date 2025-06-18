@@ -2,7 +2,13 @@ import torch
 
 
 class EarlyStopper:
-    def __init__(self, saving_path, patience=5, tol=0, min_validation_loss=float("inf")):
+    def __init__(
+        self,
+        saving_path,
+        patience=5,
+        tol=0,
+        min_validation_loss=float("inf"),
+    ):
         """
         Args:
             patience (int): number of epochs to wait before early stopping
@@ -34,8 +40,8 @@ class EarlyStopper:
             if self.patience != -1 and self.counter > self.patience:
                 print(
                     "Early stopping after {} epochs of no improvement.".format(
-                        self.counter
-                    )
+                        self.counter,
+                    ),
                 )
                 return True
         return False

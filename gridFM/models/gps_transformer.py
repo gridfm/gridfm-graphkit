@@ -22,12 +22,13 @@ class GPSTransformer(nn.Module):
         heads (int, optional): Number of attention heads in GPSConv.
         dropout (float, optional): Dropout rate in GPSConv.
         mask_dim (int, optional): Dimension of the mask vector.
-        mask_value (float, optional): Initial value for learnable mask parameters. 
-        learn_mask (bool, optional): Whether to learn mask values as parameters. 
+        mask_value (float, optional): Initial value for learnable mask parameters.
+        learn_mask (bool, optional): Whether to learn mask values as parameters.
 
     Raises:
         AssertionError: If `pe_dim` is not less than `hidden_dim`.
     """
+
     def __init__(
         self,
         input_dim: int,
@@ -53,9 +54,9 @@ class GPSTransformer(nn.Module):
         self.mask_value = mask_value
         self.learn_mask = learn_mask
 
-        assert (
-            pe_dim < hidden_dim
-        ), "positional encoding dimension must be smaller than model hidden dimension"
+        assert pe_dim < hidden_dim, (
+            "positional encoding dimension must be smaller than model hidden dimension"
+        )
 
         self.layers = nn.ModuleList()
 
@@ -81,10 +82,10 @@ class GPSTransformer(nn.Module):
                             dropout=self.dropout,
                         ),
                         "norm": nn.BatchNorm1d(
-                            self.hidden_dim
+                            self.hidden_dim,
                         ),  # BatchNorm after each graph layer
-                    }
-                )
+                    },
+                ),
             )
 
         self.pre_decoder_norm = nn.BatchNorm1d(self.hidden_dim)
@@ -97,11 +98,13 @@ class GPSTransformer(nn.Module):
 
         if learn_mask:
             self.mask_value = nn.Parameter(
-                torch.randn(mask_dim) + mask_value, requires_grad=True
+                torch.randn(mask_dim) + mask_value,
+                requires_grad=True,
             )
         else:
             self.mask_value = nn.Parameter(
-                torch.zeros(mask_dim) + mask_value, requires_grad=False
+                torch.zeros(mask_dim) + mask_value,
+                requires_grad=False,
             )
 
     def forward(self, x, pe, edge_index, edge_attr, batch):
@@ -126,7 +129,10 @@ class GPSTransformer(nn.Module):
         x = torch.cat((x, x_pe), 1)
         for layer in self.layers:
             x = layer["conv"](
-                x=x, edge_index=edge_index, edge_attr=edge_attr, batch=batch
+                x=x,
+                edge_index=edge_index,
+                edge_attr=edge_attr,
+                batch=batch,
             )
             x = layer["norm"](x)
 

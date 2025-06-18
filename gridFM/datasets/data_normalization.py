@@ -58,6 +58,7 @@ class MinMaxNormalizer(Normalizer):
     """
     Scales each feature to the [0, 1] range.
     """
+
     def __init__(self):
         self.min_val = None
         self.max_val = None
@@ -99,6 +100,7 @@ class Standardizer(Normalizer):
     """
     Standardizes each feature to zero mean and unit variance.
     """
+
     def __init__(self):
         self.mean = None
         self.std = None
@@ -145,6 +147,7 @@ class BaseMVANormalizer(Normalizer):
     voltage. The per-unit conversion ensures that power system equations remain scale-invariant,
     preserving fundamental physical relationships.
     """
+
     def __init__(self, node_data: bool, baseMVA_orig: float = 100.0):
         """
         Args:

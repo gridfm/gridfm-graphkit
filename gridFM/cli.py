@@ -23,19 +23,27 @@ import numpy as np
 import os
 import mlflow
 from datetime import datetime
-import mlflow.pytorch
-import argparse
 import yaml
 import random
 import plotly.io as pio
 import warnings
 
 
-def run_training(config_path, grid_params, data_path, device, run, checkpoint_flag, model_path=None):
-
+def run_training(
+    config_path,
+    grid_params,
+    data_path,
+    device,
+    run,
+    checkpoint_flag,
+    model_path=None,
+):
     # Define log directories
     artifact_dir = os.path.join(
-        "mlruns", run.info.experiment_id, run.info.run_id, "artifacts"
+        "mlruns",
+        run.info.experiment_id,
+        run.info.run_id,
+        "artifacts",
     )
     config_dir = os.path.join(artifact_dir, "config")
     model_dir = os.path.join(artifact_dir, "model")
@@ -48,7 +56,7 @@ def run_training(config_path, grid_params, data_path, device, run, checkpoint_fl
     os.makedirs(model_dir, exist_ok=True)
     os.makedirs(data_dir, exist_ok=True)
     os.makedirs(test_dir, exist_ok=True)
-    
+
     # Load the base config
     if checkpoint_flag:
         config_path = os.path.join(config_dir, "config.yaml")
@@ -103,7 +111,7 @@ def run_training(config_path, grid_params, data_path, device, run, checkpoint_fl
         if num_scenarios > len(dataset):
             warnings.warn(
                 f"Requested number of scenarios ({num_scenarios}) exceeds dataset size ({len(dataset)}). "
-                "Using the full dataset instead."
+                "Using the full dataset instead.",
             )
             num_scenarios = len(dataset)
 
@@ -115,7 +123,10 @@ def run_training(config_path, grid_params, data_path, device, run, checkpoint_fl
         edge_normalizer.to(device)
 
         train_dataset, val_dataset, test_dataset = split_dataset(
-            dataset, data_dir, args.data.val_ratio, args.data.test_ratio
+            dataset,
+            data_dir,
+            args.data.val_ratio,
+            args.data.test_ratio,
         )
 
         train_datasets.append(train_dataset)
@@ -127,10 +138,14 @@ def run_training(config_path, grid_params, data_path, device, run, checkpoint_fl
 
     # Create DataLoaders
     train_loader = DataLoader(
-        train_dataset_multi, batch_size=args.training.batch_size, shuffle=True
+        train_dataset_multi,
+        batch_size=args.training.batch_size,
+        shuffle=True,
     )
     val_loader = DataLoader(
-        val_dataset_multi, batch_size=args.training.batch_size, shuffle=False
+        val_dataset_multi,
+        batch_size=args.training.batch_size,
+        shuffle=False,
     )
     test_loaders = [
         DataLoader(i, batch_size=args.training.batch_size, shuffle=False)
@@ -175,7 +190,9 @@ def run_training(config_path, grid_params, data_path, device, run, checkpoint_fl
 
     best_model_path = os.path.join(model_dir, "best_model.pth")
     early_stopper = EarlyStopper(
-        best_model_path, args.callbacks.patience, args.callbacks.tol
+        best_model_path,
+        args.callbacks.patience,
+        args.callbacks.tol,
     )
 
     loss_fn = get_loss_function(args)
@@ -197,7 +214,8 @@ def run_training(config_path, grid_params, data_path, device, run, checkpoint_fl
     # Train model
     if checkpoint_flag:
         trainer.train(
-            checkpoint["epoch"] + 1, args.training.epochs - checkpoint["epoch"] - 1
+            checkpoint["epoch"] + 1,
+            args.training.epochs - checkpoint["epoch"] - 1,
         )
     else:
         trainer.train(0, args.training.epochs)
@@ -218,7 +236,9 @@ def run_training(config_path, grid_params, data_path, device, run, checkpoint_fl
     for i, network in enumerate(args.data.networks):
         for task in ["PF", "OPF", "Reconstruction"]:
             mask_ratio = getattr(
-                args.data, "mask_ratio", 0.5
+                args.data,
+                "mask_ratio",
+                0.5,
             )  # Default to 0.5 if mask_ratio doesn't exist
             df, figs = eval_node_level_task(
                 dataset=datasets[i],
@@ -237,7 +257,8 @@ def run_training(config_path, grid_params, data_path, device, run, checkpoint_fl
             df.to_csv(df_path)
 
             plot_paths = os.path.join(
-                test_dir, f"{task}_evaluation_plots_{network}.html"
+                test_dir,
+                f"{task}_evaluation_plots_{network}.html",
             )
             with open(plot_paths, "a") as f:
                 for fig in figs:
@@ -252,10 +273,10 @@ def run_training(config_path, grid_params, data_path, device, run, checkpoint_fl
     eval_cmd_path = os.path.join(artifact_dir, "EVAL_CMD.txt")
     with open(eval_cmd_path, "w") as f:
         f.write(
-            f"gridFM predict --model_exp_id {run.info.experiment_id} --model_run_id {run.info.run_id} --model_name best_model --config {config_dest} --eval_name YOUR_EVAL_NAME \n"
+            f"gridFM predict --model_exp_id {run.info.experiment_id} --model_run_id {run.info.run_id} --model_name best_model --config {config_dest} --eval_name YOUR_EVAL_NAME \n",
         )
         f.write(
-            f"gridFM predict --model_exp_id {run.info.experiment_id} --model_run_id {run.info.run_id} --model_name best_model --config {config_dest} --eval_name YOUR_EVAL_NAME"
+            f"gridFM predict --model_exp_id {run.info.experiment_id} --model_run_id {run.info.run_id} --model_name best_model --config {config_dest} --eval_name YOUR_EVAL_NAME",
         )
 
 
@@ -280,7 +301,7 @@ def main_standard(args, device):
         # Run experiments for all combinations
         for i, grid_params in enumerate(grid_combinations):
             print(
-                f"\nGrid search: {i + 1}/{len(grid_combinations)} with params: {grid_params}"
+                f"\nGrid search: {i + 1}/{len(grid_combinations)} with params: {grid_params}",
             )
             with mlflow.start_run() as run:
                 run_training(
@@ -295,23 +316,27 @@ def main_standard(args, device):
         print("No grid search config file provided. Running single training")
         with mlflow.start_run() as run:
             run_training(
-                args.config, {}, args.data_path, device, run, checkpoint_flag=False
+                args.config,
+                {},
+                args.data_path,
+                device,
+                run,
+                checkpoint_flag=False,
             )
+
 
 def main_checkpoint(args, device):
     if args.grid:
-        warnings.warn(
-            f"Grid search not supported with model checkpoint"
-        )
+        warnings.warn("Grid search not supported with model checkpoint")
     if args.config:
-        warnings.warn(
-            f"No need to specify config file"
-        )
+        warnings.warn("No need to specify config file")
 
     with mlflow.start_run(
-        experiment_id=args.model_exp_id, run_id=args.model_run_id
+        experiment_id=args.model_exp_id,
+        run_id=args.model_run_id,
     ) as run:
         run_training(args.config, {}, args.data_path, device, run, checkpoint_flag=True)
+
 
 def main_fine_tuning(args, device):
     exp_name = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
@@ -323,11 +348,17 @@ def main_fine_tuning(args, device):
     mlflow.set_experiment(experiment_name)
     with mlflow.start_run() as run:
         run_training(
-            args.config, {}, args.data_path, device, run, checkpoint_flag=False, model_path=args.model_path
+            args.config,
+            {},
+            args.data_path,
+            device,
+            run,
+            checkpoint_flag=False,
+            model_path=args.model_path,
         )
 
-def eval(model_path, run, config_path, data_path, device):
 
+def eval(model_path, run, config_path, data_path, device):
     model = torch.load(model_path, weights_only=False, map_location=device).to(device)
 
     artifact_dir = os.path.join(
@@ -391,7 +422,7 @@ def eval(model_path, run, config_path, data_path, device):
         if num_scenarios > len(dataset):
             warnings.warn(
                 f"Requested number of scenarios ({num_scenarios}) exceeds dataset size ({len(dataset)}). "
-                "Using the full dataset instead."
+                "Using the full dataset instead.",
             )
             num_scenarios = len(dataset)
 
@@ -419,7 +450,9 @@ def eval(model_path, run, config_path, data_path, device):
     for i, network in enumerate(args.data.networks):
         for task in ["PF", "OPF", "Reconstruction"]:
             mask_ratio = getattr(
-                args.data, "mask_ratio", 0.5
+                args.data,
+                "mask_ratio",
+                0.5,
             )  # Default to 0.5 if mask_ratio doesn't exist
             df, figs = eval_node_level_task(
                 dataset=datasets[i],
@@ -437,7 +470,8 @@ def eval(model_path, run, config_path, data_path, device):
             df.to_csv(df_path)
 
             plot_paths = os.path.join(
-                test_dir, f"{task}_evaluation_plots_{network}.html"
+                test_dir,
+                f"{task}_evaluation_plots_{network}.html",
             )
             with open(plot_paths, "a") as f:
                 for fig in figs:
@@ -462,7 +496,7 @@ def main_eval(
         or (args.model_name is None)
     ):
         raise ValueError(
-            "Either model_path or (model_exp_id, model_run_id, model_name) must be provided"
+            "Either model_path or (model_exp_id, model_run_id, model_name) must be provided",
         )
     if args.model_path is not None:
         mlflow.set_experiment(args.eval_name)
@@ -470,13 +504,12 @@ def main_eval(
             eval(args.model_path, run, args.config, args.data_path, device)
 
     else:
-
         # Start the parent run using the provided experiment ID and run ID
         # This is necessary to create a child run
         with mlflow.start_run(
-            experiment_id=args.model_exp_id, run_id=args.model_run_id
+            experiment_id=args.model_exp_id,
+            run_id=args.model_run_id,
         ) as parent_run:
-
             # Start a nested run
             with mlflow.start_run(
                 experiment_id=args.model_exp_id,
@@ -484,7 +517,6 @@ def main_eval(
                 run_name=args.eval_name,
                 nested=True,
             ) as nested_run:
-
                 # load model from parent run artifact dir
                 model_path = os.path.join(
                     "mlruns",

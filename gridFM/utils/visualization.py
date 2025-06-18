@@ -43,7 +43,8 @@ def visualize_error(data_point, model, baseMVA, device):
     edges = [
         (u, v)
         for u, v in zip(
-            data_point.edge_index[0].tolist(), data_point.edge_index[1].tolist()
+            data_point.edge_index[0].tolist(),
+            data_point.edge_index[1].tolist(),
         )
         if u != v
     ]
@@ -120,7 +121,14 @@ def visualize_error(data_point, model, baseMVA, device):
 
 
 def visualize_quantity_heatmap(
-    data_point, model, quantity, quantity_name, unit, node_normalizer, cmap, device
+    data_point,
+    model,
+    quantity,
+    quantity_name,
+    unit,
+    node_normalizer,
+    cmap,
+    device,
 ):
     """
     Visualizes a heatmap of a specified quantity (VM, PD, QD, PG, QG, VA) for a given dataset and model.
@@ -157,7 +165,8 @@ def visualize_quantity_heatmap(
         gt_values = denormalized_gt[:, quantity]
         predicted_values = output[:, quantity]
         predicted_values[~data_point.mask[:, quantity]] = denormalized_gt[
-            ~data_point.mask[:, quantity], quantity
+            ~data_point.mask[:, quantity],
+            quantity,
         ]
 
     num_nodes = data_point.x.shape[0]
@@ -171,7 +180,8 @@ def visualize_quantity_heatmap(
     edges = [
         (u, v)
         for u, v in zip(
-            data_point.edge_index[0].tolist(), data_point.edge_index[1].tolist()
+            data_point.edge_index[0].tolist(),
+            data_point.edge_index[1].tolist(),
         )
         if u != v
     ]
@@ -249,7 +259,12 @@ def visualize_quantity_heatmap(
         )
 
     nx.draw_networkx_nodes(
-        G, pos, nodelist=masked_node_indices, node_color="#D3D3D3", node_size=750, ax=ax
+        G,
+        pos,
+        nodelist=masked_node_indices,
+        node_color="#D3D3D3",
+        node_size=750,
+        ax=ax,
     )
     nx.draw_networkx_edges(G, pos, edge_color="gray", alpha=0.5, ax=ax, width=2)
     nx.draw_networkx_labels(

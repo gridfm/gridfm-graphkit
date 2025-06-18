@@ -1,8 +1,14 @@
 import yaml
 import glob
 import pytest
-from gridFM.io.param_handler import load_normalizer, get_loss_function, load_model, get_transform, NestedNamespace
-from gridFM.models.gps_transformer import GPSTransformer
+from gridFM.io.param_handler import (
+    load_normalizer,
+    get_loss_function,
+    load_model,
+    get_transform,
+    NestedNamespace,
+)
+
 
 @pytest.mark.parametrize("yaml_path", glob.glob("examples/config/*.yaml"))
 def test_yaml_config_valid(yaml_path):

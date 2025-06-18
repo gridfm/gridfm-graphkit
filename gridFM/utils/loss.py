@@ -10,6 +10,7 @@ class MaskedMSELoss(nn.Module):
     """
     Mean Squared Error loss computed only on masked elements.
     """
+
     def __init__(self, reduction="mean"):
         super(MaskedMSELoss, self).__init__()
         self.reduction = reduction
@@ -21,6 +22,7 @@ class MaskedMSELoss(nn.Module):
 
 class MSELoss(nn.Module):
     """Standard Mean Squared Error loss."""
+
     def __init__(self, reduction="mean"):
         super(MSELoss, self).__init__()
         self.reduction = reduction
@@ -32,6 +34,7 @@ class MSELoss(nn.Module):
 
 class SCELoss(nn.Module):
     """Scaled Cosine Error Loss with optional masking and normalization."""
+
     def __init__(self, alpha=3):
         super(SCELoss, self).__init__()
         self.alpha = alpha
@@ -67,7 +70,7 @@ class PBELoss(nn.Module):
         temp_pred = pred.clone()
 
         # If a value is not masked, then use the original one
-        unmasked = mask == False
+        unmasked = ~mask
         temp_pred[unmasked] = target[unmasked]
 
         # Voltage magnitudes and angles
@@ -85,7 +88,9 @@ class PBELoss(nn.Module):
 
         # Construct sparse admittance matrix (real and imaginary parts separately)
         Y_bus_sparse = to_torch_coo_tensor(
-            edge_index, edge_complex, size=(target.size(0), target.size(0))
+            edge_index,
+            edge_complex,
+            size=(target.size(0), target.size(0)),
         )
 
         # Conjugate of the admittance matrix
@@ -101,14 +106,14 @@ class PBELoss(nn.Module):
 
         # Power balance loss
         loss = torch.mean(
-            torch.abs(S_net_power_balance - S_injection)
+            torch.abs(S_net_power_balance - S_injection),
         )  # Mean of absolute complex power value
 
         real_loss_power = torch.mean(
-            torch.abs(torch.real(S_net_power_balance - S_injection))
+            torch.abs(torch.real(S_net_power_balance - S_injection)),
         )
         imag_loss_power = torch.mean(
-            torch.abs(torch.imag(S_net_power_balance - S_injection))
+            torch.abs(torch.imag(S_net_power_balance - S_injection)),
         )
         if self.visualization:
             return {
@@ -117,10 +122,10 @@ class PBELoss(nn.Module):
                 "Active Power Loss in p.u.": real_loss_power.item(),
                 "Reactive Power Loss in p.u.": imag_loss_power.item(),
                 "Nodal Active Power Loss in p.u.": torch.abs(
-                    torch.real(S_net_power_balance - S_injection)
+                    torch.real(S_net_power_balance - S_injection),
                 ),
                 "Nodal Reactive Power Loss in p.u.": torch.abs(
-                    torch.imag(S_net_power_balance - S_injection)
+                    torch.imag(S_net_power_balance - S_injection),
                 ),
             }
         else:
@@ -144,9 +149,9 @@ class MixedLoss(nn.Module):
     def __init__(self, loss_functions, weights):
         super(MixedLoss, self).__init__()
 
-        assert len(loss_functions) == len(
-            weights
-        ), "The number of loss functions must match the number of weights."
+        assert len(loss_functions) == len(weights), (
+            "The number of loss functions must match the number of weights."
+        )
 
         self.loss_functions = nn.ModuleList(loss_functions)
         self.weights = weights
@@ -171,7 +176,11 @@ class MixedLoss(nn.Module):
 
         for i, loss_fn in enumerate(self.loss_functions):
             loss_output = loss_fn(
-                pred, target, edge_index=edge_index, edge_attr=edge_attr, mask=mask
+                pred,
+                target,
+                edge_index=edge_index,
+                edge_attr=edge_attr,
+                mask=mask,
             )
 
             # Assume each loss function returns a dictionary with a "loss" key
