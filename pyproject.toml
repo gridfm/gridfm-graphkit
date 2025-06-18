@@ -13,6 +13,7 @@ version = "0.1.0"
 readme = "README.md"
 license = "Apache-2.0" 
 requires-python = ">=3.10"
+
 authors = [
   {name = "Matteo Mazzonelli", email = "Matteo.Mazzonelli1@ibm.com"},
   {name = "Alban Puech", email = "Alban.Puech1@ibm.com"},
@@ -48,3 +49,6 @@ test = [
   "pytest-cov"
 ]
 
+
+[project.scripts]
+gridFM = "gridFM.__main__:main"
