@@ -11,7 +11,7 @@ name = "gridFM"
 description = "Grid Foundation Model"
 version = "0.1.0"
 readme = "README.md"
-license = "Apache-2.0" 
+license = "Apache-2.0"
 requires-python = ">=3.12.10"
 
 authors = [
@@ -42,13 +42,13 @@ dependencies = [
 dev = [
   "mkdocs-material",
   "mkdocstrings[python]",
+  "pre-commit>=4.2.0",
 ]
 
 test = [
   "pytest",
   "pytest-cov"
 ]
-
 
 [project.scripts]
 gridFM = "gridFM.__main__:main"
