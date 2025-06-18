@@ -3,21 +3,36 @@ from typing import Dict, Optional
 import mlflow
 import os
 import torch
+import torch.nn as nn
+from torch.optim import Optimizer
+from torch.optim.lr_scheduler import LRScheduler
 
 
 class TrainerPlugin:
     """
-    A TrainerPlugin runs once every epoch, and possibly every `steps` steps.
-    It is passed relevant objects that can be used for checkpointing, logging,
-    or validation.
+    Base class for training plugins.
+
+    A `TrainerPlugin` is invoked during the training process either at regular step intervals,
+    at the end of each epoch, or both. It can be extended to perform actions like logging,
+    checkpointing, or validation.
+
+    Args:
+        steps (int, optional): Interval (in steps) to run the plugin. If `None`, only runs at end of epoch
     """
 
     def __init__(self, steps: Optional[int] = None):
         self.steps = steps
 
-    def run(self, step: int, end_of_epoch: bool):
+    def run(self, step: int, end_of_epoch: bool) -> bool:
         """
-        Whether or not to run this plugin on the current step.
+        Determines whether to execute the plugin at the current step.
+
+        Args:
+            step (int): The current step number.
+            end_of_epoch (bool): Whether this is the end of the epoch.
+
+        Returns:
+            bool: True if the plugin should run; False otherwise.
         """
         # By default we always run for epoch ends.
         if end_of_epoch:
@@ -45,17 +60,26 @@ class TrainerPlugin:
         parameters for validation, checkpointing, logging, etc.
 
         Args:
-        model: The model being trained.
-        step: The step in training, re-starting from zero each epoch. None at
-                 epoch end.
-        metrics: a dictionary of metrics that might be useful for
-                logging/reporting. E.g. 'loss'. Specific metrics subject
-                to change.
+            epoch (int): The current epoch number.
+            step (int): The current step within the epoch.
+            metrics (dict): Dictionary of training metrics (e.g., loss).
+            end_of_epoch (bool): Indicates if this call is at the end of an epoch.
+            **kwargs (Any): Additional parameters such as model, optimizer, scheduler.
         """
         pass
 
 
 class MLflowLoggerPlugin(TrainerPlugin):
+    """
+    Plugin to log training metrics to MLflow.
+
+    Logs metrics dynamically during training at defined step intervals and/or
+    at the end of each epoch. Also logs initial training parameters once.
+
+    Args:
+        steps (int, optional): Interval in steps to log metrics.
+        params (dict, optional): Parameters to log to MLflow at the start.
+    """
     def __init__(self, steps: Optional[int] = None, params: dict = None):
         super().__init__(steps=steps)  # Initialize the steps from the base class
         self.steps = steps
@@ -98,6 +122,16 @@ class MLflowLoggerPlugin(TrainerPlugin):
 
 
 class CheckpointerPlugin(TrainerPlugin):
+    """
+    Plugin to periodically save model checkpoints.
+
+    Stores the model, optimizer, and scheduler states to a given directory
+    at specified step intervals or at the end of each epoch.
+
+    Args:
+        checkpoint_dir (str): Directory where checkpoints will be saved.
+        steps (int, optional): Interval in steps for checkpointing.
+    """
     def __init__(
         self,
         checkpoint_dir: str,
@@ -113,10 +147,22 @@ class CheckpointerPlugin(TrainerPlugin):
         step: int,
         metrics: Dict = {},
         end_of_epoch: bool = False,
-        model=None,
-        optimizer=None,
-        scheduler=None,
+        model: Optional[nn.Module] = None,
+        optimizer: Optional[Optimizer] = None,
+        scheduler: Optional[LRScheduler] = None,
     ):
+        """
+        Saves a checkpoint if the conditions to run the plugin are met.
+
+        Args:
+            epoch (int): Current epoch number.
+            step (int): Current training step.
+            metrics (dict): Optional metrics dictionary (unused here).
+            end_of_epoch (bool): Whether this is the end of the epoch.
+            model (nn.Module, optional): Model to be checkpointed.
+            optimizer (Optimizer, optional): Optimizer to save.
+            scheduler (LRScheduler, optional): Scheduler to save.
+        """
         # Check if we should save at this step or end of epoch
         if not self.run(step, end_of_epoch):
             return
@@ -132,3 +178,39 @@ class CheckpointerPlugin(TrainerPlugin):
             self.checkpoint_dir, f"checkpoint_last_epoch.pth"
         )
         torch.save(checkpoint, checkpoint_path)
+
+
+class MetricsTrackerPlugin(TrainerPlugin):
+    """
+     Logs metrics at the end of each epoch. Currently only returning the validation loss.
+     """
+
+    def __init__(self):
+        super().__init__()
+        self.validation_losses = []
+        self.metrics_history = {}
+
+    def step(
+            self,
+            epoch: int,
+            step: int,
+            metrics: Dict = {},
+            end_of_epoch: bool = False,
+            **kwargs
+    ):
+
+        for metric_name, metric_value in metrics.items():
+            # Add metric to history
+            if metric_name not in self.metrics_history:
+                self.metrics_history[metric_name] = []
+            self.metrics_history[metric_name].append(metric_value)
+
+        if end_of_epoch:
+            for metric_name, values in self.metrics_history.items():
+                if values:  # Avoid division by zero or empty lists
+                    avg_value = sum(values) / len(values)
+                    if metric_name == "Validation Loss":
+                        self.validation_losses.append(avg_value)
+
+    def get_losses(self):
+        return self.validation_losses

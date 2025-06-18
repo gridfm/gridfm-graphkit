@@ -1,0 +1,68 @@
+site_name: "GridFM model evaluation"
+repo_url: https://github.com/Grid-FM/gridfm_model_evaluation
+repo_name: GitHub
+
+nav:
+  - Home: index.md
+  - Installation: install/installation.md
+  - Components:
+    - Datasets:
+      - Data normalization: datasets/data_normalization.md
+      - Power Grid datasets: datasets/powergrid.md
+      - Transforms: datasets/transforms.md
+    - Models: models/models.md
+    - Training:
+      - Trainer: training/trainer.md
+      - Plugins: training/plugins.md
+    - Losses: utils/loss.md
+  - Usage: usage/usage.md
+  - Examples:
+    - Pre-training a new GridFM: examples/pre_training.md
+    - Fine-tuning an existing GridFM: examples/fine_tuning.md 
+    - Inference : examples/inference.md
+
+theme:
+  name: material
+  palette:
+    primary: white
+  font:
+    text: Roboto
+    code: Roboto Mono
+  features:
+    - navigation.indexes
+    - navigation.tracking
+    - toc.follow
+    - search.suggest
+    - navigation.instant
+    - navigation.instant.progress
+  logo: figs/logo_full.png
+  favicon: figs/logo_small.png
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            docstring_style: google
+            heading_level: 0       
+            show_root_heading: false 
+
+
+markdown_extensions:
+  - admonition
+  - toc:
+      permalink: true
+  - pymdownx.arithmatex:
+      generic: true
+  - md_in_html
+    
+
+extra_javascript:
+  - javascripts/katex.js
+  - https://unpkg.com/katex@0/dist/katex.min.js
+  - https://unpkg.com/katex@0/dist/contrib/auto-render.min.js
+
+extra_css:
+  - stylesheets/extra.css
+  - https://unpkg.com/katex@0/dist/katex.min.css

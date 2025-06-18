@@ -4,17 +4,31 @@ import torch
 
 
 class GNN_TransformerConv(nn.Module):
+    """
+    Graph Neural Network using [TransformerConv](https://pytorch-geometric.readthedocs.io/en/latest/generated/torch_geometric.nn.conv.TransformerConv.html) layers from PyTorch Geometric.
+
+    Args:
+        input_dim (int): Dimensionality of input node features.
+        hidden_dim (int): Hidden dimension size for TransformerConv layers.
+        output_dim (int): Output dimension size.
+        edge_dim (int): Dimensionality of edge features.
+        num_layers (int): Number of TransformerConv layers.
+        heads (int, optional): Number of attention heads.
+        mask_dim (int, optional): Dimension of mask vector.
+        mask_value (float, optional): Initial mask value. 
+        learn_mask (bool, optional): Whether mask values are learnable.
+    """
     def __init__(
         self,
-        input_dim,
-        hidden_dim,
-        output_dim,
-        edge_dim,
-        num_layers,
-        heads=1,
-        mask_dim=6,
-        mask_value=-1,
-        learn_mask=False,
+        input_dim: int,
+        hidden_dim: int,
+        output_dim: int,
+        edge_dim: int,
+        num_layers: int,
+        heads: int = 1,
+        mask_dim: int = 6,
+        mask_value: float = -1.0,
+        learn_mask: bool = False,
     ):
         super(GNN_TransformerConv, self).__init__()
         self.num_layers = num_layers
@@ -58,7 +72,19 @@ class GNN_TransformerConv(nn.Module):
             )
 
     def forward(self, x, pe, edge_index, edge_attr, batch):
+        """
+        Forward pass for the GPSTransformer.
 
+        Args:
+            x (Tensor): Input node features of shape [num_nodes, input_dim].
+            pe (Tensor): Positional encoding of shape [num_nodes, pe_dim] (not used).
+            edge_index (Tensor): Edge indices for graph convolution.
+            edge_attr (Tensor): Edge feature tensor.
+            batch (Tensor): Batch vector assigning nodes to graphs (not used).
+
+        Returns:
+            output (Tensor): Output node features of shape [num_nodes, output_dim].
+        """
         for conv in self.layers:
             x = conv(x, edge_index, edge_attr)
             x = nn.LeakyReLU()(x)

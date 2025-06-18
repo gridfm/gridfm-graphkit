@@ -4,28 +4,60 @@ from abc import ABC, abstractmethod
 
 
 class Normalizer(ABC):
+    """
+    Abstract base class for all normalization strategies.
+    """
+
     @abstractmethod
     def fit(self, data: torch.Tensor) -> dict:
-        """Calculate the parameters required for normalization."""
-        pass
+        """
+        Fit normalization parameters from data.
+
+        Args:
+            data: Input tensor.
+
+        Returns:
+            Dictionary of computed parameters.
+        """
 
     @abstractmethod
     def fit_from_dict(self, params: dict):
-        """Set normalization parameters from a dictionary if not already set."""
-        pass
+        """
+        Set parameters from a precomputed dictionary.
+
+        Args:
+            params: Dictionary of parameters.
+        """
 
     @abstractmethod
     def transform(self, data: torch.Tensor) -> torch.Tensor:
-        """Apply the normalization to the data."""
-        pass
+        """
+        Normalize the input data.
+
+        Args:
+            data: Input tensor.
+
+        Returns:
+            Normalized tensor.
+        """
 
     @abstractmethod
     def inverse_transform(self, normalized_data: torch.Tensor) -> torch.Tensor:
-        """Reverse the normalization process."""
-        pass
+        """
+        Undo normalization.
+
+        Args:
+            normalized_data: Normalized tensor.
+
+        Returns:
+            Original tensor.
+        """
 
 
 class MinMaxNormalizer(Normalizer):
+    """
+    Scales each feature to the [0, 1] range.
+    """
     def __init__(self):
         self.min_val = None
         self.max_val = None
@@ -35,15 +67,6 @@ class MinMaxNormalizer(Normalizer):
         self.max_val = self.max_val.to(device)
 
     def fit(self, data: torch.Tensor) -> dict:
-        """
-        Calculate min and max values for each feature from the data.
-
-        Args:
-            data (torch.Tensor): Input data tensor.
-
-        Returns:
-            dict: Dictionary containing min and max values for each feature.
-        """
         self.min_val, _ = data.min(axis=0)
         self.max_val, _ = data.max(axis=0)
 
@@ -56,13 +79,6 @@ class MinMaxNormalizer(Normalizer):
             self.max_val = params.get("max_value")
 
     def transform(self, data: torch.Tensor) -> torch.Tensor:
-        """
-        Args:
-            data (torch.Tensor): Input tensor to be normalized.
-
-        Returns:
-            torch.Tensor: Min-Max normalized data.
-        """
         if self.min_val is None or self.max_val is None:
             raise ValueError("fit must be called before transform.")
 
@@ -71,13 +87,6 @@ class MinMaxNormalizer(Normalizer):
         return (data - self.min_val) / diff
 
     def inverse_transform(self, normalized_data: torch.Tensor) -> torch.Tensor:
-        """
-        Args:
-            normalized_data (torch.Tensor): Normalized data.
-
-        Returns:
-            torch.Tensor: Denormalized data.
-        """
         if self.min_val is None or self.max_val is None:
             raise ValueError("fit must be called before inverse_transform.")
 
@@ -87,6 +96,9 @@ class MinMaxNormalizer(Normalizer):
 
 
 class Standardizer(Normalizer):
+    """
+    Standardizes each feature to zero mean and unit variance.
+    """
     def __init__(self):
         self.mean = None
         self.std = None
@@ -96,15 +108,6 @@ class Standardizer(Normalizer):
         self.std = self.std.to(device)
 
     def fit(self, data: torch.Tensor) -> dict:
-        """
-        Calculate mean and standard deviation for each feature from the data.
-
-        Args:
-            data (torch.Tensor): Input data tensor.
-
-        Returns:
-            dict: Dictionary containing mean and standard deviation for each feature.
-        """
         self.mean = data.mean(axis=0)
         self.std = data.std(axis=0)
 
@@ -117,13 +120,6 @@ class Standardizer(Normalizer):
             self.std = params.get("std_value")
 
     def transform(self, data: torch.Tensor) -> torch.Tensor:
-        """
-        Args:
-            data (torch.Tensor): Input tensor to be standardized.
-
-        Returns:
-            torch.Tensor: Standardized data.
-        """
         if self.mean is None or self.std is None:
             raise ValueError("fit must be called before transform.")
 
@@ -132,13 +128,6 @@ class Standardizer(Normalizer):
         return (data - self.mean) / std
 
     def inverse_transform(self, normalized_data: torch.Tensor) -> torch.Tensor:
-        """
-        Args:
-            normalized_data (torch.Tensor): Standardized data.
-
-        Returns:
-            torch.Tensor: Denormalized data.
-        """
         if self.mean is None or self.std is None:
             raise ValueError("fit must be called before inverse_transform.")
 
@@ -148,8 +137,20 @@ class Standardizer(Normalizer):
 
 
 class BaseMVANormalizer(Normalizer):
+    """
+    In power systems, a suitable normalization strategy must preserve the physical properties of
+    the system. A known method is the conversion to the per-unit (p.u.) system, which expresses
+    electrical quantities such as voltage, current, power, and impedance as fractions of predefined
+    base values. These base values are usually chosen based on system parameters, such as rated
+    voltage. The per-unit conversion ensures that power system equations remain scale-invariant,
+    preserving fundamental physical relationships.
+    """
     def __init__(self, node_data: bool, baseMVA_orig: float = 100.0):
-        # baseMVA_orig is the one provided by the MATPOWER casefiles
+        """
+        Args:
+            node_data: Whether data is node-level or edge-level (PD, QD, PG, QG, VA).
+            baseMVA_orig: Original baseMVA (e.g. from MATPOWER).
+        """
         self.node_data = node_data
         self.baseMVA_orig = baseMVA_orig
         self.baseMVA = None
@@ -158,16 +159,6 @@ class BaseMVANormalizer(Normalizer):
         pass
 
     def fit(self, data: torch.Tensor, baseMVA: float = None) -> dict:
-        """
-        No need to compute baseMVA
-
-        Args:
-            data (torch.Tensor): Input data tensor.
-
-        Returns:
-            dict: Dictionary containing baseMVA value.
-        """
-
         if self.node_data:
             self.baseMVA = data[:, [PD, QD, PG, QG]].max()
         else:
@@ -182,14 +173,6 @@ class BaseMVANormalizer(Normalizer):
             self.baseMVA_orig = params.get("baseMVA_orig")
 
     def transform(self, data: torch.Tensor) -> torch.Tensor:
-        """
-        Args:
-            data (torch.Tensor): Input tensor to be normalized.
-
-        Returns:
-            torch.Tensor: Data divided by BaseMVA.
-        """
-
         if self.baseMVA is None:
             raise ValueError("BaseMVA is not specified")
 
@@ -208,13 +191,6 @@ class BaseMVANormalizer(Normalizer):
         return data
 
     def inverse_transform(self, normalized_data: torch.Tensor) -> torch.Tensor:
-        """
-        Args:
-            normalized_data (torch.Tensor): Normalized data.
-
-        Returns:
-            torch.Tensor: Denormalized data.
-        """
         if self.baseMVA is None:
             raise ValueError("fit must be called before inverse_transform.")
 
@@ -231,38 +207,18 @@ class BaseMVANormalizer(Normalizer):
 
 
 class IdentityNormalizer(Normalizer):
+    """
+    No normalization: returns data unchanged.
+    """
+
     def fit(self, data: torch.Tensor) -> dict:
-        """
-        No parameters to compute for IdentityNormalizer.
-
-        Args:
-            data (torch.Tensor): Input data tensor.
-
-        Returns:
-            dict: An empty dictionary, as no parameters are computed.
-        """
         return {}
 
     def fit_from_dict(self, params: dict):
-        # No parameters to set for IdentityNormalizer
         pass
 
     def transform(self, data: torch.Tensor) -> torch.Tensor:
-        """
-        Args:
-            data (torch.Tensor): Input tensor.
-
-        Returns:
-            torch.Tensor: The input data unchanged.
-        """
         return data
 
     def inverse_transform(self, normalized_data: torch.Tensor) -> torch.Tensor:
-        """
-        Args:
-            normalized_data (torch.Tensor): Input data (already unchanged).
-
-        Returns:
-            torch.Tensor: The input data unchanged.
-        """
         return normalized_data
