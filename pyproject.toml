@@ -11,7 +11,7 @@ name = "gridFM"
 description = "Grid Foundation Model"
 version = "0.1.0"
 readme = "README.md"
-license = "Apache-2.0" 
+license = "Apache-2.0"
 requires-python = ">=3.10"
 dependencies = [
     "mlflow>=3.1.0",
@@ -35,4 +35,10 @@ authors = [
 
 maintainers = [
   {name = "Matteo Mazzonelli", email = "Matteo.Mazzonelli1@ibm.com"},
+]
+
+[dependency-groups]
+dev = [
+    "pre-commit>=4.2.0",
+    "pytest>=8.4.1",
 ]
