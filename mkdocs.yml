@@ -5,6 +5,13 @@ repo_name: GitHub
 nav:
   - Home: index.md
   - Installation: install/installation.md
+  - Getting started:
+    - CLI commands: quick_start/quick_start.md
+    - YAML configuration file: quick_start/yaml_config.md
+  - Examples:
+    - Pre-training a new GridFM: examples/pre_training.md
+    - Fine-tuning an existing GridFM: examples/fine_tuning.md
+    - Inference : examples/inference.md
   - Components:
     - Datasets:
       - Data normalization: datasets/data_normalization.md
@@ -15,11 +22,7 @@ nav:
       - Trainer: training/trainer.md
       - Plugins: training/plugins.md
     - Losses: utils/loss.md
-  - Usage: usage/usage.md
-  - Examples:
-    - Pre-training a new GridFM: examples/pre_training.md
-    - Fine-tuning an existing GridFM: examples/fine_tuning.md
-    - Inference : examples/inference.md
+
 
 theme:
   name: material
