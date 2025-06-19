@@ -89,7 +89,7 @@ class GridDatasetMem(InMemoryDataset):
         # Ensure node and edge data match
         assert (scenarios == edge_df["scenario"].unique()).all()
 
-        ## normalize node attributes
+        # normalize node attributes
         cols_to_normalize = ["Pd", "Qd", "Pg", "Qg", "Vm", "Va"]
         to_normalize = torch.tensor(
             node_df[cols_to_normalize].values,
@@ -100,7 +100,7 @@ class GridDatasetMem(InMemoryDataset):
             to_normalize,
         ).numpy()
 
-        ## normalize edge attributes
+        # normalize edge attributes
         cols_to_normalize = ["G", "B"]
         to_normalize = torch.tensor(
             edge_df[cols_to_normalize].values,
@@ -117,7 +117,7 @@ class GridDatasetMem(InMemoryDataset):
             to_normalize,
         ).numpy()
 
-        ## save stats
+        # save stats
         node_stats_path = osp.join(
             self.processed_dir,
             f"node_stats_{self.norm_method}.pt",
@@ -135,7 +135,7 @@ class GridDatasetMem(InMemoryDataset):
 
         data_list = []
         for scenario_idx in tqdm(scenarios):
-            ## NODE DATA
+            # NODE DATA
             node_data = node_groups.get_group(scenario_idx)
             x = torch.tensor(
                 node_data[
@@ -145,7 +145,7 @@ class GridDatasetMem(InMemoryDataset):
             )
             y = x[:, : self.mask_dim]
 
-            ## EDGE DATA
+            # EDGE DATA
             edge_data = edge_groups.get_group(scenario_idx)
             edge_attr = torch.tensor(edge_data[["G", "B"]].values, dtype=torch.float)
             edge_index = torch.tensor(
