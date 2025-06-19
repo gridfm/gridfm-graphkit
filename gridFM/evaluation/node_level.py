@@ -13,7 +13,10 @@ from torch_geometric.data import Dataset
 
 
 def get_dist_plot(
-    data: np.ndarray, data_type: str, bus_types: List[str], n_buses: int
+    data: np.ndarray,
+    data_type: str,
+    bus_types: List[str],
+    n_buses: int,
 ) -> go.Figure:
     """
     Generates distribution plots for the different feature and for each bus.
@@ -38,10 +41,11 @@ def get_dist_plot(
             fig.add_trace(
                 go.Box(
                     y=data[
-                        bus_idx::n_buses, feature_idx
+                        bus_idx::n_buses,
+                        feature_idx,
                     ],  # Slice data for each bus (!!)
                     name=f"Bus {bus_idx} ({bus_types[bus_idx]})",
-                )
+                ),
             )
 
         fig.update_layout(
@@ -218,7 +222,7 @@ def eval_node_level_task(
         dataset.change_transform(AddOPFMask())
     elif task == "Reconstruction":
         dataset.change_transform(
-            AddRandomMask(mask_dim=mask_dim, mask_ratio=mask_ratio)
+            AddRandomMask(mask_dim=mask_dim, mask_ratio=mask_ratio),
         )
     else:
         raise ValueError(f"Unknown task: {task}")
@@ -238,19 +242,28 @@ def eval_node_level_task(
 
             # Forward pass
             output = model(
-                batch.x, batch.pe, batch.edge_index, batch.edge_attr, batch.batch
+                batch.x,
+                batch.pe,
+                batch.edge_index,
+                batch.edge_attr,
+                batch.batch,
             )
 
             if isinstance(node_normalizer, BaseMVANormalizer):
                 loss_PBE_dict = loss_PBE(
-                    output, batch.y, batch.edge_index, batch.edge_attr, batch.mask
+                    output,
+                    batch.y,
+                    batch.edge_index,
+                    batch.edge_attr,
+                    batch.mask,
                 )
                 all_active_loss.append(
-                    loss_PBE_dict["Active Power Loss in p.u."] * node_normalizer.baseMVA
+                    loss_PBE_dict["Active Power Loss in p.u."]
+                    * node_normalizer.baseMVA,
                 )
                 all_reactive_loss.append(
                     loss_PBE_dict["Reactive Power Loss in p.u."]
-                    * node_normalizer.baseMVA
+                    * node_normalizer.baseMVA,
                 )
             else:
                 all_active_loss.append(-1.0)

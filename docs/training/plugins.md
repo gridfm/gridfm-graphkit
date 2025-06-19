@@ -14,7 +14,7 @@ Reusable plugins that hook into the training loop to perform tasks like logging 
 
 ::: gridFM.training.plugins.MLflowLoggerPlugin
 
---- 
+---
 
 ### `CheckpointerPlugin`
 

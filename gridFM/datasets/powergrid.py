@@ -7,7 +7,6 @@ from torch_geometric.data import Data, InMemoryDataset
 import pandas as pd
 from tqdm import tqdm
 from typing import Optional, Callable
-from torch import Tensor
 
 
 class GridDatasetMem(InMemoryDataset):
@@ -33,6 +32,7 @@ class GridDatasetMem(InMemoryDataset):
         pre_transform (callable, optional): Transformation applied before saving to disk.
         pre_filter (callable, optional): Filter to determine which graphs to keep.
     """
+
     def __init__(
         self,
         root: str,
@@ -55,10 +55,12 @@ class GridDatasetMem(InMemoryDataset):
         super().__init__(root, transform, pre_transform, pre_filter)
 
         node_stats_path = osp.join(
-            self.processed_dir, f"node_stats_{self.norm_method}.pt"
+            self.processed_dir,
+            f"node_stats_{self.norm_method}.pt",
         )
         edge_stats_path = osp.join(
-            self.processed_dir, f"edge_stats_{self.norm_method}.pt"
+            self.processed_dir,
+            f"edge_stats_{self.norm_method}.pt",
         )
         if osp.exists(node_stats_path) and osp.exists(edge_stats_path):
             self.node_stats = torch.load(node_stats_path, weights_only=False)
@@ -87,37 +89,42 @@ class GridDatasetMem(InMemoryDataset):
         # Ensure node and edge data match
         assert (scenarios == edge_df["scenario"].unique()).all()
 
-        ## normalize node attributes
+        # normalize node attributes
         cols_to_normalize = ["Pd", "Qd", "Pg", "Qg", "Vm", "Va"]
         to_normalize = torch.tensor(
-            node_df[cols_to_normalize].values, dtype=torch.float
+            node_df[cols_to_normalize].values,
+            dtype=torch.float,
         )
         self.node_stats = self.node_normalizer.fit(to_normalize)
         node_df[cols_to_normalize] = self.node_normalizer.transform(
-            to_normalize
+            to_normalize,
         ).numpy()
 
-        ## normalize edge attributes
+        # normalize edge attributes
         cols_to_normalize = ["G", "B"]
         to_normalize = torch.tensor(
-            edge_df[cols_to_normalize].values, dtype=torch.float
+            edge_df[cols_to_normalize].values,
+            dtype=torch.float,
         )
         if isinstance(self.node_normalizer, BaseMVANormalizer):
             self.edge_stats = self.edge_normalizer.fit(
-                to_normalize, self.node_normalizer.baseMVA
+                to_normalize,
+                self.node_normalizer.baseMVA,
             )
         else:
             self.edge_stats = self.edge_normalizer.fit(to_normalize)
         edge_df[cols_to_normalize] = self.edge_normalizer.transform(
-            to_normalize
+            to_normalize,
         ).numpy()
 
-        ## save stats
+        # save stats
         node_stats_path = osp.join(
-            self.processed_dir, f"node_stats_{self.norm_method}.pt"
+            self.processed_dir,
+            f"node_stats_{self.norm_method}.pt",
         )
         edge_stats_path = osp.join(
-            self.processed_dir, f"edge_stats_{self.norm_method}.pt"
+            self.processed_dir,
+            f"edge_stats_{self.norm_method}.pt",
         )
         torch.save(self.node_stats, node_stats_path)
         torch.save(self.edge_stats, edge_stats_path)
@@ -128,7 +135,7 @@ class GridDatasetMem(InMemoryDataset):
 
         data_list = []
         for scenario_idx in tqdm(scenarios):
-            ## NODE DATA
+            # NODE DATA
             node_data = node_groups.get_group(scenario_idx)
             x = torch.tensor(
                 node_data[
@@ -138,18 +145,22 @@ class GridDatasetMem(InMemoryDataset):
             )
             y = x[:, : self.mask_dim]
 
-            ## EDGE DATA
+            # EDGE DATA
             edge_data = edge_groups.get_group(scenario_idx)
             edge_attr = torch.tensor(edge_data[["G", "B"]].values, dtype=torch.float)
             edge_index = torch.tensor(
-                edge_data[["index1", "index2"]].values.T, dtype=torch.long
+                edge_data[["index1", "index2"]].values.T,
+                dtype=torch.long,
             )
 
             # Create the Data object
             graph_data = Data(x=x, edge_index=edge_index, edge_attr=edge_attr, y=y)
             pe_pre_transform = AddEdgeWeights()
             graph_data = pe_pre_transform(graph_data)
-            pe_transform = AddNormalizedRandomWalkPE(walk_length=self.pe_dim, attr_name="pe")
+            pe_transform = AddNormalizedRandomWalkPE(
+                walk_length=self.pe_dim,
+                attr_name="pe",
+            )
             graph_data = pe_transform(graph_data)
             data_list.append(graph_data)
 
@@ -171,6 +182,6 @@ class GridDatasetMem(InMemoryDataset):
         """
         if self.original_transform is None:
             raise ValueError(
-                "The original transform is None or the function change_transform needs to be called before"
+                "The original transform is None or the function change_transform needs to be called before",
             )
         self.transform = self.original_transform

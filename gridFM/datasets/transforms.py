@@ -6,7 +6,6 @@ from torch_geometric.transforms import BaseTransform
 from typing import Optional
 import torch_geometric.typing
 from torch_geometric.data import Data
-from torch_geometric.transforms import BaseTransform
 from torch_geometric.utils import (
     get_self_loop_attr,
     is_torch_sparse_tensor,
@@ -14,6 +13,7 @@ from torch_geometric.utils import (
     to_torch_coo_tensor,
     to_torch_csr_tensor,
 )
+
 
 class AddNormalizedRandomWalkPE(BaseTransform):
     r"""Adds the random walk positional encoding from the
@@ -27,10 +27,11 @@ class AddNormalizedRandomWalkPE(BaseTransform):
             concatenated to :obj:`data.x`.
             (default: :obj:`"random_walk_pe"`)
     """
+
     def __init__(
         self,
         walk_length: int,
-        attr_name: Optional[str] = 'random_walk_pe',
+        attr_name: Optional[str] = "random_walk_pe",
     ) -> None:
         self.walk_length = walk_length
         self.attr_name = attr_name
@@ -46,10 +47,17 @@ class AddNormalizedRandomWalkPE(BaseTransform):
             adj[row, col] = data.edge_weight
             loop_index = torch.arange(N, device=row.device)
         elif torch_geometric.typing.WITH_WINDOWS:
-            adj = to_torch_coo_tensor(data.edge_index, data.edge_weight, size=data.size())
+            adj = to_torch_coo_tensor(
+                data.edge_index,
+                data.edge_weight,
+                size=data.size(),
+            )
         else:
-            adj = to_torch_csr_tensor(data.edge_index, data.edge_weight, size=data.size())
-        
+            adj = to_torch_csr_tensor(
+                data.edge_index,
+                data.edge_weight,
+                size=data.size(),
+            )
 
         row_sums = adj.sum(dim=1, keepdim=True)  # Sum along rows
         row_sums = row_sums.clamp(min=1e-8)  # Prevent division by zero

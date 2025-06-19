@@ -18,7 +18,7 @@ nav:
   - Usage: usage/usage.md
   - Examples:
     - Pre-training a new GridFM: examples/pre_training.md
-    - Fine-tuning an existing GridFM: examples/fine_tuning.md 
+    - Fine-tuning an existing GridFM: examples/fine_tuning.md
     - Inference : examples/inference.md
 
 theme:
@@ -45,8 +45,8 @@ plugins:
         python:
           options:
             docstring_style: google
-            heading_level: 0       
-            show_root_heading: false 
+            heading_level: 0
+            show_root_heading: false
 
 
 markdown_extensions:
@@ -56,7 +56,7 @@ markdown_extensions:
   - pymdownx.arithmatex:
       generic: true
   - md_in_html
-    
+
 
 extra_javascript:
   - javascripts/katex.js

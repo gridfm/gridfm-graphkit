@@ -25,6 +25,7 @@ class Trainer:
         lr_scheduler (optional): Learning rate scheduler.
         plugins (List[TrainerPlugin]): List of plugin callbacks.
     """
+
     def __init__(
         self,
         model: nn.Module,
@@ -58,7 +59,6 @@ class Trainer:
         pe: torch.Tensor = None,
         val: bool = False,
     ):
-
         # expand the learnable mask to the input shape
         mask_value_expanded = self.model.mask_value.expand(input.shape[0], -1)
         # The line below will overwrite the last mask values, which is fine as long as the features which are masked do not change between batches

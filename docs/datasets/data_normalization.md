@@ -2,12 +2,12 @@
 
 
 
-Normalization improves neural network training by ensuring features are well-scaled, preventing issues like exploding gradients and slow convergence. In power grids, where variables like voltage and power span wide ranges, normalization is essential.  
+Normalization improves neural network training by ensuring features are well-scaled, preventing issues like exploding gradients and slow convergence. In power grids, where variables like voltage and power span wide ranges, normalization is essential.
 The `gridFM` package offers four methods:
 
-- [`Min-Max Normalization`](#minmaxnormalizer)  
-- [`Standardization (Z-score)`](#standardizer)  
-- [`Identity (no normalization)`](#identitynormalizer)  
+- [`Min-Max Normalization`](#minmaxnormalizer)
+- [`Standardization (Z-score)`](#standardizer)
+- [`Identity (no normalization)`](#identitynormalizer)
 - [`BaseMVA Normalization`](#basemvanormalizer)
 
 Each of these strategies implements a unified interface and can be used interchangeably depending on the learning task and data characteristics.
@@ -27,7 +27,7 @@ Each of these strategies implements a unified interface and can be used intercha
 
 ### `MinMaxNormalizer`
 
-::: gridFM.datasets.data_normalization.MinMaxNormalizer 
+::: gridFM.datasets.data_normalization.MinMaxNormalizer
 
 ---
 

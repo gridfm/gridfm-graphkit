@@ -8,12 +8,17 @@ from torch import optim
 from torch_geometric.loader import DataLoader
 
 from gridFM.io.param_handler import (
-    load_normalizer, get_loss_function, load_model, get_transform, NestedNamespace
+    load_normalizer,
+    get_loss_function,
+    load_model,
+    get_transform,
+    NestedNamespace,
 )
 from gridFM.datasets.utils import split_dataset
 from gridFM.datasets.powergrid import GridDatasetMem
 from gridFM.training.callbacks import EarlyStopper
 from gridFM.training.trainer import Trainer
+
 
 @pytest.mark.parametrize("yaml_path", glob.glob("tests/config/*.yaml"))
 def test_training_loop(yaml_path):
@@ -53,12 +58,17 @@ def test_training_loop(yaml_path):
     with tempfile.TemporaryDirectory() as tmpdir:
         train_dataset, val_dataset, _ = split_dataset(dataset=dataset, log_dir=tmpdir)
 
-        dataloader_train = DataLoader(train_dataset, batch_size=args.training.batch_size)
+        dataloader_train = DataLoader(
+            train_dataset,
+            batch_size=args.training.batch_size,
+        )
         dataloader_val = DataLoader(val_dataset, batch_size=args.training.batch_size)
         path_to_save = os.path.join(tmpdir, "checkpoint.pt")
 
         early_stopper = EarlyStopper(
-            path_to_save, args.callbacks.patience, args.callbacks.tol
+            path_to_save,
+            args.callbacks.patience,
+            args.callbacks.tol,
         )
 
         trainer = Trainer(
@@ -68,7 +78,7 @@ def test_training_loop(yaml_path):
             loss_fn=loss_fn,
             early_stopper=early_stopper,
             train_dataloader=dataloader_train,
-            val_dataloader=dataloader_val
+            val_dataloader=dataloader_val,
         )
 
         trainer.train(start_epoch=0, epochs=args.training.epochs)
