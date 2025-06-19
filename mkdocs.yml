@@ -9,9 +9,8 @@ nav:
     - CLI commands: quick_start/quick_start.md
     - YAML configuration file: quick_start/yaml_config.md
   - Examples:
-    - Pre-training a new GridFM: examples/pre_training.md
     - Fine-tuning an existing GridFM: examples/fine_tuning.md
-    - Inference : examples/inference.md
+    - Visualizing predictions of GridFM: examples/visualization.md
   - Components:
     - Datasets:
       - Data normalization: datasets/data_normalization.md
@@ -50,6 +49,7 @@ plugins:
             docstring_style: google
             heading_level: 0
             show_root_heading: false
+
 
 
 markdown_extensions:
