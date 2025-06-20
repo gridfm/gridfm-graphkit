@@ -4,11 +4,6 @@ Detailed explanation of the parameters used in the YAML configuration file. The 
 
 ---
 
-
-## Verbose
-- **`verbose`**: *(Boolean)* Provides detailed analysis after training.
-    - Default: `False`
-
 ## Data
 - **`networks`**: *(List of Strings)* Specifies the network topologies to use during training
     - Example: `["case300_ieee", "case30_ieee"]`
@@ -121,5 +116,9 @@ Detailed explanation of the parameters used in the YAML configuration file. The 
 
 - **`tol`**: *(Float)* Tolerance for validation loss comparison during early stopping.
     - Default: `0`
+
+## Verbose
+- **`verbose`**: *(Boolean)* Provides detailed analysis after training.
+    - Default: `False`
 
 ---

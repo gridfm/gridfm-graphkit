@@ -26,7 +26,7 @@ class GPSTransformer(nn.Module):
         learn_mask (bool, optional): Whether to learn mask values as parameters.
 
     Raises:
-        AssertionError: If `pe_dim` is not less than `hidden_dim`.
+        ValueError: If `pe_dim` is not less than `hidden_dim`.
     """
 
     def __init__(
@@ -54,9 +54,10 @@ class GPSTransformer(nn.Module):
         self.mask_value = mask_value
         self.learn_mask = learn_mask
 
-        assert pe_dim < hidden_dim, (
-            "positional encoding dimension must be smaller than model hidden dimension"
-        )
+        if not pe_dim < hidden_dim:
+            raise ValueError(
+                "positional encoding dimension must be smaller than model hidden dimension",
+            )
 
         self.layers = nn.ModuleList()
 

@@ -149,9 +149,10 @@ class MixedLoss(nn.Module):
     def __init__(self, loss_functions, weights):
         super(MixedLoss, self).__init__()
 
-        assert len(loss_functions) == len(weights), (
-            "The number of loss functions must match the number of weights."
-        )
+        if len(loss_functions) != len(weights):
+            raise ValueError(
+                "The number of loss functions must match the number of weights.",
+            )
 
         self.loss_functions = nn.ModuleList(loss_functions)
         self.weights = weights

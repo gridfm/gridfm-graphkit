@@ -8,3 +8,6 @@ This library is brought to you by the GridFM team to train, finetune and interac
   <img src="figs/pre_training.png" alt="GridFM logo"/>
   <br/>
 </p>
+
+
+## Citation: TBD

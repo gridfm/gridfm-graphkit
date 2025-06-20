@@ -1,7 +1,6 @@
 # Visualizing predictions of GridFM
 
 ```python
-# IBM GridFM library
 from gridFM.datasets.powergrid import GridDatasetMem
 from gridFM.datasets.data_normalization import BaseMVANormalizer
 from gridFM.utils.visualization import visualize_error, visualize_quantity_heatmap
@@ -42,7 +41,7 @@ dataset = GridDatasetMem(
 )
 ```
 
-## Create a Pytorch Dataloader
+## Create a Pytorch dataloader
 
 ```python
 # The scenarios are grouped in batches
@@ -72,7 +71,7 @@ with torch.no_grad():
         )
 ```
 
-## Visualize Nodal Active Power Residuals for one load scenario
+## Visualize nodal active power residuals for one load scenario
 
 ```python
 # select one random sample from the dataset
@@ -95,7 +94,7 @@ visualize_error(data_point, model, baseMVA=node_normalizer.baseMVA, device=devic
 - Voltage Angle (degrees)
 
 ```python
-# Active Power Demand reconstruction
+# Active power demand reconstruction
 visualize_quantity_heatmap(
     data_point,
     model,
@@ -113,7 +112,7 @@ visualize_quantity_heatmap(
 </p>
 
 ```python
-# Reactive Power Demand reconstruction
+# Reactive power demand reconstruction
 visualize_quantity_heatmap(
     data_point,
     model,
@@ -131,7 +130,7 @@ visualize_quantity_heatmap(
 </p>
 
 ```python
-# Active Power Generated reconstruction
+# Active power generated reconstruction
 visualize_quantity_heatmap(
     data_point,
     model,
@@ -149,7 +148,7 @@ visualize_quantity_heatmap(
 </p>
 
 ```python
-# Reactive Power Generated reconstruction
+# Reactive power generated reconstruction
 visualize_quantity_heatmap(
     data_point,
     model,

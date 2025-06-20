@@ -1,22 +1,26 @@
 # Fine-tuning an existing GridFM
 
-Here we exploit the previously pre-trained reconstruction model to demonstrate the concept of fine-tuning. We exploit the power-flow problem, as a low-entry barrier example on how to fine-tune more complex downstream tasks in the future.
-Thus, the overall workflow consists of:
+Here we demonstrate how to leverage a previously pre-trained model to perform fine-tuning on downstream tasks. Specifically, we focus on the Power Flow (PF) problem, a fundamental task in power systems that involves computing the steady-state voltages and power injections in the grid.
 
-1. As with the pre-training, the first step is to normalize the fine-tuning data and convert the network and power flow solution into a pytorch geometric graph representation
+The workflow consists of the following steps:
 
-2. Data Loader then loads the data for fine-tuning
+- Similar to pre-training, the first step is to normalize the data and convert the power grid into a PyTorch Geometric graph representation.
 
-3. In the PF use-case, which is most closely related to the pre-training, we simply need to adjust the masking strategy to correspond to the PF problem, i.e. no longer random masking. For other use-cases, it may even be necessary to replace the decoder or add an additional head or decoder layer to the pre-trained autoencoder.
+- A DataLoader then loads the data for fine-tuning.
 
-4. Then the model is trained to reconstruct the PF grid-state. As a loss, the standard "means square/absolute" error is used together with a physics informed loss, based on node-wise power balance equations (what comes in needs to get out...or be absorbed).
+- In the PF use case, which closely aligns with the pre-training setup, we adjust the masking strategy to match the PF problem, i.e. no longer using random masking. For other use cases, it may be necessary to modify the decoder or add additional heads or decoder layers to the pre-trained autoencoder.
 
-5. Once fine-tuned, we visualize fine-tuning performance and PF grid-state reconstruction
+-  The model is then trained to reconstruct the PF grid state. The loss function consists of a physics-informed loss based on node-wise power balance equations (ensuring power injected equals power consumed or absorbed).
+
+$$
+\mathcal{L}_{\text{PBE}} = \frac{1}{N} \sum_{i=1}^N \left| (P_{G,i} - P_{D,i}) + j(Q_{G,i} - Q_{D,i}) - S_{\text{injection}, i} \right|
+$$
+
+- Finally, we visualize fine-tuning performance.
+
 
 
 ```python
-# Load required libraries
-# IBM GridFM library
 from gridFM.datasets.powergrid import GridDatasetMem
 from gridFM.datasets.data_normalization import BaseMVANormalizer
 from gridFM.io.param_handler import NestedNamespace, get_transform, load_model, get_loss_function
@@ -40,7 +44,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 ```
 
-## Load the Training Data and Create the Dataset
+## Load the training data and create the dataset
 
 ```python
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -61,7 +65,7 @@ dataset = GridDatasetMem(
     transform=AddPFMask()
 )
 ```
-## Split the Dataset for Training and Validation
+## Split the dataset for training and validation
 
 
 ```python
@@ -73,7 +77,7 @@ train_dataset, val_dataset, _ = split_dataset(
 )
 ```
 
-## Create Pytorch Dataloaders for Training, Validation and Testing
+## Create Pytorch dataloaders for training, validation and testing
 
 ```python
 # Create DataLoaders with batches. The data-Loaders also take care of the masking for the powerflow problem formulation, the masking strategy in the configuration yaml needs to be set to "pf".
@@ -85,7 +89,7 @@ val_loader = DataLoader(
 )
 ```
 
-## Load the Model
+## Load the model
 
 ```python
 model = torch.load("../models/GridFM_v0_2_3.pth", weights_only=False, map_location=device).to(device)
@@ -107,7 +111,7 @@ early_stopper = EarlyStopper(
 )
 ```
 
-## Fine-Tune the model
+## Fine-tune the model
 ```python
 loss_fn = PBELoss()
 # Plugin logs validation losses and saves to file for later use
