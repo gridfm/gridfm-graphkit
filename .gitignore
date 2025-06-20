@@ -1,6 +1,6 @@
 venv
 venv_pp
-data
+/data/
 __pycache__/
 *.pyc
 .vscode

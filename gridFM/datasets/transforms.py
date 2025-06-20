@@ -37,10 +37,12 @@ class AddNormalizedRandomWalkPE(BaseTransform):
         self.attr_name = attr_name
 
     def forward(self, data: Data) -> Data:
-        assert data.edge_index is not None
+        if data.edge_index is None:
+            raise ValueError("Expected data.edge_index to be not None")
         row, col = data.edge_index
         N = data.num_nodes
-        assert N is not None
+        if N is None:
+            raise ValueError("Expected data.num_nodes to be not None")
 
         if N <= 2_000:  # Dense code path for faster computation:
             adj = torch.zeros((N, N), device=row.device)
@@ -89,7 +91,8 @@ class AddEdgeWeights(BaseTransform):
     """
 
     def forward(self, data):
-        assert hasattr(data, "edge_attr"), "Data must have 'edge_attr'."
+        if not hasattr(data, "edge_attr"):
+            raise AttributeError("Data must have 'edge_attr'.")
 
         # Extract real and imaginary parts of admittance
         real = data.edge_attr[:, G]
@@ -111,7 +114,8 @@ class AddIdentityMask(BaseTransform):
     """
 
     def forward(self, data):
-        assert hasattr(data, "y"), "Data must have ground truth 'y'."
+        if not hasattr(data, "y"):
+            raise AttributeError("Data must have ground truth 'y'.")
 
         # Generate an identity mask
         mask = torch.zeros_like(data.y, dtype=torch.bool)
@@ -135,7 +139,8 @@ class AddRandomMask(BaseTransform):
         self.mask_ratio = mask_ratio
 
     def forward(self, data):
-        assert hasattr(data, "x"), "Data must have node features 'x'."
+        if not hasattr(data, "x"):
+            raise AttributeError("Data must have node features 'x'.")
 
         # Generate a random mask
         mask = torch.rand(data.x.size(0), self.mask_dim) < self.mask_ratio
@@ -151,8 +156,11 @@ class AddPFMask(BaseTransform):
 
     def forward(self, data):
         # Ensure the data object has the required attributes
-        assert hasattr(data, "x"), "Data must have node features 'x'."
-        assert hasattr(data, "y"), "Data must have ground truth 'y'."
+        if not hasattr(data, "y"):
+            raise AttributeError("Data must have ground truth 'y'.")
+
+        if not hasattr(data, "x"):
+            raise AttributeError("Data must have node features 'x'.")
 
         # Generate masks for each type of node
         mask_PQ = data.x[:, PQ] == 1  # PQ buses
@@ -182,8 +190,11 @@ class AddOPFMask(BaseTransform):
 
     def forward(self, data):
         # Ensure the data object has the required attributes
-        assert hasattr(data, "x"), "Data must have node features 'x'."
-        assert hasattr(data, "y"), "Data must have ground truth 'y'."
+        if not hasattr(data, "y"):
+            raise AttributeError("Data must have ground truth 'y'.")
+
+        if not hasattr(data, "x"):
+            raise AttributeError("Data must have node features 'x'.")
 
         # Generate masks for each type of node
         mask_PQ = data.x[:, PQ] == 1  # PQ buses

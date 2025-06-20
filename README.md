@@ -1,112 +1,126 @@
 # GridFM model evaluation
 
+This library is brought to you by the GridFM team to train, finetune and interact with a foundation model for the electric power grid.
+
+---
+
+<p align="center">
+  <img src="docs/figs/pre_training.png" alt="GridFM logo"/>
+  <br/>
+</p>
+
+# Installation
+
 Create a python virtual environment and install the requirements
 ```bash
-virtualenv venv
-pip install -r requirements.txt
+git clone git@github.com:Grid-FM/gridfm_model_evaluation.git
+cd gridfm_model_evaluation
+python -m venv venv
+source venv/bin/activate
+pip install .
 ```
 
 Install the package in editable mode during development phase:
 
 ```bash
-pip install -e .
+pip install -e .[dev,test]
 ```
 
+# GridFM CLI
+
+An interface to train, fine-tune, and evaluate GridFM models using configurable YAML files and MLflow tracking.
+
+```bash
+gridFM <command> [OPTIONS]
+```
+
+Available commands:
+
+* `train` – Train a new model
+* `predict` – Evaluate an existing model
+* `finetune` – Fine-tune a pre-trained model
 
 ---
 
-# Training Script with optional grid search
-
-This script allows you to train models with configurable parameters, optional grid search, and experiment tracking using **MLflow**.
-
-## Usage
+## Training Models
 
 ```bash
-python train.py --config path/to/config.yaml --grid path/to/grid.yaml --exp my_experiment --data_path /path/to/data
+gridFM train --config path/to/config.yaml
 ```
 
-## Command-Line Arguments
+### Arguments
 
-| Argument          | Type   | Default                  | Description                                                         |
-|-------------------|--------|--------------------------|---------------------------------------------------------------------|
-| `--config`        | `str`  | `config/default.yaml`    | **(Required with standard training)** Path to the base configuration YAML file. **Not needed** when using a checkpoint. |
-| `--grid`          | `str`  | `None`                   | **(Optional)** Path to the grid search YAML file. **Not supported** with model checkpoints. |
-| `--exp`           | `str`  | `None`                   | **(Optional)** Experiment name for **MLflow** tracking. If not provided, the run will be logged with a timestamp as its name. Not needed when using a checkpoint. |
-| `--data_path`     | `str`  | `../data`                | **(Optional)** Root directory of the dataset. Defaults to the `data` folder one level up from the current working directory. |
-| `-c`              | `flag` | `False`                  | **(Optional)** Starts training from a checkpoint. Enables checkpoint mode. |
-| `--model_exp_id`  | `str`  | `None`                   | **Required** if `-c` is used. MLflow experiment ID for the model checkpoint.  |
-| `--model_run_id`  | `str`  | `None`                   |  **Required** if `-c` is used. MLflow run ID for the model checkpoint. |
+| Argument         | Type   | Description                                                      | Default |
+| ---------------- | ------ | ---------------------------------------------------------------- | ------- |
+| `--config`       | `str`  | **Required for standard training**. Path to base config YAML.    | `None`  |
+| `--grid`         | `str`  | **Optional**. Path to grid search YAML. Not supported with `-c`. | `None`  |
+| `--exp`          | `str`  | **Optional**. MLflow experiment name. Defaults to a timestamp.   | `None`  |
+| `--data_path`    | `str`  | **Optional**. Root dataset directory.                            | `data`  |
+| `-c`             | `flag` | **Optional**. Enable checkpoint mode.                            | `False` |
+| `--model_exp_id` | `str`  | **Required if `-c` is used**. MLflow experiment ID.              | `None`  |
+| `--model_run_id` | `str`  | **Required if `-c` is used**. MLflow run ID.                     | `None`  |
 
----
+### Examples
 
-## Example Commands
+**Standard Training:**
 
-### **1. Basic Training Run**
 ```bash
-python train.py --config config/gridFMv0.1_pretraining.yaml --exp "GridFMv0.1_pretraining"
+gridFM train --config config/train.yaml --exp "run1"
 ```
 
-### **2. Training with Grid Search**
+**Grid Search Training:**
+
 ```bash
-python train.py --config config/gridFMv0.1_pretraining.yaml --grid config/grid_search_baseline.yaml
+gridFM train --config config/train.yaml --grid config/grid.yaml
 ```
 
-### **3. Custom Data Path**
-```bash
-python train.py --config config/gridFMv0.1_pretraining.yaml --data_path /dccstor/gridfm/PowerGraph
-```
-
-### **4. Training from a Checkpoint**
-```bash
-python train.py -c --model_exp_id 12345 --model_run_id 67890
-```
-
-
-
-# Evaluation Script
-
-This script evaluates pre-trained models using **MLflow** for experiment tracking.
-
-## Usage
+**Training from Checkpoint:**
 
 ```bash
-python eval.py --config path/to/config.yaml --eval_name my_evaluation --model_exp_id my_MLflow_experiment_id --model_run_id my_MLflow_run_id --model_name model_name_in_MLflow
-```
-
-## Command-Line Arguments
-
-| Argument          | Type   | Default                  | Description                                                                                                                     |
-|-------------------|--------|--------------------------|---------------------------------------------------------------------------------------------------------------------------------|
-| `--model_path`    | `str`  | `None`                   | **(Optional)** Direct path to the model file. If provided, a new MLflow experiment is created for evaluation.                   |
-| `--model_exp_id`  | `str`  | `None`                   | **(Required if `--model_path` is not provided)** ID of the MLflow experiment associated with the logged model.                  |
-| `--model_run_id`  | `str`  | `None`                   | **(Required if `--model_path` is not provided)** Run ID within the MLflow experiment that contains the model.                   |
-| `--model_name`    | `str`  | `best_model`             | **(Optional)** Name of the model file within the MLflow artifacts directory.                                                     |
-| `--config`        | `str`  | `None`                   | **(Required)** Path to the configuration YAML file.                                                                              |
-| `--eval_name`     | `str`  | `None`                   | **(Required)** Name for the evaluation run in MLflow.                                                                            |
-| `--data_path`     | `str`  | `../data`                | **(Optional)** Path to the dataset directory. Defaults to `../data`.                                                             |
-
----
-
-## Example Commands
-
-### **1. Evaluate Using a Direct Model Path**
-```bash
-python eval.py --model_path GridFM_v01.pth --config config/case300_ieee_base.yaml --eval_name eval_case300
-```
-
-### **2. Evaluate a Logged MLflow Model**
-```bash
-python eval.py --config config/case300_ieee_base.yaml --eval_name eval_case300 --model_exp_id 1 --model_run_id abcdef123456 --model_name best_model
+gridFM train -c --model_exp_id 123 --model_run_id abc
 ```
 
 ---
 
-## Notes
+## Evaluating Models
 
-- **Model Selection:**
-  - Use `--model_path` for standalone model files.
-  - Use `--model_exp_id`, `--model_run_id`, and `--model_name` for models stored in MLflow.
+```bash
+gridFM predict --model_path model.pth --config config/eval.yaml --eval_name run_eval
+```
 
-- **Outputs:**
-  - Evaluation results are saved in MLflow.
-  - Optional plots are stored as **HTML** files
+### Arguments
+
+| Argument         | Type  | Description                                                       | Default      |
+| ---------------- | ----- | ----------------------------------------------------------------- | ------------ |
+| `--model_path`   | `str` | **Optional**. Path to a model file.                               | `None`       |
+| `--model_exp_id` | `str` | **Required if `--model_path` is not used**. MLflow experiment ID. | `None`       |
+| `--model_run_id` | `str` | **Required if `--model_path` is not used**. MLflow run ID.        | `None`       |
+| `--model_name`   | `str` | **Optional**. Filename inside MLflow artifacts.                   | `best_model` |
+| `--config`       | `str` | **Required**. Path to evaluation config.                          | `None`       |
+| `--eval_name`    | `str` | **Required**. Name of the evaluation run in MLflow.               | `None`       |
+| `--data_path`    | `str` | **Optional**. Path to dataset directory.                          | `data`       |
+
+### Examples
+
+**Evaluate a Logged MLflow Model:**
+
+```bash
+gridFM predict --config config/eval.yaml --eval_name run_eval --model_exp_id 1 --model_run_id abc
+```
+
+---
+
+## Fine-Tuning Models
+
+```bash
+gridFM finetune --config path/to/config.yaml --model_path path/to/model.pth
+```
+
+### Arguments
+
+| Argument       | Type  | Description                                     | Default |
+| -------------- | ----- | ----------------------------------------------- | ------- |
+| `--config`     | `str` | **Required**. Fine-tuning configuration file.   | `None`  |
+| `--model_path` | `str` | **Required**. Path to a pre-trained model file. | `None`  |
+| `--exp`        | `str` | **Optional**. MLflow experiment name.           | `None`  |
+| `--data_path`  | `str` | **Optional**. Root dataset directory.           | `data`  |

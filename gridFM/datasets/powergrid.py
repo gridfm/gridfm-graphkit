@@ -71,7 +71,8 @@ class GridDatasetMem(InMemoryDataset):
 
     @property
     def raw_file_names(self):
-        return ["pf_node.csv", "pf_edge.csv"]  # No raw files needed for random graphs
+        # No raw files needed for random graphs
+        return ["pf_node.csv", "pf_edge.csv"]
 
     @property
     def processed_file_names(self):
@@ -87,7 +88,8 @@ class GridDatasetMem(InMemoryDataset):
         # Check the unique scenarios available
         scenarios = node_df["scenario"].unique()
         # Ensure node and edge data match
-        assert (scenarios == edge_df["scenario"].unique()).all()
+        if not (scenarios == edge_df["scenario"].unique()).all():
+            raise ValueError("Mismatch between node and edge scenario values.")
 
         # normalize node attributes
         cols_to_normalize = ["Pd", "Qd", "Pg", "Qg", "Vm", "Va"]

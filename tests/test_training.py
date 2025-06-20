@@ -84,4 +84,7 @@ def test_training_loop(yaml_path):
         trainer.train(start_epoch=0, epochs=args.training.epochs)
 
         # Optionally check that checkpoint exists
-        assert os.path.exists(path_to_save)
+        if not os.path.exists(path_to_save):
+            raise AssertionError(
+                f"Expected checkpoint at {path_to_save} was not found.",
+            )
