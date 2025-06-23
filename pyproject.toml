@@ -3,11 +3,11 @@ requires = ["setuptools >= 75.8.0"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
-include = ["gridFM*"]
+include = ["gridfm_graphkit*"]
 namespaces = false
 
 [project]
-name = "gridFM"
+name = "gridfm-graphkit"
 description = "Grid Foundation Model"
 version = "0.1.0"
 readme = "README.md"
@@ -52,4 +52,4 @@ test = [
 ]
 
 [project.scripts]
-gridFM = "gridFM.__main__:main"
+gridfm_graphkit = "gridfm_graphkit.__main__:main"

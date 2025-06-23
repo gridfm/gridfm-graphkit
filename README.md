@@ -26,12 +26,12 @@ Install the package in editable mode during development phase:
 pip install -e .[dev,test]
 ```
 
-# GridFM CLI
+# gridfm-graphkit CLI
 
 An interface to train, fine-tune, and evaluate GridFM models using configurable YAML files and MLflow tracking.
 
 ```bash
-gridFM <command> [OPTIONS]
+gridfm_graphkit <command> [OPTIONS]
 ```
 
 Available commands:
@@ -45,7 +45,7 @@ Available commands:
 ## Training Models
 
 ```bash
-gridFM train --config path/to/config.yaml
+gridfm_graphkit train --config path/to/config.yaml
 ```
 
 ### Arguments
@@ -65,19 +65,19 @@ gridFM train --config path/to/config.yaml
 **Standard Training:**
 
 ```bash
-gridFM train --config config/train.yaml --exp "run1"
+gridfm_graphkit train --config config/train.yaml --exp "run1"
 ```
 
 **Grid Search Training:**
 
 ```bash
-gridFM train --config config/train.yaml --grid config/grid.yaml
+gridfm_graphkit train --config config/train.yaml --grid config/grid.yaml
 ```
 
 **Training from Checkpoint:**
 
 ```bash
-gridFM train -c --model_exp_id 123 --model_run_id abc
+gridfm_graphkit train -c --model_exp_id 123 --model_run_id abc
 ```
 
 ---
@@ -85,7 +85,7 @@ gridFM train -c --model_exp_id 123 --model_run_id abc
 ## Evaluating Models
 
 ```bash
-gridFM predict --model_path model.pth --config config/eval.yaml --eval_name run_eval
+gridfm_graphkit predict --model_path model.pth --config config/eval.yaml --eval_name run_eval
 ```
 
 ### Arguments
@@ -105,7 +105,7 @@ gridFM predict --model_path model.pth --config config/eval.yaml --eval_name run_
 **Evaluate a Logged MLflow Model:**
 
 ```bash
-gridFM predict --config config/eval.yaml --eval_name run_eval --model_exp_id 1 --model_run_id abc
+gridfm_graphkit predict --config config/eval.yaml --eval_name run_eval --model_exp_id 1 --model_run_id abc
 ```
 
 ---
@@ -113,7 +113,7 @@ gridFM predict --config config/eval.yaml --eval_name run_eval --model_exp_id 1 -
 ## Fine-Tuning Models
 
 ```bash
-gridFM finetune --config path/to/config.yaml --model_path path/to/model.pth
+gridfm_graphkit finetune --config path/to/config.yaml --model_path path/to/model.pth
 ```
 
 ### Arguments

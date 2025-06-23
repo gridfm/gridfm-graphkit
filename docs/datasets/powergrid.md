@@ -1,12 +1,12 @@
 ## `GridDatasetMem`
 
-::: gridFM.datasets.powergrid.GridDatasetMem
+::: gridfm_graphkit.datasets.powergrid.GridDatasetMem
 
 ## Usage Example
 
 ```python
-from gridFM.datasets.data_normalization import IdentityNormalizer
-from gridFM.datasets.powergrid import GridDatasetMem
+from gridfm_graphkit.datasets.data_normalization import IdentityNormalizer
+from gridfm_graphkit.datasets.powergrid import GridDatasetMem
 
 dataset = GridDatasetMem(
     root="./data",

@@ -7,16 +7,16 @@ Handles training, validation, early stopping, learning rate scheduling, and plug
 
 ## `Trainer`
 
-::: gridFM.training.trainer.Trainer
+::: gridfm_graphkit.training.trainer.Trainer
 
 ---
 
 ## Usage Example
 
 ```python
-from gridFM.training.trainer import Trainer
-from gridFM.training.callbacks import EarlyStopper
-from gridFM.training.plugins import MLflowLoggerPlugin
+from gridfm_graphkit.training.trainer import Trainer
+from gridfm_graphkit.training.callbacks import EarlyStopper
+from gridfm_graphkit.training.plugins import MLflowLoggerPlugin
 
 trainer = Trainer(
     model=model,

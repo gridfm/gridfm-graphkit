@@ -4,24 +4,24 @@
 
 ### `AddNormalizedRandomWalkPE`
 
-::: gridFM.datasets.transforms.AddNormalizedRandomWalkPE
+::: gridfm_graphkit.datasets.transforms.AddNormalizedRandomWalkPE
 
 ### `AddEdgeWeights`
 
-::: gridFM.datasets.transforms.AddEdgeWeights
+::: gridfm_graphkit.datasets.transforms.AddEdgeWeights
 
 ### `AddIdentityMask`
 
-::: gridFM.datasets.transforms.AddIdentityMask
+::: gridfm_graphkit.datasets.transforms.AddIdentityMask
 
 ### `AddRandomMask`
 
-::: gridFM.datasets.transforms.AddRandomMask
+::: gridfm_graphkit.datasets.transforms.AddRandomMask
 
 ### `AddPFMask`
 
-::: gridFM.datasets.transforms.AddPFMask
+::: gridfm_graphkit.datasets.transforms.AddPFMask
 
 ### `AddOPFMask`
 
-::: gridFM.datasets.transforms.AddOPFMask
+::: gridfm_graphkit.datasets.transforms.AddOPFMask

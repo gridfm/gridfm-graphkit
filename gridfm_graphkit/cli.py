@@ -1,10 +1,10 @@
-from gridFM.datasets.powergrid import GridDatasetMem
-from gridFM.training.trainer import Trainer
-from gridFM.training.plugins import MLflowLoggerPlugin, CheckpointerPlugin
-from gridFM.training.callbacks import EarlyStopper
-from gridFM.datasets.utils import split_dataset
-from gridFM.evaluation.node_level import eval_node_level_task
-from gridFM.io.param_handler import (
+from gridfm_graphkit.datasets.powergrid import GridDatasetMem
+from gridfm_graphkit.training.trainer import Trainer
+from gridfm_graphkit.training.plugins import MLflowLoggerPlugin, CheckpointerPlugin
+from gridfm_graphkit.training.callbacks import EarlyStopper
+from gridfm_graphkit.datasets.utils import split_dataset
+from gridfm_graphkit.evaluation.node_level import eval_node_level_task
+from gridfm_graphkit.io.param_handler import (
     NestedNamespace,
     merge_dict,
     load_normalizer,

@@ -2,9 +2,9 @@
 
 ### `GPSTransformer`
 
-::: gridFM.models.gps_transformer.GPSTransformer
+::: gridfm_graphkit.models.gps_transformer.GPSTransformer
 
 
 ### `GNN_TransformerConv`
 
-::: gridFM.models.graphTransformer.GNN_TransformerConv
+::: gridfm_graphkit.models.graphTransformer.GNN_TransformerConv

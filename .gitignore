@@ -4,7 +4,7 @@ venv_pp
 __pycache__/
 *.pyc
 .vscode
-gridFM.egg-info
+gridfm_graphkit.egg-info
 mlruns
 runs
 *.pt

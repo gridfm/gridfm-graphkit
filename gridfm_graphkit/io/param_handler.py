@@ -1,18 +1,24 @@
-from gridFM.datasets.data_normalization import (
+from gridfm_graphkit.datasets.data_normalization import (
     IdentityNormalizer,
     MinMaxNormalizer,
     Standardizer,
     BaseMVANormalizer,
 )
-from gridFM.datasets.transforms import (
+from gridfm_graphkit.datasets.transforms import (
     AddRandomMask,
     AddPFMask,
     AddOPFMask,
     AddIdentityMask,
 )
-from gridFM.utils.loss import PBELoss, MaskedMSELoss, SCELoss, MixedLoss, MSELoss
-from gridFM.models.graphTransformer import GNN_TransformerConv
-from gridFM.models.gps_transformer import GPSTransformer
+from gridfm_graphkit.utils.loss import (
+    PBELoss,
+    MaskedMSELoss,
+    SCELoss,
+    MixedLoss,
+    MSELoss,
+)
+from gridfm_graphkit.models.graphTransformer import GNN_TransformerConv
+from gridfm_graphkit.models.gps_transformer import GPSTransformer
 
 import argparse
 import itertools

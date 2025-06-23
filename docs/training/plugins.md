@@ -6,22 +6,22 @@ Reusable plugins that hook into the training loop to perform tasks like logging 
 
 ### `TrainerPlugin`
 
-::: gridFM.training.plugins.TrainerPlugin
+::: gridfm_graphkit.training.plugins.TrainerPlugin
 
 ---
 
 ### `MLflowLoggerPlugin`
 
-::: gridFM.training.plugins.MLflowLoggerPlugin
+::: gridfm_graphkit.training.plugins.MLflowLoggerPlugin
 
 ---
 
 ### `CheckpointerPlugin`
 
-::: gridFM.training.plugins.CheckpointerPlugin
+::: gridfm_graphkit.training.plugins.CheckpointerPlugin
 
 ---
 
 ### `MetricsTrackerPlugin`
 
-::: gridFM.training.plugins.MetricsTrackerPlugin
+::: gridfm_graphkit.training.plugins.MetricsTrackerPlugin
