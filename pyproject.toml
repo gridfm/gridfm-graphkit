@@ -43,7 +43,7 @@ dev = [
   "mkdocs-material",
   "mkdocstrings[python]",
   "pre-commit>=4.2.0",
-  "bandit>=1.8.3"
+  "bandit>=1.8.5"
 ]
 
 test = [
