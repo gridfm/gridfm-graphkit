@@ -1,7 +1,7 @@
 Create a python virtual environment and install the requirements
 ```bash
-git clone git@github.com:Grid-FM/gridfm_model_evaluation.git
-cd gridfm_model_evaluation
+git clone git@github.com:gridfm/gridfm-graphkit.git
+cd gridfm-graphkit
 python -m venv venv
 source venv/bin/activate
 pip install .

@@ -1,4 +1,4 @@
-# GridFM model evaluation
+# gridfm-graphkit model evaluation
 
 This library is brought to you by the GridFM team to train, finetune and interact with a foundation model for the electric power grid.
 
@@ -13,8 +13,8 @@ This library is brought to you by the GridFM team to train, finetune and interac
 
 Create a python virtual environment and install the requirements
 ```bash
-git clone git@github.com:Grid-FM/gridfm_model_evaluation.git
-cd gridfm_model_evaluation
+git clone git@github.com:gridfm/gridfm-graphkit.git
+cd gridfm-graphkit
 python -m venv venv
 source venv/bin/activate
 pip install .
