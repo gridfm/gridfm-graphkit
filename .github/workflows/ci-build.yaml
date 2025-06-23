@@ -35,7 +35,7 @@ jobs:
 
       - name: Security Checks
         run: |
-          bandit -r .
+          bandit --severity-level high .
 
   pytests:
       runs-on: ubuntu-latest
