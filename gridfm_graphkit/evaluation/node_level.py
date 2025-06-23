@@ -1,7 +1,7 @@
-from gridFM.datasets.globals import BUS_TYPES, FEATURES_IDX, PQ, PV, REF
-from gridFM.datasets.data_normalization import BaseMVANormalizer
-from gridFM.datasets.transforms import AddRandomMask, AddPFMask, AddOPFMask
-from gridFM.utils.loss import PBELoss
+from gridfm_graphkit.datasets.globals import BUS_TYPES, FEATURES_IDX, PQ, PV, REF
+from gridfm_graphkit.datasets.data_normalization import BaseMVANormalizer
+from gridfm_graphkit.datasets.transforms import AddRandomMask, AddPFMask, AddOPFMask
+from gridfm_graphkit.utils.loss import PBELoss
 
 import torch
 import numpy as np

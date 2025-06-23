@@ -1,11 +1,11 @@
 # Visualizing predictions of GridFM
 
 ```python
-from gridFM.datasets.powergrid import GridDatasetMem
-from gridFM.datasets.data_normalization import BaseMVANormalizer
-from gridFM.utils.visualization import visualize_error, visualize_quantity_heatmap
-from gridFM.datasets.globals import PD, QD, PG, QG, VM, VA
-from gridFM.datasets.transforms import AddRandomMask
+from gridfm_graphkit.datasets.powergrid import GridDatasetMem
+from gridfm_graphkit.datasets.data_normalization import BaseMVANormalizer
+from gridfm_graphkit.utils.visualization import visualize_error, visualize_quantity_heatmap
+from gridfm_graphkit.datasets.globals import PD, QD, PG, QG, VM, VA
+from gridfm_graphkit.datasets.transforms import AddRandomMask
 
 # Standard open-source libraries
 import torch

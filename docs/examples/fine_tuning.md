@@ -21,15 +21,15 @@ $$
 
 
 ```python
-from gridFM.datasets.powergrid import GridDatasetMem
-from gridFM.datasets.data_normalization import BaseMVANormalizer
-from gridFM.io.param_handler import NestedNamespace, get_transform, load_model, get_loss_function
-from gridFM.training.trainer import Trainer
-from gridFM.datasets.utils import split_dataset
-from gridFM.datasets.transforms import AddPFMask
-from gridFM.training.callbacks import EarlyStopper
-from gridFM.training.plugins import MetricsTrackerPlugin
-from gridFM.utils.loss import PBELoss
+from gridfm_graphkit.datasets.powergrid import GridDatasetMem
+from gridfm_graphkit.datasets.data_normalization import BaseMVANormalizer
+from gridfm_graphkit.io.param_handler import NestedNamespace, get_transform, load_model, get_loss_function
+from gridfm_graphkit.training.trainer import Trainer
+from gridfm_graphkit.datasets.utils import split_dataset
+from gridfm_graphkit.datasets.transforms import AddPFMask
+from gridfm_graphkit.training.callbacks import EarlyStopper
+from gridfm_graphkit.training.plugins import MetricsTrackerPlugin
+from gridfm_graphkit.utils.loss import PBELoss
 
 # Standard Libraries
 import torch

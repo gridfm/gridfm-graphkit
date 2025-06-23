@@ -1,4 +1,4 @@
-from gridFM.datasets.globals import PD, QD, PG, QG, VM, VA, G, B
+from gridfm_graphkit.datasets.globals import PD, QD, PG, QG, VM, VA, G, B
 
 import torch.nn.functional as F
 import torch

@@ -1,4 +1,4 @@
-from gridFM.datasets.globals import PQ, PV, REF, PG, QG, VM, VA, G, B
+from gridfm_graphkit.datasets.globals import PQ, PV, REF, PG, QG, VM, VA, G, B
 
 import torch
 from torch import Tensor

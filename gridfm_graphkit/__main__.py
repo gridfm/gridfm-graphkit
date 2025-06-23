@@ -1,13 +1,18 @@
 import argparse
 import torch
 import mlflow
-from gridFM.cli import main_standard, main_checkpoint, main_eval, main_fine_tuning
+from gridfm_graphkit.cli import (
+    main_standard,
+    main_checkpoint,
+    main_eval,
+    main_fine_tuning,
+)
 
 
 def main():
     parser = argparse.ArgumentParser(
-        prog="gridFM",
-        description="Grid Foundation Model CLI",
+        prog="gridfm_graphkit",
+        description="gridfm-graphkit CLI",
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
 

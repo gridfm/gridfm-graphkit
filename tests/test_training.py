@@ -7,17 +7,17 @@ import tempfile
 from torch import optim
 from torch_geometric.loader import DataLoader
 
-from gridFM.io.param_handler import (
+from gridfm_graphkit.io.param_handler import (
     load_normalizer,
     get_loss_function,
     load_model,
     get_transform,
     NestedNamespace,
 )
-from gridFM.datasets.utils import split_dataset
-from gridFM.datasets.powergrid import GridDatasetMem
-from gridFM.training.callbacks import EarlyStopper
-from gridFM.training.trainer import Trainer
+from gridfm_graphkit.datasets.utils import split_dataset
+from gridfm_graphkit.datasets.powergrid import GridDatasetMem
+from gridfm_graphkit.training.callbacks import EarlyStopper
+from gridfm_graphkit.training.trainer import Trainer
 
 
 @pytest.mark.parametrize("yaml_path", glob.glob("tests/config/*.yaml"))

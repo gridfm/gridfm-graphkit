@@ -1,7 +1,7 @@
 import yaml
 import glob
 import pytest
-from gridFM.io.param_handler import (
+from gridfm_graphkit.io.param_handler import (
     load_normalizer,
     get_loss_function,
     load_model,

@@ -1,5 +1,5 @@
-from gridFM.utils.loss import PBELoss
-from gridFM.datasets.globals import PQ, PV, REF
+from gridfm_graphkit.utils.loss import PBELoss
+from gridfm_graphkit.datasets.globals import PQ, PV, REF
 
 import torch
 import networkx as nx

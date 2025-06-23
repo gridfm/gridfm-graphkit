@@ -3,7 +3,7 @@
 
 
 Normalization improves neural network training by ensuring features are well-scaled, preventing issues like exploding gradients and slow convergence. In power grids, where variables like voltage and power span wide ranges, normalization is essential.
-The `gridFM` package offers four methods:
+The `gridfm-graphkit` package offers four methods:
 
 - [`Min-Max Normalization`](#minmaxnormalizer)
 - [`Standardization (Z-score)`](#standardizer)
@@ -21,31 +21,31 @@ Each of these strategies implements a unified interface and can be used intercha
 
 ### `Normalizer`
 
-::: gridFM.datasets.data_normalization.Normalizer
+::: gridfm_graphkit.datasets.data_normalization.Normalizer
 
 ---
 
 ### `MinMaxNormalizer`
 
-::: gridFM.datasets.data_normalization.MinMaxNormalizer
+::: gridfm_graphkit.datasets.data_normalization.MinMaxNormalizer
 
 ---
 
 ### `Standardizer`
 
-::: gridFM.datasets.data_normalization.Standardizer
+::: gridfm_graphkit.datasets.data_normalization.Standardizer
 
 ---
 
 ### `BaseMVANormalizer`
 
-::: gridFM.datasets.data_normalization.BaseMVANormalizer
+::: gridfm_graphkit.datasets.data_normalization.BaseMVANormalizer
 
 ---
 
 ### `IdentityNormalizer`
 
-::: gridFM.datasets.data_normalization.IdentityNormalizer
+::: gridfm_graphkit.datasets.data_normalization.IdentityNormalizer
 
 ---
 
@@ -54,7 +54,7 @@ Each of these strategies implements a unified interface and can be used intercha
 Example:
 
 ```python
-from gridFM.datasets.data_normalization import MinMaxNormalizer
+from gridfm_graphkit.datasets.data_normalization import MinMaxNormalizer
 import torch
 
 data = torch.randn(100, 5)  # Example tensor

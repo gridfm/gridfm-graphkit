@@ -1,4 +1,4 @@
-# GridFM model evaluation
+# gridfm-graphkit
 
 This library is brought to you by the GridFM team to train, finetune and interact with a foundation model for the electric power grid.
 

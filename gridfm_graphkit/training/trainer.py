@@ -1,5 +1,5 @@
-from gridFM.training.plugins import TrainerPlugin
-from gridFM.training.callbacks import EarlyStopper
+from gridfm_graphkit.training.plugins import TrainerPlugin
+from gridfm_graphkit.training.callbacks import EarlyStopper
 
 from typing import List
 import torch

@@ -1,5 +1,8 @@
-from gridFM.datasets.data_normalization import Normalizer, BaseMVANormalizer
-from gridFM.datasets.transforms import AddEdgeWeights, AddNormalizedRandomWalkPE
+from gridfm_graphkit.datasets.data_normalization import Normalizer, BaseMVANormalizer
+from gridfm_graphkit.datasets.transforms import (
+    AddEdgeWeights,
+    AddNormalizedRandomWalkPE,
+)
 
 import os.path as osp
 import torch
