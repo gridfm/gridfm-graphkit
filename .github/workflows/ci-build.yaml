@@ -2,10 +2,10 @@ name: CI Build
 on:
   push:
     branches:
-      - ci_test
+      - feature/ci_test
   pull_request:
     branches:
-      - ci_test
+      - feature/ci_test
 jobs:
   test:
     runs-on: ubuntu-latest
