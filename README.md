@@ -12,20 +12,28 @@ This library is brought to you by the GridFM team to train, finetune and interac
 
 # Installation
 
-Create a python virtual environment and install the requirements
+You can install `gridfm-graphkit` directly from PyPI:
+
+```bash
+pip install gridfm-graphkit
+```
+
+To contribute or develop locally, clone the repository and install in editable mode:
+
 ```bash
 git clone git@github.com:gridfm/gridfm-graphkit.git
 cd gridfm-graphkit
 python -m venv venv
 source venv/bin/activate
-pip install .
+pip install -e .
 ```
 
-Install the package in editable mode during development phase:
+For documentation generation and unit testing, install with the optional `dev` and `test` extras:
 
 ```bash
 pip install -e .[dev,test]
 ```
+
 
 # gridfm-graphkit CLI
 
