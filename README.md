@@ -1,12 +1,12 @@
 # gridfm-graphkit
-[![Docs](https://img.shields.io/badge/docs-live-brightgreen)](https://gridfm.github.io/gridfm-graphkit/)
+[![Docs](https://img.shields.io/badge/docs-available-brightgreen)](https://gridfm.github.io/gridfm-graphkit/)
 
 This library is brought to you by the GridFM team to train, finetune and interact with a foundation model for the electric power grid.
 
 ---
 
 <p align="center">
-  <img src="docs/figs/pre_training.png" alt="GridFM logo"/>
+  <img src="https://raw.githubusercontent.com/gridfm/gridfm-graphkit/refs/heads/main/docs/figs/pre_training.png" alt="GridFM logo"/>
   <br/>
 </p>
 
