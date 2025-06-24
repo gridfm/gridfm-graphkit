@@ -1,4 +1,4 @@
-# GridFM CLI
+# CLI commands
 
 An interface to train, fine-tune, and evaluate GridFM models using configurable YAML files and MLflow tracking.
 
