@@ -9,7 +9,7 @@ namespaces = false
 [project]
 name = "gridfm-graphkit"
 description = "Grid Foundation Model"
-version = "0.0.1"
+version = "0.0.2a"
 readme = "README.md"
 license = "Apache-2.0"
 requires-python = ">=3.12.10"
