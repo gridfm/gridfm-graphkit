@@ -9,7 +9,7 @@ namespaces = false
 [project]
 name = "gridfm-graphkit"
 description = "Grid Foundation Model"
-version = "0.1.0"
+version = "0.0.1"
 readme = "README.md"
 license = "Apache-2.0"
 requires-python = ">=3.12.10"
@@ -23,6 +23,15 @@ authors = [
 maintainers = [
   {name = "Matteo Mazzonelli", email = "Matteo.Mazzonelli1@ibm.com"},
 ]
+
+keywords = ["electric power grid", "foundational model", "graph neural networks"]
+
+classifiers = [
+  "Development Status :: 2 - Pre-Alpha",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence"
+]
+
 
 dependencies = [
     "mlflow>=3.1.0",
@@ -43,7 +52,8 @@ dev = [
   "mkdocs-material",
   "mkdocstrings[python]",
   "pre-commit>=4.2.0",
-  "bandit>=1.8.5"
+  "bandit>=1.8.5",
+  "build"
 ]
 
 test = [
