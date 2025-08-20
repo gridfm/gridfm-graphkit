@@ -3,10 +3,10 @@ venv_pp
 /data/
 __pycache__/
 *.pyc
+*.log
+*.done
 .vscode
 gridfm_graphkit.egg-info
 mlruns
-runs
 *.pt
-test_nb
 .DS_Store

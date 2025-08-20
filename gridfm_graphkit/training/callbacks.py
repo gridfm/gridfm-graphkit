@@ -1,47 +1,49 @@
+from lightning.pytorch.callbacks import Callback
+from pytorch_lightning.utilities.rank_zero import rank_zero_only
+from lightning.pytorch.loggers import MLFlowLogger
+import os
 import torch
 
 
-class EarlyStopper:
+class SaveBestModelStateDict(Callback):
     def __init__(
         self,
-        saving_path,
-        patience=5,
-        tol=0,
-        min_validation_loss=float("inf"),
+        monitor: str,
+        mode: str = "min",
+        filename: str = "best_model_state_dict.pt",
     ):
-        """
-        Args:
-            patience (int): number of epochs to wait before early stopping
-                -1 means no early stopping
-                0 means stop training the first time the validation loss increases
-            tol (float): tolerance to consider validation loss as worse as the best one so far
-        """
+        self.monitor = monitor
+        self.mode = mode
+        self.filename = filename
+        self.best_score = float("inf") if mode == "min" else -float("inf")
 
-        self.patience = patience
-        self.tol = tol
-        self.counter = 0
-        self.min_validation_loss = min_validation_loss
-        self.saving_path = saving_path
+    @rank_zero_only
+    def on_validation_end(self, trainer, pl_module):
+        current = trainer.callback_metrics.get(self.monitor)
+        if current is None:
+            return  # Metric not available yet
 
-    def early_stop(self, validation_loss, model):
-        if validation_loss < self.min_validation_loss:
-            self.min_validation_loss = (
-                validation_loss  # Update the best validation loss
-            )
-            self.counter = 0
+        # Check if this is the best score so far
+        if (self.mode == "min" and current < self.best_score) or (
+            self.mode == "max" and current > self.best_score
+        ):
+            self.best_score = current
 
-            # Save the best model whenever a new minimum is found
-            torch.save(model, self.saving_path)
-
-        # check if the valid loss is worse than the best one so far, accounting for tolerance
-        elif validation_loss > (self.min_validation_loss + self.tol):
-            self.counter += 1
-
-            if self.patience != -1 and self.counter > self.patience:
-                print(
-                    "Early stopping after {} epochs of no improvement.".format(
-                        self.counter,
-                    ),
+            # Determine artifact directory
+            logger = trainer.logger
+            if isinstance(logger, MLFlowLogger):
+                model_dir = os.path.join(
+                    logger.save_dir,
+                    logger.experiment_id,
+                    logger.run_id,
+                    "artifacts",
+                    "model",
                 )
-                return True
-        return False
+            else:
+                model_dir = os.path.join(logger.save_dir, "model")
+
+            os.makedirs(model_dir, exist_ok=True)
+
+            # Save the model's state_dict
+            model_path = os.path.join(model_dir, self.filename)
+            torch.save(pl_module.state_dict(), model_path)

@@ -1,0 +1,18 @@
+seed: 42
+data:
+  networks: ["case30_ieee"]
+  scenarios: [10]
+  normalization: "baseMVAnorm"
+  baseMVA: 100
+  mask_type: "rnd"
+  mask_value: 0.0
+  mask_ratio: 0.5
+  mask_dim: 6
+  learn_mask: False
+  val_ratio: 0.2
+  test_ratio: 0.2
+  workers: 0
+training:
+  batch_size: 2
+model:
+  pe_dim: 4

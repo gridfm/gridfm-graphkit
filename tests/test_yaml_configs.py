@@ -23,3 +23,26 @@ def test_yaml_config_valid(yaml_path):
         load_model(args)
     if hasattr(args, "training") and hasattr(args.training, "losses"):
         get_loss_function(args)
+
+
+def test_nested_namespace_with_list_and_flatten():
+    cfg = {
+        "seed": 42,
+        "data": {"networks": ["case30_ieee", "case118_ieee"]},
+        "training": {"batch_size": 16},
+    }
+
+    ns = NestedNamespace(**cfg)
+
+    # Direct attribute and list access
+    assert ns.seed == 42
+    assert ns.data.networks[0] == "case30_ieee"
+
+    # Round-trip back to dict
+    assert ns.to_dict() == cfg
+
+    # Flatten with default and custom separators
+    flat = ns.flatten()
+    assert flat["training.batch_size"] == 16
+    assert flat["data.networks"] == ["case30_ieee", "case118_ieee"]
+    assert ns.flatten(sep="/")["data/networks"] == ["case30_ieee", "case118_ieee"]

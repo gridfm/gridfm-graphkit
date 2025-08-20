@@ -1,4 +1,5 @@
 from gridfm_graphkit.datasets.globals import PQ, PV, REF, PG, QG, VM, VA, G, B
+from gridfm_graphkit.io.registries import MASKING_REGISTRY
 
 import torch
 from torch import Tensor
@@ -107,11 +108,15 @@ class AddEdgeWeights(BaseTransform):
         return data
 
 
+@MASKING_REGISTRY.register("none")
 class AddIdentityMask(BaseTransform):
     """Creates an identity mask, and adds it as a `mask` attribute.
 
     The mask is generated such that every entry is False, so no masking is actually applied
     """
+
+    def __init__(self, args):
+        super().__init__()
 
     def forward(self, data):
         if not hasattr(data, "y"):
@@ -126,6 +131,7 @@ class AddIdentityMask(BaseTransform):
         return data
 
 
+@MASKING_REGISTRY.register("rnd")
 class AddRandomMask(BaseTransform):
     """Creates a random mask, and adds it as a `mask` attribute.
 
@@ -133,10 +139,10 @@ class AddRandomMask(BaseTransform):
     `mask_ratio` and `False` otherwise.
     """
 
-    def __init__(self, mask_dim, mask_ratio):
+    def __init__(self, args):
         super().__init__()
-        self.mask_dim = mask_dim
-        self.mask_ratio = mask_ratio
+        self.mask_dim = args.data.mask_dim
+        self.mask_ratio = args.data.mask_ratio
 
     def forward(self, data):
         if not hasattr(data, "x"):
@@ -151,8 +157,12 @@ class AddRandomMask(BaseTransform):
         return data
 
 
+@MASKING_REGISTRY.register("pf")
 class AddPFMask(BaseTransform):
     """Creates a mask according to the power flow problem and assigns it as a `mask` attribute."""
+
+    def __init__(self, args):
+        super().__init__()
 
     def forward(self, data):
         # Ensure the data object has the required attributes
@@ -185,8 +195,12 @@ class AddPFMask(BaseTransform):
         return data
 
 
+@MASKING_REGISTRY.register("opf")
 class AddOPFMask(BaseTransform):
     """Creates a mask according to the optimal power flow problem and assigns it as a `mask` attribute."""
+
+    def __init__(self, args):
+        super().__init__()
 
     def forward(self, data):
         # Ensure the data object has the required attributes

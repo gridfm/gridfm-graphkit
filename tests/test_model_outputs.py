@@ -1,6 +1,9 @@
 import torch
 import numpy as np
 import pytest
+import yaml
+from gridfm_graphkit.io.param_handler import NestedNamespace
+from gridfm_graphkit.tasks.feature_reconstruction_task import FeatureReconstructionTask
 
 # Device setup
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -15,30 +18,41 @@ edge_attr_dim = 2
 models_to_test = [
     (
         "v0_1_2",
-        "examples/models/GridFM_v0_1_2.pth",
+        "examples/models/GridFM_v0_1_2_dict.pth",
         "tests/data/reference_output_v0_1_2.npy",
+        "examples/config/gridFMv0.1.2_pretraining.yaml",
     ),
     (
         "v0_2_3",
-        "examples/models/GridFM_v0_2_3.pth",
+        "examples/models/GridFM_v0_2_3_dict.pth",
         "tests/data/reference_output_v0_2_3.npy",
+        "examples/config/gridFMv0.2.3_pretraining.yaml",
     ),
 ]
 
 
-@pytest.mark.parametrize("version, model_path, ref_output_path", models_to_test)
-def test_model_matches_reference(version, model_path, ref_output_path):
+@pytest.mark.parametrize(
+    "version, model_path, ref_output_path, yaml_path",
+    models_to_test,
+)
+def test_model_matches_reference(version, model_path, ref_output_path, yaml_path):
     torch.manual_seed(0)
+    with open(yaml_path) as f:
+        config_dict = yaml.safe_load(f)
+
+    args = NestedNamespace(**config_dict)
 
     # Prepare zero input
-    x = torch.zeros((num_nodes, x_dim), device=device)
-    pe = torch.zeros((num_nodes, pe_dim), device=device)
-    edge_index = torch.tensor([[0], [0]], device=device)
-    edge_attr = torch.zeros((1, edge_attr_dim), device=device)
-    batch = torch.zeros(num_nodes, dtype=torch.long, device=device)
+    x = torch.zeros((num_nodes, x_dim))
+    pe = torch.zeros((num_nodes, pe_dim))
+    edge_index = torch.tensor([[0], [0]])
+    edge_attr = torch.zeros((1, edge_attr_dim))
+    batch = torch.zeros(num_nodes, dtype=torch.long)
 
-    # Load model
-    model = torch.load(model_path, weights_only=False, map_location=device).to(device)
+    # load model
+    model = model = FeatureReconstructionTask(args, None, None)
+    state_dict = torch.load(model_path)
+    model.load_state_dict(state_dict)
     model.eval()
 
     # Get current output

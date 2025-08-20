@@ -1,27 +1,17 @@
-from gridfm_graphkit.datasets.data_normalization import (
-    IdentityNormalizer,
-    MinMaxNormalizer,
-    Standardizer,
-    BaseMVANormalizer,
-)
-from gridfm_graphkit.datasets.transforms import (
-    AddRandomMask,
-    AddPFMask,
-    AddOPFMask,
-    AddIdentityMask,
-)
-from gridfm_graphkit.utils.loss import (
+from gridfm_graphkit.training.loss import (
     PBELoss,
     MaskedMSELoss,
     SCELoss,
     MixedLoss,
     MSELoss,
 )
-from gridfm_graphkit.models.graphTransformer import GNN_TransformerConv
-from gridfm_graphkit.models.gps_transformer import GPSTransformer
+from gridfm_graphkit.io.registries import (
+    MASKING_REGISTRY,
+    NORMALIZERS_REGISTRY,
+    MODELS_REGISTRY,
+)
 
 import argparse
-import itertools
 
 
 class NestedNamespace(argparse.Namespace):
@@ -61,104 +51,6 @@ class NestedNamespace(argparse.Namespace):
         return dict(items)
 
 
-def flatten_dict(d, parent_key="", sep="."):
-    """
-    Flatten a nested dictionary into a single-level dictionary with dot-separated keys.
-
-    Args:
-        d (dict): The dictionary to flatten.
-        parent_key (str, optional): Prefix for the keys in the flattened dictionary.
-        sep (str, optional): Separator for nested keys. Defaults to '.'.
-
-    Returns:
-        dict: A flattened version of the input dictionary.
-    """
-    items = []
-    for key, value in d.items():
-        new_key = f"{parent_key}{sep}{key}" if parent_key else key
-        if isinstance(value, dict):
-            items.extend(flatten_dict(value, new_key, sep=sep).items())
-        else:
-            items.append((new_key, value))
-    return dict(items)
-
-
-def unflatten_dict(d, sep="."):
-    """
-    Reconstruct a nested dictionary from a flattened dictionary with dot-separated keys.
-
-    Args:
-        d (dict): The flattened dictionary to unflatten.
-        sep (str, optional): Separator used in the flattened keys. Defaults to '.'.
-
-    Returns:
-        dict: A nested dictionary reconstructed from the flattened input.
-    """
-    result = {}
-    for key, value in d.items():
-        parts = key.split(sep)
-        target = result
-        for part in parts[:-1]:
-            target = target.setdefault(part, {})
-        target[parts[-1]] = value
-    return result
-
-
-def merge_dict(base, updates):
-    """
-    Recursively merge updates into a base dictionary, but only if the keys exist in the base.
-
-    Args:
-        base (dict): The original dictionary to be updated.
-        updates (dict): The dictionary containing updates.
-
-    Raises:
-        KeyError: If a key in updates does not exist in base.
-        TypeError: If a key in base is not a dictionary but updates attempt to provide nested values.
-    """
-    for key, value in updates.items():
-        if key not in base:
-            raise KeyError(f"Key '{key}' not found in base configuration.")
-
-        if isinstance(value, dict):
-            if not isinstance(base[key], dict):
-                raise TypeError(
-                    f"Default config expects  {type(base[key])}, but got a dict at key '{key}'",
-                )
-            # Recursively merge dictionaries
-            merge_dict(base[key], value)
-        else:
-            # Update the existing key
-            base[key] = value
-
-
-def param_combination_gen(grid_config):
-    """
-    Generate all combinations of parameters from a nested dictionary
-
-    Args:
-        grid_config (dict): A nested dictionary where keys are parameter names
-            and values are lists of possible values.
-
-    Returns:
-        list: A list of dictionaries representing all possible parameter combinations.
-              Each dictionary corresponds to one combination.
-    """
-
-    # Flatten the grid config for combination generation
-    flat_grid = flatten_dict(grid_config)
-
-    # Separate keys and values for itertools.product
-    keys, values = zip(*flat_grid.items())
-
-    # Generate all combinations of parameters
-    combinations = [dict(zip(keys, v)) for v in itertools.product(*values)]
-
-    # Unflatten the combinations back into nested dictionaries
-    nested_combinations = [unflatten_dict(comb) for comb in combinations]
-    return nested_combinations
-
-
 def load_normalizer(args):
     """
     Load the appropriate data normalization methods
@@ -174,19 +66,14 @@ def load_normalizer(args):
     """
     method = args.data.normalization
 
-    if method == "minmax":
-        return MinMaxNormalizer(), MinMaxNormalizer()
-    elif method == "standard":
-        return Standardizer(), Standardizer()
-    elif method == "baseMVAnorm":
-        return BaseMVANormalizer(
-            node_data=True,
-            baseMVA_orig=args.data.baseMVA,
-        ), BaseMVANormalizer(node_data=False, baseMVA_orig=args.data.baseMVA)
-    elif method == "identity":
-        return IdentityNormalizer(), IdentityNormalizer()
-    else:
-        raise ValueError(f"Unknown normalization method: {method}")
+    try:
+        return NORMALIZERS_REGISTRY.create(
+            method,
+            True,
+            args,
+        ), NORMALIZERS_REGISTRY.create(method, False, args)
+    except KeyError:
+        raise ValueError(f"Unknown transformation: {method}")
 
 
 def get_loss_function(args):
@@ -233,61 +120,19 @@ def load_model(args):
     """
     model_type = args.model.type
 
-    if model_type == "GNN_TransformerConv":
-        return GNN_TransformerConv(
-            input_dim=args.model.input_dim,
-            hidden_dim=args.model.hidden_size,
-            output_dim=args.model.output_dim,
-            edge_dim=args.model.edge_dim,
-            num_layers=args.model.num_layers,
-            heads=args.model.attention_head,
-            mask_dim=args.data.mask_dim,
-            mask_value=args.data.mask_value,
-            learn_mask=args.data.learn_mask,
-        )
-    elif model_type == "GPSTransformer":
-        return GPSTransformer(
-            input_dim=args.model.input_dim,
-            hidden_dim=args.model.hidden_size,
-            output_dim=args.model.output_dim,
-            edge_dim=args.model.edge_dim,
-            pe_dim=args.model.pe_dim,
-            heads=args.model.attention_head,
-            num_layers=args.model.num_layers,
-            dropout=args.model.dropout,
-            mask_dim=args.data.mask_dim,
-            mask_value=args.data.mask_value,
-            learn_mask=args.data.learn_mask,
-        )
-    else:
+    try:
+        return MODELS_REGISTRY.create(model_type, args)
+    except KeyError:
         raise ValueError(f"Unknown model type: {model_type}")
 
 
 def get_transform(args):
     """
-    Load the appropriate dataset transform
-
-    Args:
-        args (NestedNamespace): contains configs.
-
-    Returns:
-        BaseTransform: Transformation
-
-    Raises:
-        ValueError: If an unknown transform is specified.
+    Load the appropriate dataset transform from the registry.
     """
     mask_type = args.data.mask_type
 
-    if mask_type == "rnd":
-        return AddRandomMask(
-            mask_dim=args.data.mask_dim,
-            mask_ratio=args.data.mask_ratio,
-        )
-    elif mask_type == "pf":
-        return AddPFMask()
-    elif mask_type == "opf":
-        return AddOPFMask()
-    elif mask_type == "none":
-        return AddIdentityMask()
-    else:
+    try:
+        return MASKING_REGISTRY.create(mask_type, args)
+    except KeyError:
         raise ValueError(f"Unknown transformation: {mask_type}")

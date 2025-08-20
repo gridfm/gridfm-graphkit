@@ -1,6 +1,4 @@
 import numpy as np
-import pandas as pd
-import os
 from torch.utils.data import Subset
 from typing import Tuple
 
@@ -42,20 +40,6 @@ def split_dataset(
     train_indices = indices[:train_size]
     val_indices = indices[train_size : train_size + val_size]
     test_indices = indices[train_size + val_size :]
-
-    # Save indices to CSV files
-    pd.DataFrame(train_indices, columns=["index"]).to_csv(
-        os.path.join(log_dir, "train_indices.csv"),
-        index=False,
-    )
-    pd.DataFrame(val_indices, columns=["index"]).to_csv(
-        os.path.join(log_dir, "val_indices.csv"),
-        index=False,
-    )
-    pd.DataFrame(test_indices, columns=["index"]).to_csv(
-        os.path.join(log_dir, "test_indices.csv"),
-        index=False,
-    )
 
     # Create subsets
     train_dataset = Subset(dataset, train_indices)

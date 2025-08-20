@@ -22,11 +22,15 @@ model:
   hidden_size: 256
   attention_head: 8
   dropout: 0.1
+  workers: 4
 training:
   batch_size: 32
   epochs: 200
   losses: ["MaskedMSE", "PBE"]
   loss_weights: [0.01, 0.99]
+  accelerator: auto
+  devices: auto
+  strategy: auto
 optimizer:
   learning_rate: 0.0001
   beta1: 0.9
@@ -34,5 +38,5 @@ optimizer:
   lr_decay: 0.7
   lr_patience: 10
 callbacks:
-  patience: -1
+  patience: 100
   tol: 0
