@@ -1,5 +1,4 @@
 seed: 42
-verbose: False
 data:
   networks: ["case240_pserc"]
   scenarios: [180000]

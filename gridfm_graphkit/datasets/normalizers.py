@@ -65,6 +65,11 @@ class Normalizer(ABC):
 class MinMaxNormalizer(Normalizer):
     """
     Scales each feature to the [0, 1] range.
+
+    Args:
+        node_data (bool): Whether data is node-level or edge-level
+        args (NestedNamespace): Parameters
+
     """
 
     def __init__(self, node_data: bool, args):
@@ -114,6 +119,11 @@ class MinMaxNormalizer(Normalizer):
 class Standardizer(Normalizer):
     """
     Standardizes each feature to zero mean and unit variance.
+
+    Args:
+        node_data (bool): Whether data is node-level or edge-level
+        args (NestedNamespace): Parameters
+
     """
 
     def __init__(self, node_data: bool, args):
@@ -173,8 +183,11 @@ class BaseMVANormalizer(Normalizer):
     def __init__(self, node_data: bool, args):
         """
         Args:
-            node_data: Whether data is node-level or edge-level (PD, QD, PG, QG, VA).
-            baseMVA_orig: Original baseMVA (e.g. from MATPOWER).
+            node_data: Whether data is node-level or edge-level
+            args (NestedNamespace): Parameters
+
+        Attributes:
+            baseMVA (float): baseMVA found in casefile. From ``args.data.baseMVA``.
         """
         self.node_data = node_data
         self.baseMVA_orig = getattr(args.data, "baseMVA", 100)
@@ -241,6 +254,10 @@ class BaseMVANormalizer(Normalizer):
 class IdentityNormalizer(Normalizer):
     """
     No normalization: returns data unchanged.
+
+    Args:
+            node_data: Whether data is node-level or edge-level
+            args (NestedNamespace): Parameters
     """
 
     def __init__(self, node_data: bool, args):

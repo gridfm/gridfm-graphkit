@@ -9,10 +9,10 @@ import sys
 class TestMLPipeline(unittest.TestCase):
     def setUp(self):
         # Default paths for tests
-        self.config = "tests/config/gridFMv0.1.2_dummy.yaml"
+        self.config = "tests/config/gridFMv0.1_dummy.yaml"
         self.data_path = "tests/data"
         self.log_dir = "tests/mlruns"
-        self.model_path = "examples/models/GridFM_v0_1_2_dict.pth"
+        self.model_path = "examples/models/GridFM_v0_1.pth"
         self.output_path = "tests/output"
         self.exp_name = "pytest_exp"
         self.run_name = "pytest_run"

@@ -2,6 +2,7 @@ import torch
 from torch_geometric.loader import DataLoader
 from torch.utils.data import ConcatDataset
 from torch.utils.data import Subset
+import torch.distributed as dist
 from gridfm_graphkit.io.param_handler import (
     NestedNamespace,
     load_normalizer,
@@ -17,7 +18,64 @@ import lightning as L
 
 
 class LitGridDataModule(L.LightningDataModule):
-    """ """
+    """
+    PyTorch Lightning DataModule for power grid datasets.
+
+    This datamodule handles loading, preprocessing, splitting, and batching
+    of power grid graph datasets (`GridDatasetDisk`) for training, validation,
+    testing, and prediction. It ensures reproducibility through fixed seeds.
+
+    Args:
+        args (NestedNamespace): Experiment configuration.
+        data_dir (str, optional): Root directory for datasets. Defaults to "./data".
+
+    Attributes:
+        batch_size (int): Batch size for all dataloaders. From ``args.training.batch_size``
+        node_normalizers (list): List of node feature normalizers, one per dataset.
+        edge_normalizers (list): List of edge feature normalizers, one per dataset.
+        datasets (list): Original datasets for each network.
+        train_datasets (list): Train splits for each network.
+        val_datasets (list): Validation splits for each network.
+        test_datasets (list): Test splits for each network.
+        train_dataset_multi (ConcatDataset): Concatenated train datasets for multi-network training.
+        val_dataset_multi (ConcatDataset): Concatenated validation datasets for multi-network validation.
+        _is_setup_done (bool): Tracks whether `setup` has been executed to avoid repeated processing.
+
+    Methods:
+        setup(stage):
+            Load and preprocess datasets, split into train/val/test, and store normalizers.
+            Handles distributed preprocessing safely.
+        train_dataloader():
+            Returns a DataLoader for concatenated training datasets.
+        val_dataloader():
+            Returns a DataLoader for concatenated validation datasets.
+        test_dataloader():
+            Returns a list of DataLoaders, one per test dataset.
+        predict_dataloader():
+            Returns a list of DataLoaders, one per test dataset for prediction.
+
+    Notes:
+        - Preprocessing is only performed on rank 0 in distributed settings.
+        - Subsets and splits are deterministic based on the provided random seed.
+        - Normalizers are loaded for each network independently.
+        - Test and predict dataloaders are returned as lists, one per dataset.
+
+    Example:
+        ```python
+        from gridfm_graphkit.datasets.powergrid_datamodule import LitGridDataModule
+        from gridfm_graphkit.io.param_handler import NestedNamespace
+        import yaml
+
+        with open("config/config.yaml") as f:
+            base_config = yaml.safe_load(f)
+        args = NestedNamespace(**base_config)
+
+        datamodule = LitGridDataModule(args, data_dir="./data")
+
+        datamodule.setup("fit")
+        train_loader = datamodule.train_dataloader()
+        ```
+    """
 
     def __init__(self, args: NestedNamespace, data_dir: str = "./data"):
         super().__init__()
@@ -46,7 +104,7 @@ class LitGridDataModule(L.LightningDataModule):
             data_path_network = os.path.join(self.data_dir, network)
 
             # Run preprocessing only on rank 0
-            if self.trainer.is_global_zero:
+            if dist.is_available() and dist.is_initialized() and dist.get_rank() == 0:
                 print(f"Pre-processing of {network} dataset on rank 0")
                 _ = GridDatasetDisk(  # just to trigger processing
                     root=data_path_network,

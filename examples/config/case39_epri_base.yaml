@@ -1,5 +1,4 @@
 seed: 42
-verbose: False
 data:
   networks: ["case39_epri"]
   scenarios: [165000]

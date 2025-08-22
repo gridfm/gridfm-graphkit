@@ -1,11 +1,10 @@
 seed: 42
-verbose: False
 data:
   networks: ["case89_pegase"]
   scenarios: [160000]
   normalization: "baseMVAnorm"
   baseMVA: 100
-  mask_type: "rnd"
+  mask_type: "pf"
   mask_value: 0.0
   mask_ratio: 0.5
   mask_dim: 6
@@ -14,20 +13,20 @@ data:
   test_ratio: 0.1
   workers: 4
 model:
-  type: "GPSTransformer"
-  input_dim: 9
-  output_dim: 6
-  edge_dim: 2
-  pe_dim: 20
-  num_layers: 8
-  hidden_size: 256
   attention_head: 8
-  dropout: 0.2
+  dropout: 0.1
+  edge_dim: 2
+  hidden_size: 256
+  input_dim: 9
+  num_layers: 8
+  output_dim: 6
+  pe_dim: 20
+  type: GPSTransformer
 training:
   batch_size: 32
-  epochs: 200
+  epochs: 400
   losses: ["MaskedMSE", "PBE"]
-  loss_weights: [0.01, 0.99]
+  loss_weights: [0.9, 0.1]
   accelerator: auto
   devices: auto
   strategy: auto

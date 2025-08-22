@@ -30,19 +30,19 @@ model:
   attention_head: 8
   dropout: 0.1
   edge_dim: 2
-  hidden_size: 64
+  hidden_size: 256
   input_dim: 9
   num_layers: 8
   output_dim: 6
   pe_dim: 20
-  type: GNN_TransformerConv
+  type: GPSTransformer
 optimizer:
   beta1: 0.9
   beta2: 0.999
-  learning_rate: 1.0e-05
+  learning_rate: 0.0001
   lr_decay: 0.7
   lr_patience: 10
-seed: 200
+seed: 0
 training:
   batch_size: 64
   epochs: 500
@@ -55,4 +55,3 @@ training:
   accelerator: auto
   devices: auto
   strategy: auto
-verbose: false

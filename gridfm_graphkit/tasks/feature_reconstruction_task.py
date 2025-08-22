@@ -13,6 +13,57 @@ from gridfm_graphkit.datasets.globals import PQ, PV, REF, PD, QD, PG, QG, VM, VA
 
 
 class FeatureReconstructionTask(L.LightningModule):
+    """
+    PyTorch Lightning task for node feature reconstruction on power grid graphs.
+
+    This task wraps a GridFM model inside a LightningModule and defines the full
+    training, validation, testing, and prediction logic. It is designed to
+    reconstruct masked node features from graph-structured input data, using
+    datasets and normalizers provided by `gridfm-graphkit`.
+
+    Args:
+        args (NestedNamespace): Experiment configuration. Expected fields include `training.batch_size`, `optimizer.*`, etc.
+        node_normalizers (list): One normalizer per dataset to (de)normalize node features.
+        edge_normalizers (list): One normalizer per dataset to (de)normalize edge features.
+
+    Attributes:
+        model (torch.nn.Module): model loaded via `load_model`.
+        loss_fn (callable): Loss function resolved from configuration.
+        batch_size (int): Training batch size. From ``args.training.batch_size``
+        node_normalizers (list): Dataset-wise node feature normalizers.
+        edge_normalizers (list): Dataset-wise edge feature normalizers.
+
+    Methods:
+        forward(x, pe, edge_index, edge_attr, batch, mask=None):
+            Forward pass with optional feature masking.
+        training_step(batch):
+            One training step: computes loss, logs metrics, returns loss.
+        validation_step(batch, batch_idx):
+            One validation step: computes losses and logs metrics.
+        test_step(batch, batch_idx, dataloader_idx=0):
+            Evaluate on test data, compute per-node-type MSEs, and log per-dataset metrics.
+        predict_step(batch, batch_idx, dataloader_idx=0):
+            Run inference and return denormalized outputs + node masks.
+        configure_optimizers():
+            Setup Adam optimizer and ReduceLROnPlateau scheduler.
+        on_fit_start():
+            Save normalization statistics at the beginning of training.
+        on_test_end():
+            Collect test metrics across datasets and export summary CSV reports.
+
+    Notes:
+        - Node types are distinguished using the global constants (`PQ`, `PV`, `REF`).
+        - The datamodule must provide `batch.mask` for masking node features.
+        - Test metrics include per-node-type RMSE for [Pd, Qd, Pg, Qg, Vm, Va].
+        - Reports are saved under `<mlflow_artifacts>/test/<dataset>.csv`.
+
+    Example:
+        ```python
+        model = FeatureReconstructionTask(args, node_normalizers, edge_normalizers)
+        output = model(batch.x, batch.pe, batch.edge_index, batch.edge_attr, batch.batch)
+        ```
+    """
+
     def __init__(self, args, node_normalizers, edge_normalizers):
         super().__init__()
         self.model = load_model(args=args)
@@ -23,7 +74,10 @@ class FeatureReconstructionTask(L.LightningModule):
         self.edge_normalizers = edge_normalizers
         self.save_hyperparameters()
 
-    def forward(self, x, pe, edge_index, edge_attr, batch):
+    def forward(self, x, pe, edge_index, edge_attr, batch, mask=None):
+        if mask is not None:
+            mask_value_expanded = self.model.mask_value.expand(x.shape[0], -1)
+            x[:, : mask.shape[1]][mask] = mask_value_expanded[mask]
         return self.model(x, pe, edge_index, edge_attr, batch)
 
     @rank_zero_only
@@ -56,15 +110,13 @@ class FeatureReconstructionTask(L.LightningModule):
                 )
 
     def shared_step(self, batch):
-        mask_value_expanded = self.model.mask_value.expand(batch.x.shape[0], -1)
-        batch.x[:, : batch.mask.shape[1]][batch.mask] = mask_value_expanded[batch.mask]
-
         output = self.forward(
             x=batch.x,
             pe=batch.pe,
             edge_index=batch.edge_index,
             edge_attr=batch.edge_attr,
             batch=batch.batch,
+            mask=batch.mask,
         )
 
         loss_dict = self.loss_fn(

@@ -21,31 +21,31 @@ Each of these strategies implements a unified interface and can be used intercha
 
 ### `Normalizer`
 
-::: gridfm_graphkit.datasets.data_normalization.Normalizer
+::: gridfm_graphkit.datasets.normalizers.Normalizer
 
 ---
 
 ### `MinMaxNormalizer`
 
-::: gridfm_graphkit.datasets.data_normalization.MinMaxNormalizer
+::: gridfm_graphkit.datasets.normalizers.MinMaxNormalizer
 
 ---
 
 ### `Standardizer`
 
-::: gridfm_graphkit.datasets.data_normalization.Standardizer
+::: gridfm_graphkit.datasets.normalizers.Standardizer
 
 ---
 
 ### `BaseMVANormalizer`
 
-::: gridfm_graphkit.datasets.data_normalization.BaseMVANormalizer
+::: gridfm_graphkit.datasets.normalizers.BaseMVANormalizer
 
 ---
 
 ### `IdentityNormalizer`
 
-::: gridfm_graphkit.datasets.data_normalization.IdentityNormalizer
+::: gridfm_graphkit.datasets.normalizers.IdentityNormalizer
 
 ---
 
@@ -54,12 +54,12 @@ Each of these strategies implements a unified interface and can be used intercha
 Example:
 
 ```python
-from gridfm_graphkit.datasets.data_normalization import MinMaxNormalizer
+from gridfm_graphkit.datasets.normalizers import MinMaxNormalizer
 import torch
 
 data = torch.randn(100, 5)  # Example tensor
 
-normalizer = MinMaxNormalizer()
+normalizer = MinMaxNormalizer(node_data=True,args=None)
 params = normalizer.fit(data)
 normalized = normalizer.transform(data)
 restored = normalizer.inverse_transform(normalized)

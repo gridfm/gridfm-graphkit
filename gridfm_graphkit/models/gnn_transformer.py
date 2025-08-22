@@ -10,15 +10,18 @@ class GNN_TransformerConv(nn.Module):
     Graph Neural Network using [TransformerConv](https://pytorch-geometric.readthedocs.io/en/latest/generated/torch_geometric.nn.conv.TransformerConv.html) layers from PyTorch Geometric.
 
     Args:
-        input_dim (int): Dimensionality of input node features.
-        hidden_dim (int): Hidden dimension size for TransformerConv layers.
-        output_dim (int): Output dimension size.
-        edge_dim (int): Dimensionality of edge features.
-        num_layers (int): Number of TransformerConv layers.
-        heads (int, optional): Number of attention heads.
-        mask_dim (int, optional): Dimension of mask vector.
-        mask_value (float, optional): Initial mask value.
-        learn_mask (bool, optional): Whether mask values are learnable.
+        args (NestedNamespace): Parameters
+
+    Attributes:
+        input_dim (int): Dimensionality of input node features. From ``args.model.input_dim``.
+        hidden_dim (int): Hidden dimension size for TransformerConv layers. From ``args.model.hidden_dim``.
+        output_dim (int): Output dimension size. From ``args.model.output_dim``.
+        edge_dim (int): Dimensionality of edge features. From ``args.model.edge_dim``.
+        num_layers (int): Number of TransformerConv layers. From ``args.model.num_layers``.
+        heads (int, optional): Number of attention heads. From ``args.model.heads``. Defaults to 1.
+        mask_dim (int, optional): Dimension of mask vector. From ``args.data.mask_dim``. Defaults to 6.
+        mask_value (float, optional): Initial mask value. From ``args.data.mask_value``. Defaults to -1.0.
+        learn_mask (bool, optional): Whether mask values are learnable. From ``args.data.learn_mask``. Defaults to True.
     """
 
     def __init__(self, args):

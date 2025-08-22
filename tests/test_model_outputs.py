@@ -17,16 +17,16 @@ edge_attr_dim = 2
 # List of models and reference files to check
 models_to_test = [
     (
-        "v0_1_2",
-        "examples/models/GridFM_v0_1_2_dict.pth",
-        "tests/data/reference_output_v0_1_2.npy",
-        "examples/config/gridFMv0.1.2_pretraining.yaml",
+        "v0_1",
+        "examples/models/GridFM_v0_1.pth",
+        "tests/data/reference_output_v0_1.npy",
+        "examples/config/gridFMv0.1_pretraining.yaml",
     ),
     (
-        "v0_2_3",
-        "examples/models/GridFM_v0_2_3_dict.pth",
-        "tests/data/reference_output_v0_2_3.npy",
-        "examples/config/gridFMv0.2.3_pretraining.yaml",
+        "v0_2",
+        "examples/models/GridFM_v0_2.pth",
+        "tests/data/reference_output_v0_2.npy",
+        "examples/config/gridFMv0.2_pretraining.yaml",
     ),
 ]
 
@@ -50,7 +50,7 @@ def test_model_matches_reference(version, model_path, ref_output_path, yaml_path
     batch = torch.zeros(num_nodes, dtype=torch.long)
 
     # load model
-    model = model = FeatureReconstructionTask(args, None, None)
+    model = FeatureReconstructionTask(args, None, None)
     state_dict = torch.load(model_path)
     model.load_state_dict(state_dict)
     model.eval()

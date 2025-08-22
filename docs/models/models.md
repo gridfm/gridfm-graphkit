@@ -7,4 +7,4 @@
 
 ### `GNN_TransformerConv`
 
-::: gridfm_graphkit.models.graphTransformer.GNN_TransformerConv
+::: gridfm_graphkit.models.gnn_transformer.GNN_TransformerConv

@@ -14,18 +14,20 @@ class GPSTransformer(nn.Module):
     and finally decodes to the output dimension.
 
     Args:
-        input_dim (int): Dimension of input node features.
-        hidden_dim (int): Hidden dimension size for all layers.
-        output_dim (int): Dimension of the output node features.
-        edge_dim (int): Dimension of edge features.
-        pe_dim (int): Dimension of the positional encoding.
-            Must be less than hidden_dim.
-        num_layers (int): Number of GPSConv layers.
-        heads (int, optional): Number of attention heads in GPSConv.
-        dropout (float, optional): Dropout rate in GPSConv.
-        mask_dim (int, optional): Dimension of the mask vector.
-        mask_value (float, optional): Initial value for learnable mask parameters.
-        learn_mask (bool, optional): Whether to learn mask values as parameters.
+        args (NestedNamespace): Parameters
+
+    Attributes:
+        input_dim (int): Dimension of input node features. From ``args.model.input_dim``.
+        hidden_dim (int): Hidden dimension size for all layers. From ``args.model.hidden_size``.
+        output_dim (int): Dimension of the output node features. From ``args.model.output_dim``.
+        edge_dim (int): Dimension of edge features. From ``args.model.edge_dim``.
+        pe_dim (int): Dimension of the positional encoding. Must be less than ``hidden_dim``. From ``args.model.pe_dim``.
+        num_layers (int): Number of GPSConv layers. From ``args.model.num_layers``.
+        heads (int, optional): Number of attention heads in GPSConv. From ``args.model.attention_head``. Defaults to 1.
+        dropout (float, optional): Dropout rate in GPSConv. From ``args.model.dropout``. Defaults to 0.0.
+        mask_dim (int, optional): Dimension of the mask vector. From ``args.data.mask_dim``. Defaults to 6.
+        mask_value (float, optional): Initial value for learnable mask parameters. From ``args.data.mask_value``. Defaults to -1.0.
+        learn_mask (bool, optional): Whether to learn mask values as parameters. From ``args.data.learn_mask``. Defaults to True.
 
     Raises:
         ValueError: If `pe_dim` is not less than `hidden_dim`.

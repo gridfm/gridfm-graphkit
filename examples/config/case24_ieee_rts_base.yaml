@@ -1,5 +1,4 @@
 seed: 42
-verbose: False
 data:
   networks: ["case24_ieee_rts"]
   scenarios: [300000]
