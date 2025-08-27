@@ -103,22 +103,35 @@ def visualize_error(data_point, output, node_normalizer):
     plt.show()
 
 
-def plot_mass_correlation_density(true_vals, gfm_vals, model_name, label_plot):
+def plot_mass_correlation_density(
+    true_vals,
+    gfm_vals,
+    model_name,
+    label_plot,
+    x_max=2,
+    y_max=3,
+):
     """
     TODO docstring
 
     """
     # TODO check if these parameters need to be passed by func or default behavior
     vmin = 1
-    vmax = 5e6
-
-    x_min, x_max = 0, 2.25
-    y_min, y_max = 0, 3.0
+    x_min = 0
+    y_min = 0
     bin_width = 0.01  # consistent bin width for both plots
 
     # Generate consistent bins
     x_bins = np.arange(x_min, x_max + bin_width, bin_width)
     y_bins = np.arange(y_min, y_max + bin_width, bin_width)
+
+    # estimate vmax on mean count of elements across bins
+    counts, _, _ = np.histogram2d(true_vals, gfm_vals, bins=[x_bins, y_bins])
+
+    counts[counts == 0] = np.nan
+    means = np.nanmean(counts)
+    std = np.nanstd(counts)
+    vmax = means + 3 * std
 
     # Pearson correlations
     corr_gfm, _ = pearsonr(true_vals, gfm_vals)
@@ -227,7 +240,15 @@ def plot_loading_predictions(
     plt.show()
 
 
-def plot_mass_correlation_density_voltage(pf_node, prediction_dir, label_plot):
+def plot_mass_correlation_density_voltage(
+    pf_node,
+    prediction_dir,
+    label_plot,
+    x_min=0.85,
+    y_min=0.85,
+    x_max=1.15,
+    y_max=1.15,
+):
     """
     TODO docstrings
     TODO refactor if we pass by parameters a few more plot deets we can use plot_mass_correlation_density for both
@@ -235,15 +256,24 @@ def plot_mass_correlation_density_voltage(pf_node, prediction_dir, label_plot):
     """
     # Get the global min and max for color scaling (avoid log(0) by setting min to at least 1)
     vmin = 1
-    vmax = 5e6
-
-    x_min, x_max = 0.85, 1.15
-    y_min, y_max = 0.85, 1.15
     bin_width = 0.001  # consistent bin width for both plots
 
     # Generate consistent bins
     x_bins = np.arange(x_min, x_max + bin_width, bin_width)
     y_bins = np.arange(y_min, y_max + bin_width, bin_width)
+
+    # estimate vmax on mean count of elements across bins
+    counts, _, _ = np.histogram2d(
+        pf_node["Vm"],
+        pf_node["Vm_pred_corrected"],
+        bins=[x_bins, y_bins],
+    )
+
+    counts[counts == 0] = np.nan
+    means = np.nanmean(counts)
+    std = np.nanstd(counts)
+    vmax = means + 3 * std
+
     # Pearson correlations
     corr_vm, _ = pearsonr(pf_node["Vm"], pf_node["Vm_pred_corrected"])
 
@@ -258,10 +288,11 @@ def plot_mass_correlation_density_voltage(pf_node, prediction_dir, label_plot):
         norm=LogNorm(vmin=vmin, vmax=vmax),
         cmap="inferno",
     )
-    ax1.axvline(0.9, color="black", linestyle="--", linewidth=2.0)
-    ax1.axhline(0.9, color="black", linestyle="--", linewidth=2.0)
-    ax1.axvline(1.1, color="black", linestyle="--", linewidth=2.0)
-    ax1.axhline(1.1, color="black", linestyle="--", linewidth=2.0)
+    ax1.axvline(x_min + 0.05, color="black", linestyle="--", linewidth=2.0)
+    ax1.axhline(y_min + 0.05, color="black", linestyle="--", linewidth=2.0)
+    ax1.axvline(x_max - 0.05, color="black", linestyle="--", linewidth=2.0)
+    ax1.axhline(y_max - 0.05, color="black", linestyle="--", linewidth=2.0)
+
     ax1.plot([0, 5], [0, 5], "k--", linewidth=0.5)
     ax1.set_xlabel("True Voltage Magnitude", fontsize=12)
     ax1.set_ylabel("Predicted Voltage magnitude", fontsize=12)
