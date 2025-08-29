@@ -9,6 +9,9 @@ nav:
   - Getting started:
     - CLI commands: quick_start/quick_start.md
     - YAML configuration file: quick_start/yaml_config.md
+  - Tutorials:
+    - Visualizing predictions of GridFM: tutorials/feature_reconstruction.md
+    - Contingency analysis: tutorials/contingency_analysis.md
   - Components:
     - Datasets:
       - Data normalization: datasets/data_normalization.md
@@ -36,6 +39,8 @@ theme:
     - search.suggest
     - navigation.instant
     - navigation.instant.progress
+    - content.code.copy
+    - content.code.select
   logo: figs/logo_full.png
   favicon: figs/logo_small.png
 
@@ -55,6 +60,15 @@ markdown_extensions:
   - admonition
   - toc:
       permalink: true
+  
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
+
   - pymdownx.arithmatex:
       generic: true
   - md_in_html
