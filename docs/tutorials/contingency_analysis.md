@@ -45,7 +45,7 @@ if "google.colab" in sys.modules:
         !pip install -e .
         !pip install -e .[dev,test]
     except Exception as e:
-        
+
         print(f"Failed to start Google Collab setup, due to {e}")
 ```
 

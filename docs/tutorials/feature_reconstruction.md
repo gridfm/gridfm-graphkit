@@ -33,7 +33,7 @@ if "google.colab" in sys.modules:
         !pip install -e .
         !pip install -e .[dev,test]
     except Exception as e:
-        
+
         print(f"Failed to start Google Collab setup, due to {e}")
 ```
 
@@ -85,7 +85,7 @@ with torch.no_grad():
     )
 ```
 
-## Visualize Nodal Active Power Residuals 
+## Visualize Nodal Active Power Residuals
 
 ```python
 visualize_error(batch, output, data_module.node_normalizers[0])

@@ -10,7 +10,6 @@ import numpy as np
 import copy
 
 
-
 def visualize_error(data_point, output, node_normalizer):
     loss = PBELoss(visualization=True)
 
@@ -105,6 +104,7 @@ def visualize_error(data_point, output, node_normalizer):
     plt.title("Nodal Active Power Residuals", fontsize=14, fontweight="bold")
     plt.show()
 
+
 def visualize_quantity_heatmap(
     data_point,
     output,
@@ -126,7 +126,6 @@ def visualize_quantity_heatmap(
     mask_PQ = data_point.x[:, PQ] == 1
     mask_PV = data_point.x[:, PV] == 1
     mask_REF = data_point.x[:, REF] == 1
-
 
     output = node_normalizer.inverse_transform(output)
     denormalized_gt = node_normalizer.inverse_transform(data_point.y)
