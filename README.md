@@ -1,4 +1,13 @@
-# gridfm-graphkit
+<p align="center">
+  <img src="https://raw.githubusercontent.com/gridfm/gridfm-graphkit/refs/heads/main/docs/figs/KIT.png" alt="GridFM logo" style="width: 40%; height: auto;"/>
+  <br/>
+</p>
+
+<p align="center" style="font-size: 25px;">
+    <b>gridfm-graphkit</b>
+</p>
+
+
 [![DOI](https://zenodo.org/badge/1007159095.svg)](https://doi.org/10.5281/zenodo.17016737)
 [![Docs](https://img.shields.io/badge/docs-available-brightgreen)](https://gridfm.github.io/gridfm-graphkit/)
 ![Coverage](https://img.shields.io/badge/coverage-83%25-yellowgreen)
@@ -8,11 +17,6 @@
 This library is brought to you by the GridFM team to train, finetune and interact with a foundation model for the electric power grid.
 
 ---
-
-<p align="center">
-  <img src="https://raw.githubusercontent.com/gridfm/gridfm-graphkit/refs/heads/main/docs/figs/pre_training.png" alt="GridFM logo"/>
-  <br/>
-</p>
 
 # Installation
 

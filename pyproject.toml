@@ -9,7 +9,7 @@ namespaces = false
 [project]
 name = "gridfm-graphkit"
 description = "Grid Foundation Model"
-version = "0.0.5"
+version = "0.0.6"
 readme = "README.md"
 license = "Apache-2.0"
 requires-python = ">=3.10,<3.13"
@@ -40,17 +40,15 @@ classifiers = [
 
 
 dependencies = [
-    "mlflow>=3.1.0",
-    "nbformat>=5.10.4",
-    "networkx>=3.4.2",
-    "numpy>=2.2.6",
-    "pandas>=2.3.0",
-    "plotly>=6.1.2",
-    "pyyaml>=6.0.2",
-    "torch>=2.7.1",
-    "torch-geometric>=2.6.1",
-    "torchaudio>=2.7.1",
-    "torchvision>=0.22.1",
+    "torch>2.0",
+    "torch-geometric",
+    "mlflow",
+    "nbformat",
+    "networkx",
+    "numpy",
+    "pandas",
+    "plotly",
+    "pyyaml",
     "lightning",
     "seaborn",
 ]
@@ -59,8 +57,8 @@ dependencies = [
 dev = [
   "mkdocs-material",
   "mkdocstrings[python]",
-  "pre-commit>=4.2.0",
-  "bandit>=1.8.5",
+  "pre-commit",
+  "bandit",
   "build"
 ]
 

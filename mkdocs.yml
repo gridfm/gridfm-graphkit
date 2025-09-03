@@ -41,8 +41,8 @@ theme:
     - navigation.instant.progress
     - content.code.copy
     - content.code.select
-  logo: figs/logo_full.png
-  favicon: figs/logo_small.png
+  logo: figs/KIT.png
+  favicon: figs/KIT.png
 
 plugins:
   - search
