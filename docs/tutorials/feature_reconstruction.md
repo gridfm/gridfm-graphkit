@@ -20,7 +20,7 @@ if "google.colab" in sys.modules:
         !git clone https://github.com/gridfm/gridfm-graphkit.git
         %cd /content/gridfm-graphkit
         !pip install .
-        %cd /examples/notebooks/
+        %cd examples/notebooks/
     except Exception as e:
         print(f"Failed to start Google Collab setup, due to {e}")
 ```
