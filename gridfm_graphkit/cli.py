@@ -86,25 +86,16 @@ def main_cli(args):
     if args.command == "predict":
         predictions = trainer.predict(model=model, datamodule=litGrid)
         all_outputs = []
-        all_mask_PQ = []
-        all_mask_PV = []
-        all_mask_REF = []
         all_scenarios = []
         all_bus_numbers = []
 
         for batch in predictions:
             all_outputs.append(batch["output"])
-            all_mask_PQ.append(batch["mask_PQ"])
-            all_mask_PV.append(batch["mask_PV"])
-            all_mask_REF.append(batch["mask_REF"])
             all_scenarios.append(batch["scenario_id"])
             all_bus_numbers.append(batch["bus_number"])
 
         # Concatenate all
         outputs = np.concatenate(all_outputs, axis=0)  # shape: [num_nodes, 6]
-        mask_PQ = np.concatenate(all_mask_PQ, axis=0)
-        mask_PV = np.concatenate(all_mask_PV, axis=0)
-        mask_REF = np.concatenate(all_mask_REF, axis=0)
         scenario_ids = np.concatenate(all_scenarios, axis=0)
         bus_numbers = np.concatenate(all_bus_numbers, axis=0)
 
@@ -113,15 +104,12 @@ def main_cli(args):
             {
                 "scenario": scenario_ids,
                 "bus": bus_numbers,
-                "PD": outputs[:, 0],
-                "QD": outputs[:, 1],
-                "PG": outputs[:, 2],
-                "QG": outputs[:, 3],
-                "VM": outputs[:, 4],
-                "VA": outputs[:, 5],
-                "PQ": mask_PQ.astype(int),
-                "PV": mask_PV.astype(int),
-                "REF": mask_REF.astype(int),
+                "PD_pred": outputs[:, 0],
+                "QD_pred": outputs[:, 1],
+                "PG_pred": outputs[:, 2],
+                "QG_pred": outputs[:, 3],
+                "VM_pred": outputs[:, 4],
+                "VA_pred": outputs[:, 5],
             },
         )
 

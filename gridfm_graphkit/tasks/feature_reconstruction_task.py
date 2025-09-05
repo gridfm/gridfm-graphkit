@@ -243,11 +243,6 @@ class FeatureReconstructionTask(L.LightningModule):
         output, _ = self.shared_step(batch)
         output_denorm = self.node_normalizers[dataloader_idx].inverse_transform(output)
 
-        # Masks for node types
-        mask_PQ = (batch.x[:, PQ] == 1).cpu()
-        mask_PV = (batch.x[:, PV] == 1).cpu()
-        mask_REF = (batch.x[:, REF] == 1).cpu()
-
         # Count buses and generate per-node scenario_id
         bus_counts = batch.batch.unique(return_counts=True)[1]
         scenario_ids = batch.scenario_id  # shape: [num_graphs]
@@ -262,9 +257,6 @@ class FeatureReconstructionTask(L.LightningModule):
 
         return {
             "output": output_denorm.cpu().numpy(),
-            "mask_PQ": mask_PQ,
-            "mask_PV": mask_PV,
-            "mask_REF": mask_REF,
             "scenario_id": scenario_per_node,
             "bus_number": bus_numbers,
         }

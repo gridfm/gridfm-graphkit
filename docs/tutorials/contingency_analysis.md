@@ -13,7 +13,18 @@ This process generated around 100,000 unique scenarios. Our model, **GridFMv0.1*
 
 All predictions are benchmarked against the ground truth obtained from AC power flow simulations. Additionally, we analyze bus voltage violations, which GridFM can predict but are not captured by the DC solver, highlighting GridFM’s enhanced capabilities in modeling grid behavior.
 
+```python
+import sys
 
+if "google.colab" in sys.modules:
+    try:
+        !git clone https://github.com/gridfm/gridfm-graphkit.git
+        %cd /content/gridfm-graphkit
+        !pip install .
+        %cd /examples/notebooks/
+    except Exception as e:
+        print(f"Failed to start Google Collab setup, due to {e}")
+```
 
 ```python
 from gridfm_graphkit.datasets.postprocessing import (
@@ -35,18 +46,6 @@ import matplotlib.pyplot as plt
 from sklearn.metrics import f1_score
 import numpy as np
 import pandas as pd
-
-import sys
-
-if "google.colab" in sys.modules:
-    try:
-        !git clone https://github.com/gridfm/gridfm-graphkit.git
-        %cd /content/gridfm-graphkit
-        !pip install -e .
-        !pip install -e .[dev,test]
-    except Exception as e:
-
-        print(f"Failed to start Google Collab setup, due to {e}")
 ```
 
 ## Load Data
