@@ -1,4 +1,4 @@
-👉 [Link](https://github.com/gridfm/gridfm-graphkit/tree/main/examples/notebooks) to the tutorial notebooks on Github
+👉 [Link](https://colab.research.google.com/github/gridfm/gridfm-graphkit/blob/main/examples/notebooks/Tutorial_reconstruction_visualization.ipynb) to the tutorial on Google Colab
 
 ---
 This notebook demonstrates the state reconstruction capabilities of **GridFM-v0.2**, a graph-based neural network model for transmission grids. We focus on the IEEE case30 network, a standard benchmark with 30 buses, chosen for its compact size and suitability for visualization.

@@ -1,4 +1,4 @@
-👉 [Link](https://github.com/gridfm/gridfm-graphkit/tree/main/examples/notebooks) to the tutorial notebooks on Github
+👉 [Link](https://colab.research.google.com/github/gridfm/gridfm-graphkit/blob/main/examples/notebooks/Tutorial_contingency_analisys.ipynb) to the tutorial on Google Colab
 
 ---
 Contingency analysis is a critical process in power system operations used to assess the impact of potential failures (e.g., line outages) on grid stability and reliability. It helps operators prepare for unexpected events by simulating scenarios such as N-1 or N-2 contingencies, where one or more components are removed from service. This analysis ensures that the grid can continue to operate within safe limits even under stressed conditions.
