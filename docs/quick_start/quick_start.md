@@ -8,7 +8,7 @@ gridfm_graphkit <command> [OPTIONS]
 
 Available commands:
 
-* `train` – Train a new model from scrathc
+* `train` – Train a new model from scratch
 * `finetune` – Fine-tune an existing pre-trained model
 * `evaluate` – Evaluate model performance on a dataset
 * `predict` – Run inference and save predictions
