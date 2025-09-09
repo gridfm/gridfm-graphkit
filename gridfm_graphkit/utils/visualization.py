@@ -324,7 +324,7 @@ def plot_mass_correlation_density(
     corr_gfm, _ = pearsonr(true_vals, gfm_vals)
 
     # Create figure with shared x-axis
-    fig, ax1 = plt.subplots(figsize=(8, 6), dpi=400)
+    fig, ax1 = plt.subplots(figsize=(9, 7))
 
     # --- GridFM Mass Correlation ---
     h1 = ax1.hist2d(
