@@ -1,9 +1,6 @@
 import torch
 
 import numpy as np
-import pyximport
-pyximport.install(setup_args={'include_dirs': np.get_include()})
-import algos
 
 from torch_geometric.loader import NeighborSampler
 from torch_geometric.utils import to_undirected
