@@ -204,6 +204,7 @@ class GridDatasetDisk(Dataset):
         data = torch.load(file_name, weights_only=False)
         if self.transform:
             data = self.transform(data)
+        # print('data>>>>>>>',data) # TODO remove
         return data
 
     def change_transform(self, new_transform):
