@@ -91,7 +91,7 @@ class GMAE_node(nn.Module):
         return graph_node_feature, graph_attn_bias
 
 
-    def encoder(self, graph_node_feature, graph_attn_bias, mask=None):
+    def encoder(self, graph_node_feature, graph_attn_bias):
 
         graph_node_feature_masked = graph_node_feature
         graph_attn_bias_masked = graph_attn_bias
@@ -99,30 +99,20 @@ class GMAE_node(nn.Module):
         # transfomrer encoder
         output = self.input_dropout(graph_node_feature_masked)
         for enc_layer in self.encoder_layers:
-            output = enc_layer(output, graph_attn_bias_masked, mask)
+            output = enc_layer(output, graph_attn_bias_masked)
         output = self.encoder_final_ln(output)
         return output
 
-    def decoder(self, output, in_degree, out_degree, graph_attn_bias, mask=None):
-        
-        pos_embed = self.in_degree_encoder(in_degree) + self.out_degree_encoder(out_degree)
-        output = output + pos_embed
-    
-        for enc_layer in self.decoder_layers:
-            output = enc_layer(output, graph_attn_bias, mask)
-
-        output = self.decoder_final_ln(output)
-        output = self.out_proj(output)  # [n_graph, n_node, n_feature]
- 
-        return output
-
-    def forward(self, batched_data, mask=None):
+    def forward(self, x, pe, edge_index, edge_attr, batched_data):
         """
         process a batch of data, applying the input mask, while
         excluding non-valid values that arrise during processing
 
         mask: incoming values to mask for prediction
         """
+        mask=None   # TODO remove
+
+        # TODO note that the x, pe are redundant or not needed, so clean up at the end
 
         # TODO in the baseline code the PE is an input here and passes through
         # a normalization before being concatenated to the features, follow this in final version
@@ -131,12 +121,13 @@ class GMAE_node(nn.Module):
         in_degree = batched_data.in_degree
         out_degree = batched_data.out_degree
 
-        output = self.encoder(graph_node_feature, graph_attn_bias, mask)
-        output = self.encoder_to_decoder(output)
-        output = self.decoder(output, in_degree, out_degree, graph_attn_bias, mask)
+        output = self.encoder(graph_node_feature, graph_attn_bias)
+        output = self.decoder(output)
+
         return output
 
 
+# TODO maybe set this as the decoder
 class FeedForwardNetwork(nn.Module):
     def __init__(self, hidden_size, ffn_size, dropout_rate):
         super(FeedForwardNetwork, self).__init__()
