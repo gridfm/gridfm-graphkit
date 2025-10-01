@@ -110,7 +110,7 @@ class GMAE_node(nn.Module):
 
         mask: incoming values to mask for prediction
         """
-        mask=None   # TODO remove
+        print('batch', batched_data)
 
         # TODO note that the x, pe are redundant or not needed, so clean up at the end
 

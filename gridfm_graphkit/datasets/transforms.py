@@ -15,9 +15,10 @@ from torch_geometric.utils import (
     to_torch_csr_tensor,
 )
 
+import numpy as np
 import pyximport
 pyximport.install(setup_args={'include_dirs': np.get_include()})
-import algos
+import gridfm_graphkit.models.algos as algos
 
 
 class AddNormalizedRandomWalkPE(BaseTransform):
