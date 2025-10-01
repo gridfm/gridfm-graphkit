@@ -50,6 +50,7 @@ class Graphormer(nn.Module):
         self.mask_dim = getattr(args.data, "mask_dim", 6)
         self.mask_value = getattr(args.data, "mask_value", -1.0)
         self.learn_mask = getattr(args.data, "learn_mask", True)
+        self.output_dim = args.model.output_dim
 
         if self.learn_mask:
             self.mask_value = nn.Parameter(
@@ -80,7 +81,7 @@ class Graphormer(nn.Module):
         self.decoder = nn.Sequential(
             nn.Linear(self.hidden_dim, self.hidden_dim),
             nn.LeakyReLU(),
-            nn.Linear(self.hidden_dim, self.n_node_features)
+            nn.Linear(self.hidden_dim, self.output_dim)
         )
         
 
