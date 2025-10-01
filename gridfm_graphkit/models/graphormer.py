@@ -46,6 +46,22 @@ class Graphormer(nn.Module):
         dropout_rate = 0.3
         attention_dropout_rate = 0.3
 
+        # variables flown over from GPS TODO check
+        self.mask_dim = getattr(args.data, "mask_dim", 6)
+        self.mask_value = getattr(args.data, "mask_value", -1.0)
+        self.learn_mask = getattr(args.data, "learn_mask", True)
+
+        if self.learn_mask:
+            self.mask_value = nn.Parameter(
+                torch.randn(self.mask_dim) + self.mask_value,
+                requires_grad=True,
+            )
+        else:
+            self.mask_value = nn.Parameter(
+                torch.zeros(self.mask_dim) + self.mask_value,
+                requires_grad=False,
+            )
+
         self.input_proj = nn.Linear(self.n_node_features, self.hidden_dim)
         self.input_dropout = nn.Dropout(intput_dropout_rate)
         encoders = [
@@ -87,11 +103,13 @@ class Graphormer(nn.Module):
             1, self.num_heads, 1, 1)  # [n_graph, n_head, n_node, n_node]
         # spatial pos
         # [n_graph, n_node, n_node, n_head] -> [n_graph, n_head, n_node, n_node]
+        # print('xxxxxx', graph_attn_bias.size())
         spatial_pos_bias = self.spatial_pos_encoder(spatial_pos).permute(0, 3, 1, 2)
         graph_attn_bias = graph_attn_bias + spatial_pos_bias
         graph_attn_bias = graph_attn_bias + attn_bias.unsqueeze(1)  # reset
 
         node_feature = self.input_proj(x)
+        # print('nf>>', node_feature.size(), in_degree.size(), out_degree.size(), self.in_degree_encoder(in_degree).size())
         node_feature = node_feature + \
             self.in_degree_encoder(in_degree) + \
             self.out_degree_encoder(out_degree)
@@ -112,22 +130,23 @@ class Graphormer(nn.Module):
         output = self.encoder_final_ln(output)
         return output
 
-    def forward(self, x, pe, edge_index, edge_attr, batched_data):
+    def forward(self, x, pe, edge_index, edge_attr, batched_data, data):
         """
         process a batch of data, applying the input mask, while
         excluding non-valid values that arrise during processing
 
         mask: incoming values to mask for prediction
         """
-        print('batch', batched_data)
+        print('batch', data)
+        print(x.size())
 
         # TODO note that the x, pe are redundant or not needed, so clean up at the end
 
         # TODO in the baseline code the PE is an input here and passes through
         # a normalization before being concatenated to the features, follow this in final version
         
-        graph_node_feature, graph_attn_bias = self.compute_pos_embeddings(batched_data)
-
+        graph_node_feature, graph_attn_bias = self.compute_pos_embeddings(data)
+        print('gnodes********', graph_node_feature.size(), graph_attn_bias.size())
         output = self.encoder(graph_node_feature, graph_attn_bias)
         output = self.decoder(output)
 

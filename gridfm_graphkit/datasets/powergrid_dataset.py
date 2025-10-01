@@ -207,11 +207,12 @@ class GridDatasetDisk(Dataset):
             data = self.transform(data)
 
         # TODO move this to the pretreatment when validated
+        # print('datab>>>>>>>', data)
         gr_transform = AddGraphormerEncodings(
                 attr_name="gr",
             )
         data = gr_transform(data)
-        print('data>>>>>>>', data) # TODO remove
+        # print('dataa>>>>>>>', data) # TODO remove
         return data
 
     def change_transform(self, new_transform):
