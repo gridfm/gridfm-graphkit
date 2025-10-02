@@ -137,8 +137,9 @@ class Graphormer(nn.Module):
 
         mask: incoming values to mask for prediction
         """
-        print('batch', data)
+        print('***batch***', data)
         print(x.size(), batched_data)
+        print(batched_data.attn_bias.size(), batched_data.spatial_pos.size())
 
         # TODO note that the x, pe are redundant or not needed, so clean up at the end
 
