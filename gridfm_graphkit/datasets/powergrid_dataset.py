@@ -172,6 +172,12 @@ class GridDatasetDisk(Dataset):
                 attr_name="pe",
             )
             graph_data = pe_transform(graph_data)
+
+            gr_transform = AddGraphormerEncodings(
+                attr_name="gr",
+            )
+            graph_data = gr_transform(graph_data)
+
             torch.save(
                 graph_data,
                 osp.join(
@@ -208,10 +214,10 @@ class GridDatasetDisk(Dataset):
 
         # TODO move this to the pretreatment when validated
         # print('datab>>>>>>>', data)
-        gr_transform = AddGraphormerEncodings(
-                attr_name="gr",
-            )
-        data = gr_transform(data)
+        # gr_transform = AddGraphormerEncodings(
+        #         attr_name="gr",
+        #     )
+        # data = gr_transform(data)
         # print('dataa>>>>>>>', data) # TODO remove
         return data
 
