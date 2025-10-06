@@ -9,7 +9,7 @@ from torch.nn import functional as F
 
 from torch_geometric.utils import to_dense_batch
 
-from gridfm_graphkit.datasets.transforms import AddGraphormerEncodings
+# from gridfm_graphkit.datasets.transforms import AddGraphormerEncodings
 
 
 @MODELS_REGISTRY.register("Graphormer")

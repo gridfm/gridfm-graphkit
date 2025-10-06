@@ -16,12 +16,12 @@ from torch_geometric.utils import (
 )
 
 import numpy as np
-# import pyximport
-# pyximport.install(setup_args={'include_dirs': np.get_include()})
-# import gridfm_graphkit.models.algos as algos
+import pyximport
+pyximport.install(setup_args={'include_dirs': np.get_include()})
+import gridfm_graphkit.models.algos as algos
 
-from networkx import floyd_warshall_numpy
-from torch_geometric.utils import to_networkx
+# from networkx import floyd_warshall_numpy
+# from torch_geometric.utils import to_networkx
 
 
 class AddNormalizedRandomWalkPE(BaseTransform):
@@ -116,16 +116,19 @@ def preprocess_item(data):
                                     [N, N]
                                     )
 
-    adj = edge_adj.to_dense()
+    adj = edge_adj.to_dense().to(torch.int16)
 
     # TODO replace the placeholder with actual algorithm
-    shortest_path_result = np.ones((N,N))
-    # shortest_path_result, path = algos.floyd_warshall(adj.numpy())
+    # shortest_path_result = np.ones((N,N))
+
+    # print('+++++++',adj.dtype, adj.numpy().dtype)
+    shortest_path_result, path = algos.floyd_warshall(adj.numpy().astype(np.int32))
     #gg = to_networkx(data)
     #shortest_path_result = floyd_warshall_numpy(gg)
     
     # TODO the output of fw is integer number of hops in n x n, review if need to norm etc.
     # print('sp>>>', shortest_path_result)
+    # print('sp>>>', shortest_path_result.shape)
     # print(shortest_path_result.shape)
     spatial_pos = torch.from_numpy((shortest_path_result)).long().to(data.x.device)
     attn_bias = torch.zeros([N, N], dtype=torch.float).to(data.x.device)  # TODO verifie is updated
