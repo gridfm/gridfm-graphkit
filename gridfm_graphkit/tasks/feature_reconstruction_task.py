@@ -78,7 +78,7 @@ class FeatureReconstructionTask(L.LightningModule):
         if mask is not None:
             mask_value_expanded = self.model.mask_value.expand(x.shape[0], -1)
             x[:, : mask.shape[1]][mask] = mask_value_expanded[mask]
-        return self.model(x, pe, edge_index, edge_attr, batch, data)  # TODO prop args to GPS
+        return self.model(x, pe, edge_index, edge_attr, batch, data)
 
     @rank_zero_only
     def on_fit_start(self):
@@ -130,8 +130,6 @@ class FeatureReconstructionTask(L.LightningModule):
         return output, loss_dict
 
     def training_step(self, batch):
-        # print('trainbatch>>>>', batch.size())     # TODO remove
-        # print(batch)
         _, loss_dict = self.shared_step(batch)
         current_lr = self.optimizer.param_groups[0]["lr"]
         metrics = {}

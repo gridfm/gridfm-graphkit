@@ -105,7 +105,7 @@ class GPSTransformer(nn.Module):
                 requires_grad=False,
             )
 
-    def forward(self, x, pe, edge_index, edge_attr, batch):
+    def forward(self, x, pe, edge_index, edge_attr, batch, data=None):
         """
         Forward pass for the GPSTransformer.
 
@@ -115,6 +115,7 @@ class GPSTransformer(nn.Module):
             edge_index (Tensor): Edge indices for graph convolution.
             edge_attr (Tensor): Edge feature tensor.
             batch (Tensor): Batch vector assigning nodes to graphs.
+            data (Data): Pytorch Geometric Data/Batch object.
 
         Returns:
             output (Tensor): Output node features of shape [num_nodes, output_dim].
