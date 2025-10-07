@@ -138,7 +138,7 @@ def preprocess_item(data):
     return attn_bias, spatial_pos, in_degree, out_degree
 
 def pad_1d_unsqueeze(x, padlen):
-    x = x + 1  # pad id = 0
+    # x = x + 1  # pad id = 0 #TODO remove all +1s
     xlen = x.size(0)
     if xlen < padlen:
         new_x = x.new_zeros([padlen], dtype=x.dtype)
@@ -148,11 +148,12 @@ def pad_1d_unsqueeze(x, padlen):
 
 
 def pad_2d_unsqueeze(x, padlen):
-    x = x + 1  # pad id = 0
+    # x = x + 1  # pad id = 0
     # print('-------->', x.size())
     xlen, xdim = x.size()
     if xlen < padlen:
         new_x = x.new_zeros([padlen, xdim], dtype=x.dtype)
+        new_x[:,:] = -1e9
         new_x[:xlen, :] = x
         x = new_x
     return x.unsqueeze(0)
