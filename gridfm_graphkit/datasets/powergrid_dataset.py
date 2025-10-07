@@ -44,6 +44,7 @@ class GridDatasetDisk(Dataset):
         transform: Optional[Callable] = None,
         pre_transform: Optional[Callable] = None,
         pre_filter: Optional[Callable] = None,
+        args: Optional[dict] = None,
     ):
         self.norm_method = norm_method
         self.node_normalizer = node_normalizer
@@ -51,6 +52,10 @@ class GridDatasetDisk(Dataset):
         self.pe_dim = pe_dim
         self.mask_dim = mask_dim
         self.length = None
+
+        if args.add_graphormer_encoding:
+            self.add_graphormer_encoding = args.add_graphormer_encoding
+            self.max_node_num = args.max_node_num
 
         super().__init__(root, transform, pre_transform, pre_filter)
 
@@ -173,11 +178,6 @@ class GridDatasetDisk(Dataset):
             )
             graph_data = pe_transform(graph_data)
 
-            # gr_transform = AddGraphormerEncodings(
-            #     attr_name="gr",
-            # )
-            # graph_data = gr_transform(graph_data)
-
             torch.save(
                 graph_data,
                 osp.join(
@@ -217,15 +217,10 @@ class GridDatasetDisk(Dataset):
         if self.transform:
             data = self.transform(data)
 
-        # TODO move this to the pretreatment when validated
-        # print('datab>>>>>>>', data)
-        # print('qqqqqq', data.x.min(), data.x.max())
-        gr_transform = AddGraphormerEncodings(
-                attr_name="gr",
-            )
-        data = gr_transform(data)
-        # print('aaaaaaaaaaaaaaa', data.x.min(), data.x.max())
-        # print('dataa>>>>>>>', data) # TODO remove
+        if self.add_graphormer_encoding:
+            gr_transform = AddGraphormerEncodings(self.max_node_num)
+            data = gr_transform(data)
+
         return data
 
     def change_transform(self, new_transform):
