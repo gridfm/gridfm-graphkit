@@ -139,4 +139,6 @@ class GPSTransformer(nn.Module):
         x = self.pre_decoder_norm(x)
         x = self.decoder(x)
 
-        return x
+        masked_entries = torch.sum(x < -1e8, axis=-1)
+        mask = masked_entries >= 3
+        return x, ~mask

@@ -93,4 +93,8 @@ class GNN_TransformerConv(nn.Module):
             x = nn.LeakyReLU()(x)
 
         x = self.mlps(x)
-        return x
+
+        masked_entries = torch.sum(x < -1e8, axis=-1)
+        mask = masked_entries >= 3
+
+        return x, ~mask

@@ -172,13 +172,15 @@ class Graphormer(nn.Module):
         mask: incoming values to mask for prediction
         """
         # print('***batch***', data)
-        # print(x.size(), batched_data)
+        # print('====', x.size(), batched_data)
         # print(data.attn_bias.size(), data.spatial_pos.size())
 
         mask = None
-        masked_entries = torch.sum(x < -100, axis=-1)  #TODO make this mesh with normalizn
-        mask = masked_entries == x.size(-1)
-        print('pad mask >>>', mask.size(), mask.sum())
+        masked_entries = torch.sum(x < -1e8, axis=-1)  #TODO make this mesh with normalizn
+        # print('>>', masked_entries.size())
+        # TODO key to make this more general to handle other masking objectives
+        mask = masked_entries >= 3  # due to masking # x.size(-1)
+        # print('pad mask >>>', mask.size(), mask.sum())
 
         # TODO note that the x, pe are redundant or not needed, so clean up at the end
 
@@ -190,7 +192,10 @@ class Graphormer(nn.Module):
         output = self.encoder(graph_node_feature, graph_attn_bias, mask=mask, batch=batched_data)
         output = self.decoder(output)
 
-        return output
+        # evaluate where mask is True, so update it TODO
+        # print('ooooooooo', output[~mask].size())
+        # print('bbbbbbbb', data.mask.size(), data.mask, data.mask.sum()/len(data.mask.flatten()))
+        return output, ~mask
 
 
 # TODO maybe set this as the decoder

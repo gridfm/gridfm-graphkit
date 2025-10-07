@@ -219,10 +219,12 @@ class GridDatasetDisk(Dataset):
 
         # TODO move this to the pretreatment when validated
         # print('datab>>>>>>>', data)
+        # print('qqqqqq', data.x.min(), data.x.max())
         gr_transform = AddGraphormerEncodings(
                 attr_name="gr",
             )
         data = gr_transform(data)
+        # print('aaaaaaaaaaaaaaa', data.x.min(), data.x.max())
         # print('dataa>>>>>>>', data) # TODO remove
         return data
 

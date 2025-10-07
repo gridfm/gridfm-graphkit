@@ -201,15 +201,7 @@ class AddGraphormerEncodings(BaseTransform):
         
         attn_bias, spatial_pos, in_degree, out_degree = preprocess_item(data)
 
-        # data[self.attr_name] = pe
-        # print('******>>', attn_bias.size(), spatial_pos.size(), in_degree.size())
-        # print(data)
-        # data[] = attn_bias.unsqueeze(0)   #.flatten()
-        # data[] = spatial_pos.unsqueeze(0)   #.flatten()
-        # data[] = in_degree   # assume undirected ie in == out
-        # data['nodeslice'] = torch.from_numpy(np.array([N]))
-
-        max_node_num = 2000
+        max_node_num = 118 # TODO extract from batch
         attn_bias = pad_attn_bias_unsqueeze(attn_bias, max_node_num)
         spatial_pos = pad_spatial_pos_unsqueeze(spatial_pos, max_node_num)
         in_degree = pad_1d_unsqueeze(in_degree, max_node_num).squeeze()
@@ -220,9 +212,6 @@ class AddGraphormerEncodings(BaseTransform):
 
         data.x = pad_2d_unsqueeze(data.x, max_node_num).squeeze()
         data.y = pad_2d_unsqueeze(data.y, max_node_num).squeeze()
-
-        # print(data)
-        # data['out_degree'] = out_degree.unsqueeze(0)
 
         return data
 
