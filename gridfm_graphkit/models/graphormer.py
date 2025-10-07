@@ -1,15 +1,10 @@
 
 from gridfm_graphkit.io.registries import MODELS_REGISTRY
 import torch
-import numpy as np
 import torch.nn as nn
-import pytorch_lightning as pl
-
-from torch.nn import functional as F
 
 from torch_geometric.utils import to_dense_batch
 
-# from gridfm_graphkit.datasets.transforms import AddGraphormerEncodings
 
 
 @MODELS_REGISTRY.register("Graphormer")
@@ -25,17 +20,15 @@ class Graphormer(nn.Module):
         args (NestedNamespace): Parameters
 
     Attributes:
-        input_dim (int): Dimension of input node features. From ``args.model.input_dim``.
-        hidden_size (int): Hidden dimension size for all layers. From ``args.model.hidden_size``.
+        n_node_features (int): Dimension of input node features. From ``args.model.input_dim``.
+        hidden_dim (int): Hidden dimension size for all layers. From ``args.model.hidden_size``.
         output_dim (int): Dimension of the output node features. From ``args.model.output_dim``.
-        edge_dim (int): Dimension of edge features. From ``args.model.edge_dim``.
-        pe_dim (int): Dimension of the positional encoding. Must be less than ``hidden_dim``. From ``args.model.pe_dim``.
-        num_layers (int): Number of GPSConv layers. From ``args.model.num_layers``.
-        heads (int, optional): Number of attention heads in GPSConv. From ``args.model.attention_head``. Defaults to 1.
-        dropout (float, optional): Dropout rate in GPSConv. From ``args.model.dropout``. Defaults to 0.0.
+        n_encoder_layers (int): Number of transformer blocks. From ``args.model.num_layers``.
+        num_heads (int): Number of attention heads. From ``args.model.attention_head``. Defaults to 1.
+        dropout (float, optional): Dropout rate in attention blocks. From ``args.model.dropout``. Defaults to 0.0.
         mask_dim (int, optional): Dimension of the mask vector. From ``args.data.mask_dim``. Defaults to 6.
         mask_value (float, optional): Initial value for learnable mask parameters. From ``args.data.mask_value``. Defaults to -1.0.
-        learn_mask (bool, optional): Whether to learn mask values as parameters. From ``args.data.learn_mask``. Defaults to True.
+        learn_mask (bool, optional): Whether to learn mask values as parameters. From ``args.data.learn_mask``. Defaults to False.
 
     """
     def __init__(self, args):
@@ -46,17 +39,11 @@ class Graphormer(nn.Module):
         self.output_dim = args.model.output_dim
         self.n_encoder_layers = args.model.num_layers
         self.num_heads = args.model.attention_head
-        
-        # TODO move these to config or calculate
-        self.dropout = getattr(args.model, "dropout", 0.0)  # TODO propagate
-        attention_dropout_rate = 0.3
-
-        # variables flown over from GPS TODO check
+        self.dropout = getattr(args.model, "dropout", 0.0) 
         self.mask_dim = getattr(args.data, "mask_dim", 6)
         self.mask_value = getattr(args.data, "mask_value", -1.0)
-        self.learn_mask = getattr(args.data, "learn_mask", True)
+        self.learn_mask = getattr(args.data, "learn_mask", False)
         
-        # TODO verify function of mask
         if self.learn_mask:
             self.mask_value = nn.Parameter(
                 torch.randn(self.mask_dim) + self.mask_value,
@@ -68,6 +55,7 @@ class Graphormer(nn.Module):
                 requires_grad=False,
             )
 
+        # model layers
         self.input_proj = nn.Linear(self.n_node_features, self.hidden_dim)
         self.input_dropout = nn.Dropout(self.dropout)
         encoders = [
@@ -88,64 +76,41 @@ class Graphormer(nn.Module):
             nn.Linear(self.hidden_dim, self.output_dim)
         )
         
-
-        # for pos embeddings
+        # for positional embeddings
         self.spatial_pos_encoder = nn.Embedding(512, self.num_heads, padding_idx=0)
         self.in_degree_encoder = nn.Embedding(
             512, self.hidden_dim, padding_idx=0)
         self.out_degree_encoder = nn.Embedding(
             512, self.hidden_dim, padding_idx=0)
 
-        # self.loss_fn = F.mse_loss # TODO remove eventually as they are specd elsewhere
-        # self.masking_value = -4
 
-    def compute_pos_embeddings(self, batched_data, batch):
-        attn_bias, spatial_pos, x = batched_data.attn_bias, batched_data.spatial_pos, batched_data.x
-        in_degree, out_degree = batched_data.in_degree, batched_data.in_degree
+    def compute_pos_embeddings(self, data):
+        """
+        Calculate Graphormer positional encodings, and attention biases
 
-        # gr_transform = AddGraphormerEncodings(
-        #         attr_name="gr",
-        #     )
-        # batched_data = gr_transform(batched_data)
-        # attn_bias, spatial_pos, x = batched_data.attn_bias, batched_data.spatial_pos, batched_data.x
-        # in_degree, out_degree = batched_data.in_degree, batched_data.in_degree
-        
-        
-        # print('--->', attn_bias.size(), attn_bias.device, batch.size())
+        Args:
+            data (Data): Input node features of shape [num_nodes, input_dim].
 
-        # yy0, mask = to_dense_batch(attn_bias, batch=batch, max_num_nodes=2000, batch_size=8)
-        # yy1, mask = to_dense_batch(spatial_pos, batch=batch, max_num_nodes=2000, batch_size=8)
-
-        # attn_bias = yy0
-        # spatial_pos = yy1
-
-        # print('yyyyyy', yy0.size(), yy1.size(), x.size())
-
-        # attn_bias = attn_bias.reshape(8,-1)
-        # spatial_pos = spatial_pos.reshape(8,-1)
-        # print('-----', attn_bias.size(), spatial_pos.size(), x.size())
-        # odim = int(torch.sqrt(torch.as_tensor(attn_bias.size(-1))).item())
-        # print('oooo', odim)
-        # attn_bias = attn_bias.reshape(-1,odim,odim)
-        # spatial_pos = spatial_pos.reshape(-1,odim,odim)
-        # print('-----', attn_bias.size(), spatial_pos.size(), x.size())
+        Returns:
+            graph_node_feature (Tensor): data.x with positional encoding appended.
+            graph_attn_bias (Tensor): attention bais terms.
+        """
+        attn_bias, spatial_pos, x = data.attn_bias, data.spatial_pos, data.x
+        in_degree, out_degree = data.in_degree, data.in_degree
         
         # graph_attn_bias
         graph_attn_bias = attn_bias.clone()
         graph_attn_bias = graph_attn_bias.unsqueeze(1).repeat(
             1, self.num_heads, 1, 1)  # [n_graph, n_head, n_node, n_node]
-        # print('aaaaaaaaaa', graph_attn_bias.size(), graph_attn_bias.device)
 
         # spatial pos
         # [n_graph, n_node, n_node, n_head] -> [n_graph, n_head, n_node, n_node]
         spatial_pos_bias = self.spatial_pos_encoder(spatial_pos).permute(0, 3, 1, 2)
-        # print('sssssssssss', spatial_pos_bias.size(), spatial_pos_bias.device)
 
         graph_attn_bias = graph_attn_bias + spatial_pos_bias
         graph_attn_bias = graph_attn_bias + attn_bias.unsqueeze(1)  # reset
 
         node_feature = self.input_proj(x)
-        # print('nf>>', node_feature.size(), in_degree.size(), out_degree.size(), self.in_degree_encoder(in_degree).size())
         node_feature = node_feature + \
             self.in_degree_encoder(in_degree) + \
             self.out_degree_encoder(out_degree)
@@ -156,46 +121,42 @@ class Graphormer(nn.Module):
 
     def encoder(self, graph_node_feature, graph_attn_bias, mask=None, batch=1):
 
-        graph_node_feature_masked = graph_node_feature  #TODO simplify this
-        graph_attn_bias_masked = graph_attn_bias
-
         # transfomrer encoder
-        output = self.input_dropout(graph_node_feature_masked)
+        output = self.input_dropout(graph_node_feature)
         for enc_layer in self.encoder_layers:
-            output = enc_layer(output, graph_attn_bias_masked, mask=mask, batch=batch)
+            output = enc_layer(output, graph_attn_bias, mask=mask, batch=batch)
         output = self.encoder_final_ln(output)
         return output
 
-    def forward(self, x, pe, edge_index, edge_attr, batched_data, data):
-        """
-        process a batch of data, applying the input mask, while
-        excluding non-valid values that arrise during processing
 
-        mask: incoming values to mask for prediction
+    def forward(self, x, pe=None, edge_index=None, edge_attr=None, batch=None, data=None):
+        """
+        Forward pass for Graphormer.
+
+        Args:
+            x (Tensor): Input node features of shape [num_nodes, input_dim].
+            pe (Tensor): Positional encoding of shape [num_nodes, pe_dim].
+            edge_index (Tensor): Edge indices for graph convolution.
+            edge_attr (Tensor): Edge feature tensor.
+            batch (Tensor): Batch vector assigning nodes to graphs.
+            data (Data): Pytorch Geometric Batch() object.
+
+        Returns:
+            output (Tensor): Output node features of shape [num_nodes, output_dim].
         """
 
-        mask = None
+        # identify buffer nodes, and create a mask for them
         masked_entries = torch.sum(x < -1e8, axis=-1)
-        mask = masked_entries >= 3  # due to masking up to feature 6 of 9 # x.size(-1)
-
-
-        # TODO note that the x, pe are redundant or not needed, so clean up at the end
-
-        # TODO in the baseline code the PE is an input here and passes through
-        # a normalization before being concatenated to the features, follow this in final version
+        mask = masked_entries >= 3  # due to masking up to feature 6 of 9
         
-        graph_node_feature, graph_attn_bias = self.compute_pos_embeddings(data, batched_data)
-        # print('gnodes********', graph_node_feature.size(), graph_attn_bias.size())
-        output = self.encoder(graph_node_feature, graph_attn_bias, mask=mask, batch=batched_data)
+        graph_node_feature, graph_attn_bias = self.compute_pos_embeddings(data)
+        output = self.encoder(graph_node_feature, graph_attn_bias, mask=mask, batch=batch)
         output = self.decoder(output)
 
-        # evaluate where mask is True, so update it TODO
-        # print('ooooooooo', output[~mask].size())
-        # print('bbbbbbbb', data.mask.size(), data.mask, data.mask.sum()/len(data.mask.flatten()))
+        # return the negative of the buffer mask to select data for loss calculation
         return output, ~mask
 
 
-# TODO maybe set this as the decoder
 class FeedForwardNetwork(nn.Module):
     def __init__(self, hidden_size, ffn_size, dropout_rate):
         super(FeedForwardNetwork, self).__init__()
@@ -212,6 +173,10 @@ class FeedForwardNetwork(nn.Module):
 
 
 class MultiHeadAttention(nn.Module):
+    """
+    This is a slight modification of vanilla attention, to allow masking
+    of buffer nodes, and the addition of biasses to the attention mechanism.
+    """
     def __init__(self, hidden_size, attention_dropout_rate, num_heads):
         super(MultiHeadAttention, self).__init__()
 
@@ -228,7 +193,7 @@ class MultiHeadAttention(nn.Module):
         self.output_layer = nn.Linear(num_heads * att_size, hidden_size)
 
     def forward(self, q, k, v, attn_bias=None, mask=None):
-
+        
         orig_q_size = q.size()
 
         d_k = self.att_size
@@ -248,11 +213,7 @@ class MultiHeadAttention(nn.Module):
         # Attention(Q, K, V) = softmax((QK^T)/sqrt(d_k))V
         q = q * self.scale
         x = torch.matmul(q, k)  # [b, h, q_len, k_len]
-        # print('**********',
-        #      x.size(), q.size(), 
-        #      k.size(), v.size(), 
-        #      attn_bias.size(), mask.size()
-        #      )
+
         if attn_bias is not None:
             if mask is not None:
                 usm0 = mask.unsqueeze(1).unsqueeze(3)
@@ -298,23 +259,13 @@ class EncoderLayer(nn.Module):
         It is assumed that the mask is 1 where values are to be ignored
         and then 0 where there are valid data
         """
-
-        # print('xxxxxxxxxxxxx', x.size(), batch.size())
-        x, bmask = to_dense_batch(x, batch) # TODO remove bmask if padding remains in final
+        x, _ = to_dense_batch(x, batch) 
         mask, _ = to_dense_batch(mask, batch)
 
         y = self.self_attention_norm(x)
-        # print(y.size(), attn_bias.size(), batch)
-        
         attn_bias = attn_bias.squeeze()
-        # attn_bias = attn_bias.permute(1, 2, 0)
-        # attn_bias, maska = to_dense_batch(attn_bias, batch)
-        # print('dense>>>', y.size(), bmask.size(), attn_bias.size())
-        # print('msum>>>', bmask.sum(dim=-1), )
-        # print('msum2>>', mask.size(),mask.sum(dim=-1))
         y = self.self_attention(y, y, y, attn_bias, mask)
         y = self.self_attention_dropout(y)
-        # print('<<<<<>>>>', x.size(), y.size())
         x = x + torch.reshape(y, x.size())
 
         y = self.ffn_norm(x)
@@ -322,5 +273,5 @@ class EncoderLayer(nn.Module):
         y = self.ffn_dropout(y)
         x = x + y
         x=x.flatten(0,1)
-        # print('222222222222222', x.size())
+
         return x
