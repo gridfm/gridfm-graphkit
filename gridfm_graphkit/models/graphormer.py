@@ -25,6 +25,7 @@ class Graphormer(nn.Module):
         output_dim (int): Dimension of the output node features. From ``args.model.output_dim``.
         n_encoder_layers (int): Number of transformer blocks. From ``args.model.num_layers``.
         num_heads (int): Number of attention heads. From ``args.model.attention_head``. Defaults to 1.
+        n_edge_features (int): Dimension of edge features. From ``args.model.edge_dim``.
         dropout (float, optional): Dropout rate in attention blocks. From ``args.model.dropout``. Defaults to 0.0.
         mask_dim (int, optional): Dimension of the mask vector. From ``args.data.mask_dim``. Defaults to 6.
         mask_value (float, optional): Initial value for learnable mask parameters. From ``args.data.mask_value``. Defaults to -1.0.
@@ -41,6 +42,7 @@ class Graphormer(nn.Module):
         self.output_dim = args.model.output_dim
         self.n_encoder_layers = args.model.num_layers
         self.num_heads = args.model.attention_head
+        self.n_edge_features = args.model.edge_dim
         self.dropout = getattr(args.model, "dropout", 0.0) 
         self.mask_dim = getattr(args.data, "mask_dim", 6)
         self.mask_value = getattr(args.data, "mask_value", -1.0)
@@ -86,8 +88,12 @@ class Graphormer(nn.Module):
             512, self.hidden_dim, padding_idx=0)
         self.out_degree_encoder = nn.Embedding(
             512, self.hidden_dim, padding_idx=0)
-        self.edge_encoder = nn.Embedding(
-                512 * self.n_edge_features + 1, num_heads, padding_idx=0)
+        if self.n_edge_features is not None:
+            self.edge_encoder = nn.Embedding(
+                512 * self.n_edge_features + 1, self.num_heads, padding_idx=0)
+        if self.edge_type == 'multi_hop':
+            self.edge_dis_encoder = nn.Embedding(
+                128 * self.num_heads * self.num_heads, 1)       
 
 
     def compute_pos_embeddings(self, data):
@@ -118,8 +124,8 @@ class Graphormer(nn.Module):
         if data.edge_input is not None:
             edge_input, attn_edge_type = data.edge_input, data.attn_edge_type
             # edge feature
-            # TODO flow over the upstream logic for edge_types...
             if self.edge_type == 'multi_hop':
+                n_graph, n_node = edge_input.size()[:2]
                 spatial_pos_ = spatial_pos.clone()
                 spatial_pos_[spatial_pos_ == 0] = 1  # set pad to 1
                 # set 1 to 1, x > 1 to x - 1
@@ -128,7 +134,10 @@ class Graphormer(nn.Module):
                     spatial_pos_ = spatial_pos_.clamp(0, self.multi_hop_max_dist)
                     edge_input = edge_input[:, :, :, :self.multi_hop_max_dist, :]
                 # [n_graph, n_node, n_node, max_dist, n_head]
-                edge_input = self.edge_encoder(edge_input).mean(-2)
+                print('!!!!!!', edge_input.size())
+                print('mmmmm', edge_input.max(), edge_input.min())
+                edge_input = self.edge_encoder(edge_input+1).mean(-2)    # TODO determine source of -1 and correct
+                print('22222', edge_input.size())
                 max_dist = edge_input.size(-2)
                 edge_input_flat = edge_input.permute(
                     3, 0, 1, 2, 4).reshape(max_dist, -1, self.num_heads)
@@ -140,9 +149,9 @@ class Graphormer(nn.Module):
                               (spatial_pos_.float().unsqueeze(-1))).permute(0, 3, 1, 2)
             else:
                 # [n_graph, n_node, n_node, n_head] -> [n_graph, n_head, n_node, n_node]
-                edge_input = self.edge_encoder(
+                edge_input = self.edge_encoder( # TODO test this path
                     attn_edge_type).mean(-2).permute(0, 3, 1, 2)
-            graph_attn_bias = graph_attn_bias + edge_input
+            #graph_attn_bias = graph_attn_bias + edge_input # TODO uncomment
 
         graph_attn_bias = graph_attn_bias + attn_bias.unsqueeze(1)  # reset
 
