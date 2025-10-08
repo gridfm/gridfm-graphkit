@@ -202,7 +202,7 @@ class GridDatasetDisk(Dataset):
         return self.length
 
     def __cat_dim__(self, key, value, *args, **kwargs):
-        if key in ['attn_bias', 'spatial_pos', 'in_degree']:
+        if key in ['attn_bias', 'spatial_pos', 'in_degree', 'edge_input']:
             return None
         return super().__cat_dim__(key, value, *args, **kwargs)
     
