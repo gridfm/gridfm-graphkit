@@ -29,6 +29,8 @@ class Graphormer(nn.Module):
         mask_dim (int, optional): Dimension of the mask vector. From ``args.data.mask_dim``. Defaults to 6.
         mask_value (float, optional): Initial value for learnable mask parameters. From ``args.data.mask_value``. Defaults to -1.0.
         learn_mask (bool, optional): Whether to learn mask values as parameters. From ``args.data.learn_mask``. Defaults to False.
+        edge_type (string, optional): Type of edge to consider multi_hop or not. From ``args.data.edge_type``. Defaults to multi_hop.
+        multi_hop_max_dist (int, optional): Maximum number of hops to consider at edges. From ``args.data.multi_hop_max_dist``. Defaults to 20.
 
     """
     def __init__(self, args):
@@ -43,6 +45,8 @@ class Graphormer(nn.Module):
         self.mask_dim = getattr(args.data, "mask_dim", 6)
         self.mask_value = getattr(args.data, "mask_value", -1.0)
         self.learn_mask = getattr(args.data, "learn_mask", False)
+        self.edge_type = getattr(args.model, "edge_type", "multi_hop") 
+        self.multi_hop_max_dist = getattr(args.model, "multi_hop_max_dist", 20) 
         
         if self.learn_mask:
             self.mask_value = nn.Parameter(
@@ -111,7 +115,6 @@ class Graphormer(nn.Module):
 
         graph_attn_bias = graph_attn_bias + spatial_pos_bias
 
-        ###########
         if data.edge_input is not None:
             edge_input, attn_edge_type = data.edge_input, data.attn_edge_type
             # edge feature
@@ -140,7 +143,6 @@ class Graphormer(nn.Module):
                 edge_input = self.edge_encoder(
                     attn_edge_type).mean(-2).permute(0, 3, 1, 2)
             graph_attn_bias = graph_attn_bias + edge_input
-        ###########
 
         graph_attn_bias = graph_attn_bias + attn_bias.unsqueeze(1)  # reset
 
