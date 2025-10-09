@@ -176,10 +176,7 @@ class MixedLoss(nn.Module):
         loss_details = {}
 
         for i, loss_fn in enumerate(self.loss_functions):
-            print('---x', pred.size(), pred.min(), pred.max())
-            print('---y', target.size(), target.min(), target.max())
-            print('---ei', edge_index.size(), edge_index.min(), edge_index.max())
-            print('----ea', edge_attr.size(), edge_attr.min(), edge_attr.max())
+
             loss_output = loss_fn(
                 pred,
                 target,
