@@ -152,7 +152,7 @@ class Graphormer(nn.Module):
                 # TODO pad attn_edge_type for this path
                 edge_input = self.edge_encoder( # TODO test this path
                     attn_edge_type).mean(-2).permute(0, 3, 1, 2)
-            print('sum>>>', graph_attn_bias.size(), edge_input.size(), attn_edge_type.size())
+            # print('sum>>>', graph_attn_bias.size(), edge_input.size(), attn_edge_type.size())
             graph_attn_bias = graph_attn_bias + edge_input
 
         graph_attn_bias = graph_attn_bias + attn_bias.unsqueeze(1)  # reset

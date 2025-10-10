@@ -185,7 +185,7 @@ def pad_edge_bias_unsqueeze(x, padlen):
     xlen = x.size(0)
     if xlen < padlen:
         new_x = x.new_zeros(
-            (padlen, padlen) + x.size()[-2:], dtype=x.dtype).fill_(int(0))
+            (padlen, padlen) + x.size()[2:], dtype=x.dtype).fill_(int(0))
         new_x[:xlen, :xlen] = x
         new_x[xlen:, :xlen] = 0
         x = new_x
@@ -230,6 +230,7 @@ class AddGraphormerEncodings(BaseTransform):
         spatial_pos = pad_spatial_pos_unsqueeze(spatial_pos, self.max_node_num)
         in_degree = pad_1d_unsqueeze(in_degree, self.max_node_num).squeeze()
         edge_input = pad_edge_bias_unsqueeze(edge_input, self.max_node_num) # TODO if using change function name
+        attn_edge_type = pad_edge_bias_unsqueeze(attn_edge_type, self.max_node_num)
         # TODO check padding of attn_edge_type, and num steps to sort out batching issue
         # print('ffe>E>E>E>>E>E>', attn_edge_type.size(), edge_input.size())
 
