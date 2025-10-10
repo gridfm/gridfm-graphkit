@@ -119,7 +119,7 @@ def get_edge_encoding(edge_attr, N, edge_index, max_dist, path):
 
     return attn_edge_type, torch.from_numpy(edge_input).long()
 
-def preprocess_item(data):
+def preprocess_item(data, max_hops):
     """
     Calculation of the attention bias, and positional/structural data
     """
@@ -134,14 +134,18 @@ def preprocess_item(data):
 
     adj = edge_adj.to_dense().to(torch.int16)
 
-    shortest_path_result, path = algos.floyd_warshall(adj.numpy().astype(np.int32))
+    # get shortest paths in number of hops (shortest_path_result) and intermediate nodes
+    # for those shortest paths (path)
+    shortest_path_result, path = algos.floyd_warshall(adj.numpy().astype(np.int32), max_hops)
     spatial_pos = torch.from_numpy((shortest_path_result)).long().to(data.x.device)
     attn_bias = torch.zeros([N, N], dtype=torch.float).to(data.x.device)  # TODO verifie is updated
 
     if edge_attr is not None:
-        max_dist = N    # fix this to allow multiple graphs # np.amax(shortest_path_result)
-        # print('----->', max_dist) # TODO remove
-        attn_edge_type, edge_input = get_edge_encoding(edge_attr, N, edge_index, max_dist, path)
+        # print(path)
+        # print(path.shape)
+        # print(shortest_path_result)
+        # print(shortest_path_result.shape)
+        attn_edge_type, edge_input = get_edge_encoding(edge_attr, N, edge_index, max_hops, path)
     else:
         edge_input = None
         attn_edge_type = None
@@ -205,8 +209,10 @@ class AddGraphormerEncodings(BaseTransform):
     def __init__(
         self,
         max_node_num: int,
+        max_hops: int,
     ) -> None:
         self.max_node_num = max_node_num
+        self.max_hops = max_hops
 
     def forward(self, data: Data) -> Data:
         if data.edge_index is None:
@@ -216,7 +222,8 @@ class AddGraphormerEncodings(BaseTransform):
         if N is None:
             raise ValueError("Expected data.num_nodes to be not None")
 
-        attn_bias, spatial_pos, in_degree, out_degree, attn_edge_type, edge_input = preprocess_item(data)
+        attn_bias, spatial_pos, in_degree, out_degree, attn_edge_type, edge_input = \
+                            preprocess_item(data, self.max_hops)
         
         # print('e>E>E>E>>E>E>', attn_edge_type.size(), edge_input.size())
         attn_bias = pad_attn_bias_unsqueeze(attn_bias, self.max_node_num)

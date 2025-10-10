@@ -6,11 +6,12 @@ from cython.parallel cimport prange, parallel
 cimport numpy
 import numpy
 
-def floyd_warshall(adjacency_matrix):
+def floyd_warshall(adjacency_matrix, max_hops):
 
     (nrows, ncols) = adjacency_matrix.shape
     assert nrows == ncols
     cdef unsigned int n = nrows
+    cdef unsigned int max_hops_copy = max_hops
 
     adj_mat_copy = adjacency_matrix.astype(numpy.int32, order='C', casting='safe', copy=True)
     assert adj_mat_copy.flags['C_CONTIGUOUS']
@@ -40,6 +41,8 @@ def floyd_warshall(adjacency_matrix):
             for j in range(n):
                 cost_ikkj = M_ik + M_k_ptr[j]
                 M_ij = M_i_ptr[j]
+                if cost_ikkj > max_hops_copy:   # TODO flow from above
+                    continue
                 if M_ij > cost_ikkj:
                     M_i_ptr[j] = cost_ikkj
                     path[i][j] = k
