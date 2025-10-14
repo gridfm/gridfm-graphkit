@@ -189,8 +189,10 @@ class Graphormer(nn.Module):
         """
 
         # identify buffer nodes, and create a mask for them
+        # note masking will be done up to feature mask_dim of n_node_features
         masked_entries = torch.sum(x < -1e8, axis=-1)
-        mask = masked_entries >= 3  # due to masking up to feature 6 of 9
+        mask = masked_entries >= (self.n_node_features - self.mask_dim)  
+
         
         graph_node_feature, graph_attn_bias = self.compute_pos_embeddings(data)
         output = self.encoder(graph_node_feature, graph_attn_bias, mask=mask, batch=batch)
