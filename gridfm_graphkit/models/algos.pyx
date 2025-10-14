@@ -41,7 +41,7 @@ def floyd_warshall(adjacency_matrix, max_hops):
             for j in range(n):
                 cost_ikkj = M_ik + M_k_ptr[j]
                 M_ij = M_i_ptr[j]
-                if cost_ikkj > max_hops_copy:   # TODO flow from above
+                if cost_ikkj > max_hops_copy:
                     continue
                 if M_ij > cost_ikkj:
                     M_i_ptr[j] = cost_ikkj
