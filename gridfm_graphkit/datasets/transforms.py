@@ -101,13 +101,14 @@ def add_node_attr(data: Data, value: Any,
 
     return data
 
-# TODO verify how this meshes with the node features, as compared to orig version
+
 def convert_to_single_emb(x, offset=512):
     feature_num = x.size(1) if len(x.size()) > 1 else 1
     feature_offset = 1 + \
         torch.arange(0, feature_num * offset, offset, dtype=torch.long)
     x = x + feature_offset
     return x
+
 
 def get_edge_encoding(edge_attr, N, edge_index, max_dist, path):
     if len(edge_attr.size()) == 1:
@@ -118,6 +119,7 @@ def get_edge_encoding(edge_attr, N, edge_index, max_dist, path):
     edge_input = algos.gen_edge_input(max_dist, path, attn_edge_type.numpy())
 
     return attn_edge_type, torch.from_numpy(edge_input).long()
+
 
 def preprocess_item(data, max_hops):
     """
@@ -138,7 +140,7 @@ def preprocess_item(data, max_hops):
     # for those shortest paths (path)
     shortest_path_result, path = algos.floyd_warshall(adj.numpy().astype(np.int32), max_hops)
     spatial_pos = torch.from_numpy((shortest_path_result)).long().to(data.x.device)
-    attn_bias = torch.zeros([N, N], dtype=torch.float).to(data.x.device)  # TODO verifie is updated
+    attn_bias = torch.zeros([N, N], dtype=torch.float).to(data.x.device) 
 
     if edge_attr is not None:
         # print(path)
@@ -175,9 +177,9 @@ def pad_attn_bias_unsqueeze(x, padlen):
     xlen = x.size(0)
     if xlen < padlen:
         new_x = x.new_zeros(
-            [padlen, padlen], dtype=x.dtype).fill_(float('-inf'))   # TODO verify if masking is needed given this is at -inf...
+            [padlen, padlen], dtype=x.dtype).fill_(float('-inf'))   
         new_x[:xlen, :xlen] = x
-        new_x[xlen:, :xlen] = 0 # TODO verify if masking is needed given this is at -inf...
+        new_x[xlen:, :xlen] = 0 
         x = new_x
     return x.unsqueeze(0)
 
@@ -225,14 +227,11 @@ class AddGraphormerEncodings(BaseTransform):
         attn_bias, spatial_pos, in_degree, out_degree, attn_edge_type, edge_input = \
                             preprocess_item(data, self.max_hops)
         
-        # print('e>E>E>E>>E>E>', attn_edge_type.size(), edge_input.size())
         attn_bias = pad_attn_bias_unsqueeze(attn_bias, self.max_node_num)
         spatial_pos = pad_spatial_pos_unsqueeze(spatial_pos, self.max_node_num)
         in_degree = pad_1d_unsqueeze(in_degree, self.max_node_num).squeeze()
-        edge_input = pad_edge_bias_unsqueeze(edge_input, self.max_node_num) # TODO if using change function name
+        edge_input = pad_edge_bias_unsqueeze(edge_input, self.max_node_num)
         attn_edge_type = pad_edge_bias_unsqueeze(attn_edge_type, self.max_node_num)
-        # TODO check padding of attn_edge_type, and num steps to sort out batching issue
-        # print('ffe>E>E>E>>E>E>', attn_edge_type.size(), edge_input.size())
 
         data = add_node_attr(data, attn_bias, attr_name='attn_bias')
         data = add_node_attr(data, spatial_pos, attr_name='spatial_pos')
