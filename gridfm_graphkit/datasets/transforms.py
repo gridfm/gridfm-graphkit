@@ -143,10 +143,6 @@ def preprocess_item(data, max_hops):
     attn_bias = torch.zeros([N, N], dtype=torch.float).to(data.x.device) 
 
     if edge_attr is not None:
-        # print(path)
-        # print(path.shape)
-        # print(shortest_path_result)
-        # print(shortest_path_result.shape)
         attn_edge_type, edge_input = get_edge_encoding(edge_attr, N, edge_index, max_hops, path)
     else:
         edge_input = None
