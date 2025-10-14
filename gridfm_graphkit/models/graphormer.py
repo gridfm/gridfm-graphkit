@@ -134,10 +134,7 @@ class Graphormer(nn.Module):
                     spatial_pos_ = spatial_pos_.clamp(0, self.multi_hop_max_dist)
                     edge_input = edge_input[:, :, :, :self.multi_hop_max_dist, :]
                 # [n_graph, n_node, n_node, max_dist, n_head]
-                # print('!!!!!!', edge_input.size())
-                # print('mmmmm', edge_input.max(), edge_input.min())
-                edge_input = self.edge_encoder(edge_input+1).mean(-2)    # TODO determine source of -1 and correct
-                # print('22222', edge_input.size())
+                edge_input = self.edge_encoder(edge_input+1).mean(-2) 
                 max_dist = edge_input.size(-2)
                 edge_input_flat = edge_input.permute(
                     3, 0, 1, 2, 4).reshape(max_dist, -1, self.num_heads)
@@ -149,10 +146,9 @@ class Graphormer(nn.Module):
                               (spatial_pos_.float().unsqueeze(-1))).permute(0, 3, 1, 2)
             else:
                 # [n_graph, n_node, n_node, n_head] -> [n_graph, n_head, n_node, n_node]
-                # TODO pad attn_edge_type for this path
-                edge_input = self.edge_encoder( # TODO test this path
+                edge_input = self.edge_encoder(
                     attn_edge_type).mean(-2).permute(0, 3, 1, 2)
-            # print('sum>>>', graph_attn_bias.size(), edge_input.size(), attn_edge_type.size())
+            
             graph_attn_bias = graph_attn_bias + edge_input
 
         graph_attn_bias = graph_attn_bias + attn_bias.unsqueeze(1)  # reset
