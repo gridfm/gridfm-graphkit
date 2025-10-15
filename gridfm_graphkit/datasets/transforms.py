@@ -88,9 +88,10 @@ class AddNormalizedRandomWalkPE(BaseTransform):
 
         return data
 
+
 def add_node_attr(data: Data, 
                     value: Any,
-                    attr_name: Optional[str] = None
+                    attr_name: str
                     ) -> Data:
     if attr_name is None:
         raise ValueError("Expected attr_name to be not None")
@@ -99,14 +100,12 @@ def add_node_attr(data: Data,
 
     return data
 
-
 def convert_to_single_emb(x, offset=512):
     feature_num = x.size(1) if len(x.size()) > 1 else 1
     feature_offset = 1 + \
         torch.arange(0, feature_num * offset, offset, dtype=torch.long)
     x = x + feature_offset
     return x
-
 
 def get_edge_encoding(edge_attr, N, edge_index, max_dist, path):
     if len(edge_attr.size()) == 1:
@@ -118,10 +117,13 @@ def get_edge_encoding(edge_attr, N, edge_index, max_dist, path):
 
     return attn_edge_type, torch.from_numpy(edge_input).long()
 
-
 def preprocess_item(data, max_hops):
     """
-    Calculation of the attention bias, and positional/structural data
+    Calculation of the Graphormer attention bias, and positional/structural 
+    variables. From a Data-like object the shortest paths in number of hops 
+    between nodes are calculated, being cut off at max_hops. In addition to the
+    centrality (assume undirected graphs) and attention bias, these are the 
+    inputs to the model structural and positional encodings.
     """
     edge_index = data.edge_index
     edge_attr = data.edge_attr
@@ -163,7 +165,7 @@ def pad_2d_unsqueeze(x, padlen):
     if xlen < padlen:
         new_x = x.new_zeros([padlen, xdim], dtype=x.dtype)
         new_x[:,:] = -1e9
-        new_x[:xlen, :] = x # TODO verify this step as well with x shape
+        new_x[:xlen, :] = x 
         x = new_x
     return x.unsqueeze(0)
 
@@ -173,7 +175,7 @@ def pad_attn_bias_unsqueeze(x, padlen):
         new_x = x.new_zeros(
             [padlen, padlen], dtype=x.dtype).fill_(float('-inf'))   
         new_x[:xlen, :xlen] = x
-        new_x[xlen:, :xlen] = 0     # TODO verify this step
+        new_x[xlen:, :xlen] = 0     
         x = new_x
     return x.unsqueeze(0)
 
@@ -198,8 +200,13 @@ def pad_spatial_pos_unsqueeze(x, padlen):
 
 class AddGraphormerEncodings(BaseTransform):
     """Adds a positional encoding (node centrallity) to the given graph, as 
-    well as the attention biases, as described in: Do transformers really 
-    perform badly for graph representation?, C. Ying et al., 2021.
+    well as the attention and edge biases, as described in: Do transformers 
+    really perform badly for graph representation?, C. Ying et al., 2021.
+    
+    Args:
+        max_node_num (int): The number of nodes in the largest graph considered.
+        max_hops (int): The maximum path length between nodes to consider for
+                        the edge encodings.
     """
 
     def __init__(

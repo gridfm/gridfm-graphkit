@@ -10,7 +10,7 @@ from torch_geometric.utils import to_dense_batch
 @MODELS_REGISTRY.register("Graphormer")
 class Graphormer(nn.Module):
     """
-    A Graph Transformer model based on the Graphormer architecture
+    A Graph Transformer model based on the Graphormer architecture.
 
     This model directly modifies the attention between nodes based on
     its graph encodings. This requires padding the input nodes and propogating
@@ -83,7 +83,8 @@ class Graphormer(nn.Module):
         )
         
         # for positional embeddings
-        self.spatial_pos_encoder = nn.Embedding(512, self.num_heads, padding_idx=0)
+        self.spatial_pos_encoder = nn.Embedding(
+            512, self.num_heads, padding_idx=0)
         self.in_degree_encoder = nn.Embedding(
             512, self.hidden_dim, padding_idx=0)
         self.out_degree_encoder = nn.Embedding(
@@ -163,8 +164,6 @@ class Graphormer(nn.Module):
 
 
     def encoder(self, graph_node_feature, graph_attn_bias, mask=None, batch=1):
-
-        # transfomrer encoder
         output = self.input_dropout(graph_node_feature)
         for enc_layer in self.encoder_layers:
             output = enc_layer(output, graph_attn_bias, mask=mask, batch=batch)
