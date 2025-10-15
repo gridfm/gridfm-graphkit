@@ -6,17 +6,17 @@ from cython.parallel cimport prange, parallel
 cimport numpy
 import numpy
 
-def floyd_warshall(adjacency_matrix, max_hops):
+def floyd_warshall(adjacency_matrix, max_hops, localtype=long):
 
     (nrows, ncols) = adjacency_matrix.shape
     assert nrows == ncols
     cdef unsigned int n = nrows
     cdef unsigned int max_hops_copy = max_hops
 
-    adj_mat_copy = adjacency_matrix.astype(numpy.int32, order='C', casting='safe', copy=True)
+    adj_mat_copy = adjacency_matrix.astype(localtype, order='C', casting='safe', copy=True)
     assert adj_mat_copy.flags['C_CONTIGUOUS']
     cdef numpy.ndarray[long, ndim=2, mode='c'] M = adj_mat_copy
-    cdef numpy.ndarray[long, ndim=2, mode='c'] path = numpy.zeros([n, n], dtype=numpy.int32)
+    cdef numpy.ndarray[long, ndim=2, mode='c'] path = numpy.zeros([n, n], dtype=localtype)
 
     cdef unsigned int i, j, k
     cdef long M_ij, M_ik, cost_ikkj
@@ -65,7 +65,7 @@ def get_all_edges(path, i, j):
         return get_all_edges(path, i, k) + [k] + get_all_edges(path, k, j)
 
 
-def gen_edge_input(max_dist, path, edge_feat):
+def gen_edge_input(max_dist, path, edge_feat, localtype=long):
 
     (nrows, ncols) = path.shape
     assert nrows == ncols
@@ -77,7 +77,7 @@ def gen_edge_input(max_dist, path, edge_feat):
     assert path_copy.flags['C_CONTIGUOUS']
     assert edge_feat_copy.flags['C_CONTIGUOUS']
 
-    cdef numpy.ndarray[long, ndim=4, mode='c'] edge_fea_all = -1 * numpy.ones([n, n, max_dist_copy, edge_feat.shape[-1]], dtype=numpy.int32)
+    cdef numpy.ndarray[long, ndim=4, mode='c'] edge_fea_all = -1 * numpy.ones([n, n, max_dist_copy, edge_feat.shape[-1]], dtype=localtype)
     cdef unsigned int i, j, k, num_path, cur
 
     for i in range(n):
