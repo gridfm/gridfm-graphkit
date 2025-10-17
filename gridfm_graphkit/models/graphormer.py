@@ -79,6 +79,7 @@ class Graphormer(nn.Module):
         self.decoder = nn.Sequential(
             nn.Linear(self.hidden_dim, self.hidden_dim),
             nn.LeakyReLU(),
+            nn.LayerNorm(self.hidden_dim),
             nn.Linear(self.hidden_dim, self.output_dim)
         )
         
@@ -122,7 +123,7 @@ class Graphormer(nn.Module):
 
         graph_attn_bias = graph_attn_bias + spatial_pos_bias
 
-        if data.edge_input is not None:
+        if (data.edge_input is not None) and (self.edge_type is not None):
             edge_input, attn_edge_type = data.edge_input, data.attn_edge_type
             # edge feature
             if self.edge_type == 'multi_hop':
