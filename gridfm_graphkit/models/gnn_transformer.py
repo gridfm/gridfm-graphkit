@@ -94,7 +94,4 @@ class GNN_TransformerConv(nn.Module):
 
         x = self.mlps(x)
 
-        masked_entries = torch.sum(x < -1e8, axis=-1)
-        mask = masked_entries >= 3
-
-        return x, ~mask
+        return x
