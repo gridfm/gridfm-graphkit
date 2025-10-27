@@ -110,7 +110,7 @@ class FeatureReconstructionTask(L.LightningModule):
                 )
 
     def shared_step(self, batch):
-        output, valid = self.forward(
+        output = self.forward(
             x=batch.x,
             pe=batch.pe,
             edge_index=batch.edge_index,
@@ -121,11 +121,11 @@ class FeatureReconstructionTask(L.LightningModule):
         )
 
         loss_dict = self.loss_fn(
-            output[valid],
-            batch.y[valid],
+            output,
+            batch.y,
             batch.edge_index,
             batch.edge_attr,
-            batch.mask[valid],
+            batch.mask,
         )
         return output, loss_dict
 

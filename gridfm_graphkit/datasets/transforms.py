@@ -274,8 +274,13 @@ class AddGraphormerEncodings(BaseTransform):
         data = add_node_attr(data, edge_input, attr_name='edge_input')
         data = add_node_attr(data, attn_edge_type, attr_name='attn_edge_type')
 
-        data.x = pad_2d_unsqueeze(data.x, self.max_node_num).squeeze()
+        # data.x = pad_2d_unsqueeze(data.x, self.max_node_num).squeeze()    # TODO finalize
         # data.y = pad_2d_unsqueeze(data.y, self.max_node_num).squeeze()
+        
+        # TODO remove testing lines
+        # masked_entries = torch.sum(data.x < -1e8, axis=-1)
+        # mask = masked_entries >= (9 - 3) 
+        # print('ssssss_orig', mask.sum())
 
         return data
 

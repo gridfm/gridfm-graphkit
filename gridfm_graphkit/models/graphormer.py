@@ -49,6 +49,7 @@ class Graphormer(nn.Module):
         self.learn_mask = getattr(args.data, "learn_mask", False)
         self.edge_type = getattr(args.model, "edge_type", "multi_hop") 
         self.multi_hop_max_dist = getattr(args.data, "max_hops", 20) 
+        self.max_node_num = getattr(args.data, "max_node_num", 24) 
         
         if self.learn_mask:
             self.mask_value = nn.Parameter(
@@ -76,12 +77,13 @@ class Graphormer(nn.Module):
         self.encoder_layers = nn.ModuleList(encoders)
         self.encoder_final_ln = nn.LayerNorm(self.hidden_dim)
 
-        self.decoder = nn.Sequential(
+        self.decoder_layers = nn.Sequential(
             nn.Linear(self.hidden_dim, self.hidden_dim),
             nn.LeakyReLU(),
             nn.LayerNorm(self.hidden_dim),
             nn.Linear(self.hidden_dim, self.output_dim)
         )
+
         
         # for positional embeddings
         self.spatial_pos_encoder = nn.Embedding(
@@ -99,7 +101,7 @@ class Graphormer(nn.Module):
                 128 * self.num_heads * self.num_heads, 1)       
 
 
-    def compute_pos_embeddings(self, data):
+    def compute_pos_embeddings(self, data, x):
         """
         Calculate Graphormer positional encodings, and attention biases
 
@@ -110,9 +112,9 @@ class Graphormer(nn.Module):
             graph_node_feature (Tensor): data.x with positional encoding appended.
             graph_attn_bias (Tensor): attention bais terms.
         """
-        attn_bias, spatial_pos, x = data.attn_bias, data.spatial_pos, data.x
+        attn_bias, spatial_pos = data.attn_bias, data.spatial_pos    #, data.x
         in_degree, out_degree = data.in_degree, data.in_degree
-        print('>>>>', attn_bias.size(), spatial_pos.size(), in_degree.size())
+        # print('>>>>', attn_bias.size(), spatial_pos.size(), in_degree.size())
         
         # graph_attn_bias
         graph_attn_bias = attn_bias.clone()
@@ -158,9 +160,11 @@ class Graphormer(nn.Module):
         graph_attn_bias = graph_attn_bias + attn_bias.unsqueeze(1)  # reset
 
         node_feature = self.input_proj(x)
-        graph_node_feature = node_feature + \
+        # print('zzz', node_feature.flatten(0,1).size())
+        graph_node_feature = node_feature.flatten(0,1) + \
             self.in_degree_encoder(in_degree) + \
             self.out_degree_encoder(out_degree)
+        graph_node_feature = graph_node_feature.reshape(node_feature.size())
 
         return graph_node_feature, graph_attn_bias
 
@@ -169,9 +173,12 @@ class Graphormer(nn.Module):
         output = self.input_dropout(graph_node_feature)
         for enc_layer in self.encoder_layers:
             output = enc_layer(output, graph_attn_bias, mask=mask, batch=batch)
-        output = self.encoder_final_ln(output)
+        output[~mask] = self.encoder_final_ln(output[~mask])
         return output
-
+    
+    def decoder(self, x):
+        output = self.decoder_layers(x)
+        return output
 
     def forward(self, x, pe=None, edge_index=None, edge_attr=None, batch=None, data=None):
         """
@@ -188,26 +195,30 @@ class Graphormer(nn.Module):
         Returns:
             output (Tensor): Output node features of shape [num_nodes, output_dim].
         """
-        print('0***', x.size(), data.y.size())
-        print('<<<', x.min(), x.max())
-        # x, _ = to_dense_batch(x, batch, max_num_nodes=30)
+        # print('0***', x.size(), data.y.size())
+        # print('<<<', x.min(), x.max())
+        x, valid_nodes = to_dense_batch(x, batch, max_num_nodes=self.max_node_num)
+        mask = ~valid_nodes
         # print('1***', x.size())
+        # TODO remove prints
 
         # identify buffer nodes, and create a mask for them
         # note masking will be done up to feature mask_dim of n_node_features
-        masked_entries = torch.sum(x < -1e8, axis=-1)
-        mask = masked_entries >= (self.n_node_features - self.mask_dim)  
+        # masked_entries = torch.sum(x < -1e8, axis=-1)
+        # mask = masked_entries >= (self.n_node_features - self.mask_dim)  
+        # print('mmmmmm', mask.size(), mask.size())
+        # print('ssssss', (~mask).sum())
         
-        graph_node_feature, graph_attn_bias = self.compute_pos_embeddings(data)
+        graph_node_feature, graph_attn_bias = self.compute_pos_embeddings(data, x)
         output = self.encoder(graph_node_feature, graph_attn_bias, mask=mask, batch=batch)
-        output = self.decoder(output)
+        output = self.decoder(output[valid_nodes])
 
         # return the negative of the buffer mask to select data for loss calculation
-        return output, ~mask
+        return output
 
 
 class FeedForwardNetwork(nn.Module):
-    def __init__(self, hidden_size, ffn_size, dropout_rate):
+    def __init__(self, hidden_size, ffn_size):
         super(FeedForwardNetwork, self).__init__()
 
         self.layer1 = nn.Linear(hidden_size, ffn_size)
@@ -300,39 +311,44 @@ class EncoderLayer(nn.Module):
         self.self_attention_dropout = nn.Dropout(dropout_rate)
 
         self.ffn_norm = nn.LayerNorm(hidden_size)
-        self.ffn = FeedForwardNetwork(hidden_size, ffn_size, dropout_rate)
+        self.ffn = FeedForwardNetwork(hidden_size, ffn_size)
         self.ffn_dropout = nn.Dropout(dropout_rate)
 
-    def forward(self, x, attn_bias=None, mask=None, batch=1):
+    def forward(self, x, attn_bias=None, mask=None, batch=1):   #TODO remove batch if not needed
         """
         It is assumed that the mask is 1 where values are to be ignored
         and then 0 where there are valid data
         """
-        x, _ = to_dense_batch(x, batch) 
-        mask, _ = to_dense_batch(mask, batch)
+        # print('enin****', x.size())
+        # x, _ = to_dense_batch(x, batch) 
+        # mask, _ = to_dense_batch(mask, batch)
 
-        # print('***', x[~mask].min(), x[~mask].max())
+        # print('enc***', x[~mask].min(), x[~mask].max())
+        # print('enc***', x.size())
 
-        print('-----')
+        # print('-----')
         # print(x.size())
-        print(mask.size(), attn_bias.size(), batch)
+        # print(mask.size(), attn_bias.size(), batch)
         # print(mask.sum(axis=1))
         # print((x[1:2,:,:] < -1e7).sum(axis=(1,2)))
-        print(x.min(), x.max())
+        # print(x.min(), x.max())
+        # print('vvvvv', x[~mask].size(), x[~mask].min(), x[~mask].max())
         # print((attn_bias[2:3,2:3,:,:]).sum(axis=2))
         # print((attn_bias[2:3,2:3,:,:]).sum(axis=3))
         # print(mask.sum())
+        # print('>>>', x[~mask].min(), x[~mask].max(), '-', x.min(), x.max())
 
-        y = self.self_attention_norm(x)
+        y = x
+        y[~mask] = self.self_attention_norm(x[~mask])
         attn_bias = attn_bias.squeeze()
         y = self.self_attention(y, y, y, attn_bias, mask)
         y = self.self_attention_dropout(y)
         x = x + torch.reshape(y, x.size())
 
-        y = self.ffn_norm(x)
+        y[~mask] = self.ffn_norm(x[~mask])
         y = self.ffn(y)
         y = self.ffn_dropout(y)
         x = x + y
-        x=x.flatten(0,1)
+        # x=x.flatten(0,1)
 
         return x
