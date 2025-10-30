@@ -44,7 +44,7 @@ class GridDatasetDisk(Dataset):
         transform: Optional[Callable] = None,
         pre_transform: Optional[Callable] = None,
         pre_filter: Optional[Callable] = None,
-        args: Optional = None,
+        args: Optional = {},
     ):
         self.norm_method = norm_method
         self.node_normalizer = node_normalizer
