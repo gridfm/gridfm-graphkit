@@ -103,7 +103,7 @@ def add_node_attr(data: Data, value: Any,
 
 def preprocess_item(data):
     """
-    TODO fill in header for the function
+    Calculation of the attention bias, and positional/structural data
     """
     edge_index = data.edge_index
     N = data.num_nodes
