@@ -15,10 +15,13 @@ from torch_geometric.utils import (
     to_torch_csr_tensor,
 )
 
-import numpy as np
-import pyximport
-pyximport.install(setup_args={'include_dirs': np.get_include()})
-import gridfm_graphkit.models.algos as algos
+# import numpy as np
+# import pyximport
+# pyximport.install(setup_args={'include_dirs': np.get_include()})
+# import gridfm_graphkit.models.algos as algos
+
+from networkx import floyd_warshall_numpy
+from torch_geometric.utils import to_networkx
 
 
 class AddNormalizedRandomWalkPE(BaseTransform):
@@ -105,7 +108,11 @@ def preprocess_item(data):
     # node adj matrix [N, N] bool
     adj = adj.bool()
 
-    shortest_path_result, path = algos.floyd_warshall(adj.numpy())
+    # shortest_path_result, path = algos.floyd_warshall(adj.numpy())
+    gg = to_networkx(data)
+    shortest_path_result = floyd_warshall_numpy(gg)
+    print('sp>>>', shortest_path_result)
+    print(shortest_path_result.shape)
     spatial_pos = torch.from_numpy((shortest_path_result)).long()
     attn_bias = torch.zeros([N, N], dtype=torch.float)  # TODO verifie is updated
 
@@ -114,7 +121,7 @@ def preprocess_item(data):
     return attn_bias, spatial_pos, in_degree, out_degree
 
 class AddGraphormerEncodings(BaseTransform):
-    r"""...
+    """...
     TODO update with encoding info
     """
 
