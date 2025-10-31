@@ -103,7 +103,6 @@ class Graphormer(nn.Module):
             1, self.num_heads, 1, 1)  # [n_graph, n_head, n_node, n_node]
         # spatial pos
         # [n_graph, n_node, n_node, n_head] -> [n_graph, n_head, n_node, n_node]
-        # print('xxxxxx', graph_attn_bias.size())
         spatial_pos_bias = self.spatial_pos_encoder(spatial_pos).permute(0, 3, 1, 2)
         graph_attn_bias = graph_attn_bias + spatial_pos_bias
         graph_attn_bias = graph_attn_bias + attn_bias.unsqueeze(1)  # reset
