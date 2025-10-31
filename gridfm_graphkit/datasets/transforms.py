@@ -194,15 +194,6 @@ def pad_1d_unsqueeze(x, padlen):
         x = new_x
     return x.unsqueeze(0)
 
-def pad_2d_unsqueeze(x, padlen):
-    xlen, xdim = x.size()
-    if xlen < padlen:
-        new_x = x.new_zeros([padlen, xdim], dtype=x.dtype)
-        new_x[:,:] = -1e9
-        new_x[:xlen, :] = x 
-        x = new_x
-    return x.unsqueeze(0)
-
 def pad_attn_bias_unsqueeze(x, padlen):
     xlen = x.size(0)
     if xlen < padlen:
