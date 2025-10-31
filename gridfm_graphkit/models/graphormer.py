@@ -112,9 +112,8 @@ class Graphormer(nn.Module):
             graph_node_feature (Tensor): data.x with positional encoding appended.
             graph_attn_bias (Tensor): attention bais terms.
         """
-        attn_bias, spatial_pos = data.attn_bias, data.spatial_pos    #, data.x
+        attn_bias, spatial_pos = data.attn_bias, data.spatial_pos 
         in_degree, out_degree = data.in_degree, data.in_degree
-        # print('>>>>', attn_bias.size(), spatial_pos.size(), in_degree.size())
         
         # graph_attn_bias
         graph_attn_bias = attn_bias.clone()
@@ -160,7 +159,6 @@ class Graphormer(nn.Module):
         graph_attn_bias = graph_attn_bias + attn_bias.unsqueeze(1)  # reset
 
         node_feature = self.input_proj(x)
-        # print('zzz', node_feature.flatten(0,1).size())
         graph_node_feature = node_feature.flatten(0,1) + \
             self.in_degree_encoder(in_degree) + \
             self.out_degree_encoder(out_degree)
@@ -169,10 +167,10 @@ class Graphormer(nn.Module):
         return graph_node_feature, graph_attn_bias
 
 
-    def encoder(self, graph_node_feature, graph_attn_bias, mask=None, batch=1):
+    def encoder(self, graph_node_feature, graph_attn_bias, mask=None):
         output = self.input_dropout(graph_node_feature)
         for enc_layer in self.encoder_layers:
-            output = enc_layer(output, graph_attn_bias, mask=mask, batch=batch)
+            output = enc_layer(output, graph_attn_bias, mask=mask)
         output[~mask] = self.encoder_final_ln(output[~mask])
         return output
     
@@ -195,25 +193,14 @@ class Graphormer(nn.Module):
         Returns:
             output (Tensor): Output node features of shape [num_nodes, output_dim].
         """
-        # print('0***', x.size(), data.y.size())
-        # print('<<<', x.min(), x.max())
+
         x, valid_nodes = to_dense_batch(x, batch, max_num_nodes=self.max_node_num)
         mask = ~valid_nodes
-        # print('1***', x.size())
-        # TODO remove prints
-
-        # identify buffer nodes, and create a mask for them
-        # note masking will be done up to feature mask_dim of n_node_features
-        # masked_entries = torch.sum(x < -1e8, axis=-1)
-        # mask = masked_entries >= (self.n_node_features - self.mask_dim)  
-        # print('mmmmmm', mask.size(), mask.size())
-        # print('ssssss', (~mask).sum())
         
         graph_node_feature, graph_attn_bias = self.compute_pos_embeddings(data, x)
-        output = self.encoder(graph_node_feature, graph_attn_bias, mask=mask, batch=batch)
+        output = self.encoder(graph_node_feature, graph_attn_bias, mask=mask)
         output = self.decoder(output[valid_nodes])
 
-        # return the negative of the buffer mask to select data for loss calculation
         return output
 
 
@@ -314,29 +301,11 @@ class EncoderLayer(nn.Module):
         self.ffn = FeedForwardNetwork(hidden_size, ffn_size)
         self.ffn_dropout = nn.Dropout(dropout_rate)
 
-    def forward(self, x, attn_bias=None, mask=None, batch=1):   #TODO remove batch if not needed
+    def forward(self, x, attn_bias=None, mask=None):
         """
         It is assumed that the mask is 1 where values are to be ignored
         and then 0 where there are valid data
         """
-        # print('enin****', x.size())
-        # x, _ = to_dense_batch(x, batch) 
-        # mask, _ = to_dense_batch(mask, batch)
-
-        # print('enc***', x[~mask].min(), x[~mask].max())
-        # print('enc***', x.size())
-
-        # print('-----')
-        # print(x.size())
-        # print(mask.size(), attn_bias.size(), batch)
-        # print(mask.sum(axis=1))
-        # print((x[1:2,:,:] < -1e7).sum(axis=(1,2)))
-        # print(x.min(), x.max())
-        # print('vvvvv', x[~mask].size(), x[~mask].min(), x[~mask].max())
-        # print((attn_bias[2:3,2:3,:,:]).sum(axis=2))
-        # print((attn_bias[2:3,2:3,:,:]).sum(axis=3))
-        # print(mask.sum())
-        # print('>>>', x[~mask].min(), x[~mask].max(), '-', x.min(), x.max())
 
         y = x
         y[~mask] = self.self_attention_norm(x[~mask])
@@ -349,6 +318,5 @@ class EncoderLayer(nn.Module):
         y = self.ffn(y)
         y = self.ffn_dropout(y)
         x = x + y
-        # x=x.flatten(0,1)
 
         return x
