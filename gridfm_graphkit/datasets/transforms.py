@@ -16,6 +16,7 @@ from torch_geometric.utils import (
 )
 
 import numpy as np
+import os
 import pyximport
 pyximport.install(setup_args={'include_dirs': np.get_include()})
 import gridfm_graphkit.models.algos as algos
@@ -113,7 +114,15 @@ def get_edge_encoding(edge_attr, N, edge_index, max_dist, path):
     attn_edge_type = torch.zeros([N, N, edge_attr.size(-1)], dtype=torch.long)
     attn_edge_type[edge_index[0, :], edge_index[1, :]
                     ] = convert_to_single_emb(edge_attr.long()) + 1
-    edge_input = algos.gen_edge_input(max_dist, path, attn_edge_type.numpy())
+    if os.name == 'nt':
+        edge_input = algos.gen_edge_input(
+                    max_dist, 
+                    path, 
+                    attn_edge_type.numpy(),
+                    localtype=np.int32
+                    )
+    else:
+        edge_input = algos.gen_edge_input(max_dist, path, attn_edge_type.numpy())
 
     return attn_edge_type, torch.from_numpy(edge_input).long()
 
@@ -138,7 +147,18 @@ def preprocess_item(data, max_hops):
 
     # get shortest paths in number of hops (shortest_path_result) and intermediate nodes
     # for those shortest paths (path)
-    shortest_path_result, path = algos.floyd_warshall(adj.numpy().astype(np.int32), max_hops)
+    if os.name == 'nt':
+        shortest_path_result, path = algos.floyd_warshall(
+                        adj.numpy().astype(np.int32), 
+                        max_hops, 
+                        localtype=np.int32
+                        )
+    else:
+        shortest_path_result, path = algos.floyd_warshall(
+                        adj.numpy().astype(np.int32), 
+                        max_hops
+                        )
+
     spatial_pos = torch.from_numpy((shortest_path_result)).long().to(data.x.device)
     attn_bias = torch.zeros([N, N], dtype=torch.float).to(data.x.device) 
 
