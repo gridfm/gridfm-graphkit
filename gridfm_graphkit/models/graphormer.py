@@ -7,7 +7,7 @@ import pytorch_lightning as pl
 
 from torch.nn import functional as F
 
-
+from torch_geometric.utils import to_dense_batch
 
 
 @MODELS_REGISTRY.register("Graphormer")
@@ -117,7 +117,7 @@ class Graphormer(nn.Module):
         return graph_node_feature, graph_attn_bias
 
 
-    def encoder(self, graph_node_feature, graph_attn_bias):
+    def encoder(self, graph_node_feature, graph_attn_bias, batch=1):
 
         graph_node_feature_masked = graph_node_feature
         graph_attn_bias_masked = graph_attn_bias
@@ -125,7 +125,7 @@ class Graphormer(nn.Module):
         # transfomrer encoder
         output = self.input_dropout(graph_node_feature_masked)
         for enc_layer in self.encoder_layers:
-            output = enc_layer(output, graph_attn_bias_masked)
+            output = enc_layer(output, graph_attn_bias_masked, batch=batch)
         output = self.encoder_final_ln(output)
         return output
 
@@ -137,7 +137,7 @@ class Graphormer(nn.Module):
         mask: incoming values to mask for prediction
         """
         print('batch', data)
-        print(x.size())
+        print(x.size(), batched_data)
 
         # TODO note that the x, pe are redundant or not needed, so clean up at the end
 
@@ -145,8 +145,8 @@ class Graphormer(nn.Module):
         # a normalization before being concatenated to the features, follow this in final version
         
         graph_node_feature, graph_attn_bias = self.compute_pos_embeddings(data)
-        print('gnodes********', graph_node_feature.size(), graph_attn_bias.size())
-        output = self.encoder(graph_node_feature, graph_attn_bias)
+        # print('gnodes********', graph_node_feature.size(), graph_attn_bias.size())
+        output = self.encoder(graph_node_feature, graph_attn_bias, batch=batched_data)
         output = self.decoder(output)
 
         return output
@@ -250,15 +250,19 @@ class EncoderLayer(nn.Module):
         self.ffn = FeedForwardNetwork(hidden_size, ffn_size, dropout_rate)
         self.ffn_dropout = nn.Dropout(dropout_rate)
 
-    def forward(self, x, attn_bias=None, mask=None):
+    def forward(self, x, attn_bias=None, mask=None, batch=1):
         """
         It is assumed that the mask is 1 where values are to be ignored
         and then 0 where there are valid data
         """
         y = self.self_attention_norm(x)
-        y = self.self_attention(y, y, y, attn_bias, mask)
+        # print(y.size(), attn_bias.size(), batch)
+        y, mask = to_dense_batch(y, batch)
+        # print('dense>>>', y.size(), mask.size())
+        # print('msum>>>', mask.sum(dim=-1))
+        y = self.self_attention(y, y, y, attn_bias, ~mask)
         y = self.self_attention_dropout(y)
-        x = x + y
+        x = x + torch.reshape(y, x.size())
 
         y = self.ffn_norm(x)
         y = self.ffn(y)
