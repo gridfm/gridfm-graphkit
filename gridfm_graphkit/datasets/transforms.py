@@ -103,10 +103,12 @@ def add_node_attr(data: Data,
 
 def convert_to_single_emb(x, offset=512):
     """
-    The edge feature embedding range is set to start at 512 to accomodate
-    negative branch feature values in PF data.
+    The edge feature embedding range is set to 512, with the futher assumption
+    that the input range is from -512 to 512. This may need to change in the future.
     """
-    x = torch.clamp(x, 0, 512)
+    x = torch.clamp(x, -512, 512)
+    x = ( 512*(x+512)/1024 ).long()
+
     feature_num = x.size(1) if len(x.size()) > 1 else 1
     feature_offset = 1 + \
         torch.arange(
@@ -114,11 +116,10 @@ def convert_to_single_emb(x, offset=512):
                 (feature_num) * offset, 
                 offset,
                  dtype=torch.long
-                 )  # start range at offset to accomodate -ve values TODO finalize
-        # torch.arange(offset, (feature_num + 1) * offset, offset, dtype=torch.long)
-        
+                 )
+
     x = x + feature_offset
-    
+     
     return x
 
 def get_edge_encoding(edge_attr, N, edge_index, max_dist, path):
