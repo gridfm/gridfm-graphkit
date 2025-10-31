@@ -32,7 +32,7 @@ class Graphormer(nn.Module):
         learn_mask (bool, optional): Whether to learn mask values as parameters. From ``args.data.learn_mask``. Defaults to False.
         edge_type (string, optional): Type of edge to consider multi_hop or not. From ``args.data.edge_type``. Defaults to multi_hop.
         multi_hop_max_dist (int, optional): Maximum number of hops to consider at edges. From ``args.data.multi_hop_max_dist``. Defaults to 20.
-
+        max_node_num (int, optional): Maximum number of node in the input graphs. From ``args.data.max_node_num``. Defaults to 24.
     """
     def __init__(self, args):
         super().__init__()
@@ -83,7 +83,6 @@ class Graphormer(nn.Module):
             nn.LayerNorm(self.hidden_dim),
             nn.Linear(self.hidden_dim, self.output_dim)
         )
-
         
         # for positional embeddings
         self.spatial_pos_encoder = nn.Embedding(
@@ -95,7 +94,6 @@ class Graphormer(nn.Module):
         if self.n_edge_features is not None:
             self.edge_encoder = nn.Embedding(
                 512 * self.n_edge_features + 1, self.num_heads, padding_idx=0)
-            #    1024, self.num_heads, padding_idx=0)
         if self.edge_type == 'multi_hop':
             self.edge_dis_encoder = nn.Embedding(
                 128 * self.num_heads * self.num_heads, 1)       
@@ -107,6 +105,7 @@ class Graphormer(nn.Module):
 
         Args:
             data (Data): Pytorch geometric Data/Batch object
+            x (Tensor): The node feature tensor from data
 
         Returns:
             graph_node_feature (Tensor): data.x with positional encoding appended.
