@@ -88,14 +88,12 @@ class AddNormalizedRandomWalkPE(BaseTransform):
 
         return data
 
-def add_node_attr(data: Data, value: Any,
-                  attr_name: Optional[str] = None) -> Data:
+def add_node_attr(data: Data, 
+                    value: Any,
+                    attr_name: Optional[str] = None
+                    ) -> Data:
     if attr_name is None:
-        if 'x' in data:
-            x = data.x.view(-1, 1) if data.x.dim() == 1 else data.x
-            data.x = torch.cat([x, value.to(x.device, x.dtype)], dim=-1)
-        else:
-            data.x = value
+        raise ValueError("Expected attr_name to be not None")
     else:
         data[attr_name] = value
 
@@ -165,7 +163,7 @@ def pad_2d_unsqueeze(x, padlen):
     if xlen < padlen:
         new_x = x.new_zeros([padlen, xdim], dtype=x.dtype)
         new_x[:,:] = -1e9
-        new_x[:xlen, :] = x
+        new_x[:xlen, :] = x # TODO verify this step as well with x shape
         x = new_x
     return x.unsqueeze(0)
 
@@ -175,7 +173,7 @@ def pad_attn_bias_unsqueeze(x, padlen):
         new_x = x.new_zeros(
             [padlen, padlen], dtype=x.dtype).fill_(float('-inf'))   
         new_x[:xlen, :xlen] = x
-        new_x[xlen:, :xlen] = 0 
+        new_x[xlen:, :xlen] = 0     # TODO verify this step
         x = new_x
     return x.unsqueeze(0)
 
