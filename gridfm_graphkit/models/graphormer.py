@@ -48,7 +48,7 @@ class Graphormer(nn.Module):
         self.mask_value = getattr(args.data, "mask_value", -1.0)
         self.learn_mask = getattr(args.data, "learn_mask", False)
         self.edge_type = getattr(args.model, "edge_type", "multi_hop") 
-        self.multi_hop_max_dist = getattr(args.model, "multi_hop_max_dist", 20) 
+        self.multi_hop_max_dist = getattr(args.data, "max_hops", 20) 
         
         if self.learn_mask:
             self.mask_value = nn.Parameter(

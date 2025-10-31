@@ -56,6 +56,7 @@ class GridDatasetDisk(Dataset):
         if args.add_graphormer_encoding:
             self.add_graphormer_encoding = args.add_graphormer_encoding
             self.max_node_num = args.max_node_num
+            self.max_hops = args.max_hops
 
         super().__init__(root, transform, pre_transform, pre_filter)
 
@@ -218,7 +219,10 @@ class GridDatasetDisk(Dataset):
             data = self.transform(data)
 
         if self.add_graphormer_encoding:
-            gr_transform = AddGraphormerEncodings(self.max_node_num)
+            gr_transform = AddGraphormerEncodings(
+                                        self.max_node_num,
+                                        self.max_hops
+                                        )
             data = gr_transform(data)
 
         return data
