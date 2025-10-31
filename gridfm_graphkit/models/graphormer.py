@@ -15,45 +15,48 @@ from torch_geometric.utils import to_dense_batch
 @MODELS_REGISTRY.register("Graphormer")
 class Graphormer(nn.Module):
     """
-    TODO fill in description
+    A Graph Transformer model based on the Graphormer architecture
+
+    This model directly modifies the attention between nodes based on
+    its graph encodings. This requires padding the input nodes and propogating
+    the associated mask as needed.
+
+    Args:
+        args (NestedNamespace): Parameters
+
+    Attributes:
+        input_dim (int): Dimension of input node features. From ``args.model.input_dim``.
+        hidden_size (int): Hidden dimension size for all layers. From ``args.model.hidden_size``.
+        output_dim (int): Dimension of the output node features. From ``args.model.output_dim``.
+        edge_dim (int): Dimension of edge features. From ``args.model.edge_dim``.
+        pe_dim (int): Dimension of the positional encoding. Must be less than ``hidden_dim``. From ``args.model.pe_dim``.
+        num_layers (int): Number of GPSConv layers. From ``args.model.num_layers``.
+        heads (int, optional): Number of attention heads in GPSConv. From ``args.model.attention_head``. Defaults to 1.
+        dropout (float, optional): Dropout rate in GPSConv. From ``args.model.dropout``. Defaults to 0.0.
+        mask_dim (int, optional): Dimension of the mask vector. From ``args.data.mask_dim``. Defaults to 6.
+        mask_value (float, optional): Initial value for learnable mask parameters. From ``args.data.mask_value``. Defaults to -1.0.
+        learn_mask (bool, optional): Whether to learn mask values as parameters. From ``args.data.learn_mask``. Defaults to True.
+
     """
-    def __init__(
-        self,
-        # n_encoder_layers,
-        # n_decoder_layers,
-        # num_heads,
-        # hidden_dim,
-        # dropout_rate,
-        # intput_dropout_rate,
-        # weight_decay,
-        # ffn_dim,
-        # dataset_name,
-        # warmup_updates,
-        # tot_updates,
-        # peak_lr,
-        # end_lr,
-        # attention_dropout_rate,
-        # n_node_features,
-        # mask_ratio,
-        # n_val_sampler,
-        args
-    ):
+    def __init__(self, args):
         super().__init__()
 
         self.n_node_features = args.model.input_dim
-        self.num_heads = 8  # TODO make this configurable or to match their structure
         self.hidden_dim = args.model.hidden_size
+        self.output_dim = args.model.output_dim
         self.n_encoder_layers = args.model.num_layers
-        intput_dropout_rate = 0.3
-        dropout_rate = 0.3
+        self.num_heads = args.model.attention_head
+        
+        # TODO move these to config or calculate
+        self.dropout = getattr(args.model, "dropout", 0.0)  # TODO propagate
         attention_dropout_rate = 0.3
 
         # variables flown over from GPS TODO check
         self.mask_dim = getattr(args.data, "mask_dim", 6)
         self.mask_value = getattr(args.data, "mask_value", -1.0)
         self.learn_mask = getattr(args.data, "learn_mask", True)
-        self.output_dim = args.model.output_dim
-
+        
+        # TODO verify function of mask
         if self.learn_mask:
             self.mask_value = nn.Parameter(
                 torch.randn(self.mask_dim) + self.mask_value,
@@ -66,13 +69,12 @@ class Graphormer(nn.Module):
             )
 
         self.input_proj = nn.Linear(self.n_node_features, self.hidden_dim)
-        self.input_dropout = nn.Dropout(intput_dropout_rate)
+        self.input_dropout = nn.Dropout(self.dropout)
         encoders = [
                 EncoderLayer(
                         self.hidden_dim, 
                         self.hidden_dim, 
-                        dropout_rate, 
-                        attention_dropout_rate, 
+                        self.dropout, 
                         self.num_heads
                         )
                     for _ in range(self.n_encoder_layers)
@@ -279,12 +281,12 @@ class MultiHeadAttention(nn.Module):
 
 
 class EncoderLayer(nn.Module):
-    def __init__(self, hidden_size, ffn_size, dropout_rate, attention_dropout_rate, num_heads):
+    def __init__(self, hidden_size, ffn_size, dropout_rate, num_heads):
         super(EncoderLayer, self).__init__()
 
         self.self_attention_norm = nn.LayerNorm(hidden_size)
         self.self_attention = MultiHeadAttention(
-            hidden_size, attention_dropout_rate, num_heads)
+            hidden_size, dropout_rate, num_heads)
         self.self_attention_dropout = nn.Dropout(dropout_rate)
 
         self.ffn_norm = nn.LayerNorm(hidden_size)

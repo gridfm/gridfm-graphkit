@@ -121,9 +121,7 @@ class GPSTransformer(nn.Module):
         """
         x_pe = self.pe_norm(pe)
 
-        # print('enc>>>', x.size())   # TODO remove
         x = self.encoder(x)
-        # print('post>>>', x.size())  # TODO remove
         x = self.input_norm(x)
 
         x = torch.cat((x, x_pe), 1)
