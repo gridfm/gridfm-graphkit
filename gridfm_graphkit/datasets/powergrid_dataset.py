@@ -53,10 +53,12 @@ class GridDatasetDisk(Dataset):
         self.mask_dim = mask_dim
         self.length = None
 
-        if args.add_graphormer_encoding:
+        if ("add_graphormer_encoding" in args) and args.add_graphormer_encoding:
             self.add_graphormer_encoding = args.add_graphormer_encoding
             self.max_node_num = args.max_node_num
             self.max_hops = args.max_hops
+        else:
+            self.add_graphormer_encoding = False
 
         super().__init__(root, transform, pre_transform, pre_filter)
 

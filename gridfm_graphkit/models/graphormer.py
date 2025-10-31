@@ -92,7 +92,7 @@ class Graphormer(nn.Module):
             512, self.hidden_dim, padding_idx=0)
         if self.n_edge_features is not None:
             self.edge_encoder = nn.Embedding(
-                512 * self.n_edge_features + 1, self.num_heads, padding_idx=0)
+                512 * (self.n_edge_features+1) + 1, self.num_heads, padding_idx=0)
         if self.edge_type == 'multi_hop':
             self.edge_dis_encoder = nn.Embedding(
                 128 * self.num_heads * self.num_heads, 1)       
