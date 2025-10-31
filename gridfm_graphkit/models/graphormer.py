@@ -152,15 +152,15 @@ class Graphormer(nn.Module):
         return graph_node_feature, graph_attn_bias
 
 
-    def encoder(self, graph_node_feature, graph_attn_bias, batch=1):
+    def encoder(self, graph_node_feature, graph_attn_bias, mask=None, batch=1):
 
-        graph_node_feature_masked = graph_node_feature
+        graph_node_feature_masked = graph_node_feature  #TODO simplify this
         graph_attn_bias_masked = graph_attn_bias
 
         # transfomrer encoder
         output = self.input_dropout(graph_node_feature_masked)
         for enc_layer in self.encoder_layers:
-            output = enc_layer(output, graph_attn_bias_masked, batch=batch)
+            output = enc_layer(output, graph_attn_bias_masked, mask=mask, batch=batch)
         output = self.encoder_final_ln(output)
         return output
 
@@ -175,6 +175,11 @@ class Graphormer(nn.Module):
         # print(x.size(), batched_data)
         # print(data.attn_bias.size(), data.spatial_pos.size())
 
+        mask = None
+        masked_entries = torch.sum(x < -100, axis=-1)  #TODO make this mesh with normalizn
+        mask = masked_entries == x.size(-1)
+        print('pad mask >>>', mask.size(), mask.sum())
+
         # TODO note that the x, pe are redundant or not needed, so clean up at the end
 
         # TODO in the baseline code the PE is an input here and passes through
@@ -182,7 +187,7 @@ class Graphormer(nn.Module):
         
         graph_node_feature, graph_attn_bias = self.compute_pos_embeddings(data, batched_data)
         # print('gnodes********', graph_node_feature.size(), graph_attn_bias.size())
-        output = self.encoder(graph_node_feature, graph_attn_bias, batch=batched_data)
+        output = self.encoder(graph_node_feature, graph_attn_bias, mask=mask, batch=batched_data)
         output = self.decoder(output)
 
         return output
@@ -291,8 +296,10 @@ class EncoderLayer(nn.Module):
         It is assumed that the mask is 1 where values are to be ignored
         and then 0 where there are valid data
         """
+
         # print('xxxxxxxxxxxxx', x.size(), batch.size())
-        x, mask = to_dense_batch(x, batch)
+        x, bmask = to_dense_batch(x, batch) # TODO remove bmask if padding remains in final
+        mask, _ = to_dense_batch(mask, batch)
 
         y = self.self_attention_norm(x)
         # print(y.size(), attn_bias.size(), batch)
@@ -300,9 +307,10 @@ class EncoderLayer(nn.Module):
         attn_bias = attn_bias.squeeze()
         # attn_bias = attn_bias.permute(1, 2, 0)
         # attn_bias, maska = to_dense_batch(attn_bias, batch)
-        # print('dense>>>', y.size(), mask.size(), attn_bias.size())
-        # print('msum>>>', mask.sum(dim=-1), )
-        y = self.self_attention(y, y, y, attn_bias, ~mask)
+        # print('dense>>>', y.size(), bmask.size(), attn_bias.size())
+        # print('msum>>>', bmask.sum(dim=-1), )
+        # print('msum2>>', mask.size(),mask.sum(dim=-1))
+        y = self.self_attention(y, y, y, attn_bias, mask)
         y = self.self_attention_dropout(y)
         # print('<<<<<>>>>', x.size(), y.size())
         x = x + torch.reshape(y, x.size())
