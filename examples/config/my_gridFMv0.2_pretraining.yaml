@@ -1,0 +1,56 @@
+callbacks:
+  patience: 100
+  tol: 0
+data:
+  baseMVA: 100
+  learn_mask: false
+  mask_dim: 6
+  mask_ratio: 0.5
+  mask_type: rnd
+  mask_value: -1.0
+  networks:
+  # - Texas2k_case1_2016summerpeak
+  - case24_ieee_rts
+  - case118_ieee
+  - case300_ieee
+  normalization: baseMVAnorm
+  scenarios:
+  - 5000
+  - 5000
+  - 5000
+  test_ratio: 0.1
+  val_ratio: 0.1
+  workers: 4
+  add_graphormer_encoding: true
+  max_node_num: 300 # necessary for Graphormer
+  max_hops: 6 # for the edge encoding, should match 
+  edge_type: multi_hop # singlehop
+model:
+  attention_head: 8
+  dropout: 0.1
+  edge_dim: 2
+  hidden_size: 123
+  input_dim: 9
+  num_layers: 14
+  output_dim: 6
+  pe_dim: 20
+  type: Graphormer  #GPSTransformer  #
+optimizer:
+  beta1: 0.9
+  beta2: 0.999
+  learning_rate: 0.0001
+  lr_decay: 0.7
+  lr_patience: 10
+seed: 0
+training:
+  batch_size: 8
+  epochs: 500
+  loss_weights:
+  - 0.01
+  - 0.99
+  losses:
+  - MaskedMSE
+  - PBE
+  accelerator: auto
+  devices: auto
+  strategy: auto
