@@ -9,6 +9,8 @@ from torch.nn import functional as F
 
 from torch_geometric.utils import to_dense_batch
 
+from gridfm_graphkit.datasets.transforms import AddGraphormerEncodings
+
 
 @MODELS_REGISTRY.register("Graphormer")
 class Graphormer(nn.Module):
@@ -95,16 +97,48 @@ class Graphormer(nn.Module):
         # self.loss_fn = F.mse_loss # TODO remove eventually as they are specd elsewhere
         # self.masking_value = -4
 
-    def compute_pos_embeddings(self, batched_data):
+    def compute_pos_embeddings(self, batched_data, batch):
         attn_bias, spatial_pos, x = batched_data.attn_bias, batched_data.spatial_pos, batched_data.x
         in_degree, out_degree = batched_data.in_degree, batched_data.in_degree
+
+        # gr_transform = AddGraphormerEncodings(
+        #         attr_name="gr",
+        #     )
+        # batched_data = gr_transform(batched_data)
+        # attn_bias, spatial_pos, x = batched_data.attn_bias, batched_data.spatial_pos, batched_data.x
+        # in_degree, out_degree = batched_data.in_degree, batched_data.in_degree
+        
+        
+        # print('--->', attn_bias.size(), attn_bias.device, batch.size())
+
+        # yy0, mask = to_dense_batch(attn_bias, batch=batch, max_num_nodes=2000, batch_size=8)
+        # yy1, mask = to_dense_batch(spatial_pos, batch=batch, max_num_nodes=2000, batch_size=8)
+
+        # attn_bias = yy0
+        # spatial_pos = yy1
+
+        # print('yyyyyy', yy0.size(), yy1.size(), x.size())
+
+        # attn_bias = attn_bias.reshape(8,-1)
+        # spatial_pos = spatial_pos.reshape(8,-1)
+        # print('-----', attn_bias.size(), spatial_pos.size(), x.size())
+        # odim = int(torch.sqrt(torch.as_tensor(attn_bias.size(-1))).item())
+        # print('oooo', odim)
+        # attn_bias = attn_bias.reshape(-1,odim,odim)
+        # spatial_pos = spatial_pos.reshape(-1,odim,odim)
+        # print('-----', attn_bias.size(), spatial_pos.size(), x.size())
+        
         # graph_attn_bias
         graph_attn_bias = attn_bias.clone()
         graph_attn_bias = graph_attn_bias.unsqueeze(1).repeat(
             1, self.num_heads, 1, 1)  # [n_graph, n_head, n_node, n_node]
+        # print('aaaaaaaaaa', graph_attn_bias.size(), graph_attn_bias.device)
+
         # spatial pos
         # [n_graph, n_node, n_node, n_head] -> [n_graph, n_head, n_node, n_node]
         spatial_pos_bias = self.spatial_pos_encoder(spatial_pos).permute(0, 3, 1, 2)
+        # print('sssssssssss', spatial_pos_bias.size(), spatial_pos_bias.device)
+
         graph_attn_bias = graph_attn_bias + spatial_pos_bias
         graph_attn_bias = graph_attn_bias + attn_bias.unsqueeze(1)  # reset
 
@@ -137,16 +171,16 @@ class Graphormer(nn.Module):
 
         mask: incoming values to mask for prediction
         """
-        print('***batch***', data)
-        print(x.size(), batched_data)
-        print(batched_data.attn_bias.size(), batched_data.spatial_pos.size())
+        # print('***batch***', data)
+        # print(x.size(), batched_data)
+        # print(data.attn_bias.size(), data.spatial_pos.size())
 
         # TODO note that the x, pe are redundant or not needed, so clean up at the end
 
         # TODO in the baseline code the PE is an input here and passes through
         # a normalization before being concatenated to the features, follow this in final version
         
-        graph_node_feature, graph_attn_bias = self.compute_pos_embeddings(data)
+        graph_node_feature, graph_attn_bias = self.compute_pos_embeddings(data, batched_data)
         # print('gnodes********', graph_node_feature.size(), graph_attn_bias.size())
         output = self.encoder(graph_node_feature, graph_attn_bias, batch=batched_data)
         output = self.decoder(output)
@@ -257,17 +291,26 @@ class EncoderLayer(nn.Module):
         It is assumed that the mask is 1 where values are to be ignored
         and then 0 where there are valid data
         """
+        # print('xxxxxxxxxxxxx', x.size(), batch.size())
+        x, mask = to_dense_batch(x, batch)
+
         y = self.self_attention_norm(x)
         # print(y.size(), attn_bias.size(), batch)
-        y, mask = to_dense_batch(y, batch)
-        # print('dense>>>', y.size(), mask.size())
-        # print('msum>>>', mask.sum(dim=-1))
+        
+        attn_bias = attn_bias.squeeze()
+        # attn_bias = attn_bias.permute(1, 2, 0)
+        # attn_bias, maska = to_dense_batch(attn_bias, batch)
+        # print('dense>>>', y.size(), mask.size(), attn_bias.size())
+        # print('msum>>>', mask.sum(dim=-1), )
         y = self.self_attention(y, y, y, attn_bias, ~mask)
         y = self.self_attention_dropout(y)
+        # print('<<<<<>>>>', x.size(), y.size())
         x = x + torch.reshape(y, x.size())
 
         y = self.ffn_norm(x)
         y = self.ffn(y)
         y = self.ffn_dropout(y)
         x = x + y
+        x=x.flatten(0,1)
+        # print('222222222222222', x.size())
         return x

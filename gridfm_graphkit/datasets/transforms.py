@@ -4,7 +4,7 @@ from gridfm_graphkit.io.registries import MASKING_REGISTRY
 import torch
 from torch import Tensor
 from torch_geometric.transforms import BaseTransform
-from typing import Optional
+from typing import Optional, Any
 import torch_geometric.typing
 from torch_geometric.data import Data
 from torch_geometric.utils import (
@@ -91,15 +91,28 @@ class AddNormalizedRandomWalkPE(BaseTransform):
 
         return data
 
+def add_node_attr(data: Data, value: Any,
+                  attr_name: Optional[str] = None) -> Data:
+    if attr_name is None:
+        if 'x' in data:
+            x = data.x.view(-1, 1) if data.x.dim() == 1 else data.x
+            data.x = torch.cat([x, value.to(x.device, x.dtype)], dim=-1)
+        else:
+            data.x = value
+    else:
+        data[attr_name] = value
+
+    return data
+
 def preprocess_item(data):
     """
     TODO fill in header for the function
     """
     edge_index = data.edge_index
     N = data.num_nodes
-    edge_adj = torch.sparse.FloatTensor(
+    edge_adj = torch.sparse_coo_tensor(
                                     edge_index,
-                                    torch.ones(edge_index.shape[1]),
+                                    torch.ones(edge_index.shape[1]).to(data.x.device),
                                     [N, N]
                                     )
 
@@ -114,12 +127,53 @@ def preprocess_item(data):
     # TODO the output of fw is integer number of hops in n x n, review if need to norm etc.
     # print('sp>>>', shortest_path_result)
     # print(shortest_path_result.shape)
-    spatial_pos = torch.from_numpy((shortest_path_result)).long()
-    attn_bias = torch.zeros([N, N], dtype=torch.float)  # TODO verifie is updated
+    spatial_pos = torch.from_numpy((shortest_path_result)).long().to(data.x.device)
+    attn_bias = torch.zeros([N, N], dtype=torch.float).to(data.x.device)  # TODO verifie is updated
 
     in_degree = adj.long().sum(dim=1).view(-1)
     out_degree = adj.long().sum(dim=0).view(-1)
     return attn_bias, spatial_pos, in_degree, out_degree
+
+def pad_1d_unsqueeze(x, padlen):
+    x = x + 1  # pad id = 0
+    xlen = x.size(0)
+    if xlen < padlen:
+        new_x = x.new_zeros([padlen], dtype=x.dtype)
+        new_x[:xlen] = x
+        x = new_x
+    return x.unsqueeze(0)
+
+
+def pad_2d_unsqueeze(x, padlen):
+    x = x + 1  # pad id = 0
+    # print('-------->', x.size())
+    xlen, xdim = x.size()
+    if xlen < padlen:
+        new_x = x.new_zeros([padlen, xdim], dtype=x.dtype)
+        new_x[:xlen, :] = x
+        x = new_x
+    return x.unsqueeze(0)
+
+
+def pad_attn_bias_unsqueeze(x, padlen):
+    xlen = x.size(0)
+    if xlen < padlen:
+        new_x = x.new_zeros(
+            [padlen, padlen], dtype=x.dtype).fill_(float('-inf'))
+        new_x[:xlen, :xlen] = x
+        new_x[xlen:, :xlen] = 0
+        x = new_x
+    return x.unsqueeze(0)
+
+
+def pad_spatial_pos_unsqueeze(x, padlen):
+    x = x + 1
+    xlen = x.size(0)
+    if xlen < padlen:
+        new_x = x.new_zeros([padlen, padlen], dtype=x.dtype)
+        new_x[:xlen, :xlen] = x
+        x = new_x
+    return x.unsqueeze(0)
 
 class AddGraphormerEncodings(BaseTransform):
     """
@@ -144,10 +198,26 @@ class AddGraphormerEncodings(BaseTransform):
         attn_bias, spatial_pos, in_degree, out_degree = preprocess_item(data)
 
         # data[self.attr_name] = pe
-        # print('******', attn_bias.size(), spatial_pos.size(), in_degree.size())
-        data['attn_bias'] = attn_bias.flatten()
-        data['spatial_pos'] = spatial_pos.flatten()
-        data['in_degree'] = in_degree   # assume undirected ie in == out
+        # print('******>>', attn_bias.size(), spatial_pos.size(), in_degree.size())
+        # print(data)
+        # data[] = attn_bias.unsqueeze(0)   #.flatten()
+        # data[] = spatial_pos.unsqueeze(0)   #.flatten()
+        # data[] = in_degree   # assume undirected ie in == out
+        # data['nodeslice'] = torch.from_numpy(np.array([N]))
+
+        max_node_num = 2000
+        attn_bias = pad_attn_bias_unsqueeze(attn_bias, max_node_num)
+        spatial_pos = pad_spatial_pos_unsqueeze(spatial_pos, max_node_num)
+        in_degree = pad_1d_unsqueeze(in_degree, max_node_num).squeeze()
+ 
+        data = add_node_attr(data, attn_bias, attr_name='attn_bias')
+        data = add_node_attr(data, spatial_pos, attr_name='spatial_pos')
+        data = add_node_attr(data, in_degree, attr_name='in_degree')
+
+        data.x = pad_2d_unsqueeze(data.x, max_node_num).squeeze()
+        data.y = pad_2d_unsqueeze(data.y, max_node_num).squeeze()
+
+        # print(data)
         # data['out_degree'] = out_degree.unsqueeze(0)
 
         return data

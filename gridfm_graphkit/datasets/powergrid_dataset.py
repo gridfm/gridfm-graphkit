@@ -201,6 +201,11 @@ class GridDatasetDisk(Dataset):
             self.length = len(files)
         return self.length
 
+    def __cat_dim__(self, key, value, *args, **kwargs):
+        if key in ['attn_bias', 'spatial_pos', 'in_degree']:
+            return None
+        return super().__cat_dim__(key, value, *args, **kwargs)
+    
     def get(self, idx):
         file_name = osp.join(
             self.processed_dir,
