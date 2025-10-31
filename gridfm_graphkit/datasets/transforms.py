@@ -101,7 +101,15 @@ def add_node_attr(data: Data, value: Any,
 
     return data
 
-def get_edge_encoding(edge_attr):
+# TODO verify how this meshes with the node features, as compared to orig version
+def convert_to_single_emb(x, offset=512):
+    feature_num = x.size(1) if len(x.size()) > 1 else 1
+    feature_offset = 1 + \
+        torch.arange(0, feature_num * offset, offset, dtype=torch.long)
+    x = x + feature_offset
+    return x
+
+def get_edge_encoding(edge_attr, N, edge_index, max_dist, path):
     if len(edge_attr.size()) == 1:
             edge_attr = edge_attr[:, None]
     attn_edge_type = torch.zeros([N, N, edge_attr.size(-1)], dtype=torch.long)
@@ -131,7 +139,8 @@ def preprocess_item(data):
     attn_bias = torch.zeros([N, N], dtype=torch.float).to(data.x.device)  # TODO verifie is updated
 
     if edge_attr is not None:
-        attn_edge_type, edge_input = get_edge_encoding(edge_attr)
+        max_dist = np.amax(shortest_path_result)
+        attn_edge_type, edge_input = get_edge_encoding(edge_attr, N, edge_index, max_dist, path)
     else:
         edge_input = None
         attn_edge_type = None
@@ -161,7 +170,17 @@ def pad_attn_bias_unsqueeze(x, padlen):
     xlen = x.size(0)
     if xlen < padlen:
         new_x = x.new_zeros(
-            [padlen, padlen], dtype=x.dtype).fill_(float('-inf'))
+            [padlen, padlen], dtype=x.dtype).fill_(float('-inf'))   # TODO verify if masking is needed given this is at -inf...
+        new_x[:xlen, :xlen] = x
+        new_x[xlen:, :xlen] = 0 # TODO verify if masking is needed given this is at -inf...
+        x = new_x
+    return x.unsqueeze(0)
+
+def pad_edge_bias_unsqueeze(x, padlen):
+    xlen = x.size(0)
+    if xlen < padlen:
+        new_x = x.new_zeros(
+            (padlen, padlen) + x.size()[-2:], dtype=x.dtype).fill_(int(0))
         new_x[:xlen, :xlen] = x
         new_x[xlen:, :xlen] = 0
         x = new_x
@@ -197,20 +216,16 @@ class AddGraphormerEncodings(BaseTransform):
             raise ValueError("Expected data.num_nodes to be not None")
 
         attn_bias, spatial_pos, in_degree, out_degree, attn_edge_type, edge_input = preprocess_item(data)
-
         attn_bias = pad_attn_bias_unsqueeze(attn_bias, self.max_node_num)
         spatial_pos = pad_spatial_pos_unsqueeze(spatial_pos, self.max_node_num)
         in_degree = pad_1d_unsqueeze(in_degree, self.max_node_num).squeeze()
-        print('eeeeee>', edge_input.size())   # TODO remove
-        edge_input = pad_attn_bias_unsqueeze(edge_input, self.max_node_num) # TODO if using change function name
-        # TODO need to verify padding for attn_edge_type
-        print('etetetet>', attn_edge_type.size())
+        edge_input = pad_edge_bias_unsqueeze(edge_input, self.max_node_num) # TODO if using change function name
  
         data = add_node_attr(data, attn_bias, attr_name='attn_bias')
         data = add_node_attr(data, spatial_pos, attr_name='spatial_pos')
         data = add_node_attr(data, in_degree, attr_name='in_degree')
         data = add_node_attr(data, edge_input, attr_name='edge_input')
-        data = add_node_attr(data, edge_input, attr_name='attn_edge_type')
+        data = add_node_attr(data, attn_edge_type, attr_name='attn_edge_type')
 
         data.x = pad_2d_unsqueeze(data.x, self.max_node_num).squeeze()
         data.y = pad_2d_unsqueeze(data.y, self.max_node_num).squeeze()
