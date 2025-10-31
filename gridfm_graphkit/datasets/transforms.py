@@ -122,13 +122,13 @@ def preprocess_item(data):
     return attn_bias, spatial_pos, in_degree, out_degree
 
 class AddGraphormerEncodings(BaseTransform):
-    """...
+    """
     TODO update with encoding info
     """
 
     def __init__(
         self,
-        attr_name: Optional[str] = "gres",  # TODO remove if not needed
+        attr_name: Optional[str] = "gres"  # TODO remove if not needed
     ) -> None:
         self.attr_name = attr_name
 
@@ -144,8 +144,9 @@ class AddGraphormerEncodings(BaseTransform):
         attn_bias, spatial_pos, in_degree, out_degree = preprocess_item(data)
 
         # data[self.attr_name] = pe
-        data['attn_bias'] = attn_bias.unsqueeze(0)
-        data['spatial_pos'] = spatial_pos.unsqueeze(0)
+        # print('******', attn_bias.size(), spatial_pos.size(), in_degree.size())
+        data['attn_bias'] = attn_bias.flatten()
+        data['spatial_pos'] = spatial_pos.flatten()
         data['in_degree'] = in_degree   # assume undirected ie in == out
         # data['out_degree'] = out_degree.unsqueeze(0)
 
