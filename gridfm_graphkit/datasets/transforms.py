@@ -275,7 +275,7 @@ class AddGraphormerEncodings(BaseTransform):
         data = add_node_attr(data, attn_edge_type, attr_name='attn_edge_type')
 
         data.x = pad_2d_unsqueeze(data.x, self.max_node_num).squeeze()
-        data.y = pad_2d_unsqueeze(data.y, self.max_node_num).squeeze()
+        # data.y = pad_2d_unsqueeze(data.y, self.max_node_num).squeeze()
 
         return data
 

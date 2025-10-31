@@ -112,6 +112,7 @@ class Graphormer(nn.Module):
         """
         attn_bias, spatial_pos, x = data.attn_bias, data.spatial_pos, data.x
         in_degree, out_degree = data.in_degree, data.in_degree
+        print('>>>>', attn_bias.size(), spatial_pos.size(), in_degree.size())
         
         # graph_attn_bias
         graph_attn_bias = attn_bias.clone()
@@ -157,10 +158,9 @@ class Graphormer(nn.Module):
         graph_attn_bias = graph_attn_bias + attn_bias.unsqueeze(1)  # reset
 
         node_feature = self.input_proj(x)
-        node_feature = node_feature + \
+        graph_node_feature = node_feature + \
             self.in_degree_encoder(in_degree) + \
             self.out_degree_encoder(out_degree)
-        graph_node_feature = node_feature
 
         return graph_node_feature, graph_attn_bias
 
@@ -188,12 +188,15 @@ class Graphormer(nn.Module):
         Returns:
             output (Tensor): Output node features of shape [num_nodes, output_dim].
         """
+        print('0***', x.size(), data.y.size())
+        print('<<<', x.min(), x.max())
+        # x, _ = to_dense_batch(x, batch, max_num_nodes=30)
+        # print('1***', x.size())
 
         # identify buffer nodes, and create a mask for them
         # note masking will be done up to feature mask_dim of n_node_features
         masked_entries = torch.sum(x < -1e8, axis=-1)
         mask = masked_entries >= (self.n_node_features - self.mask_dim)  
-
         
         graph_node_feature, graph_attn_bias = self.compute_pos_embeddings(data)
         output = self.encoder(graph_node_feature, graph_attn_bias, mask=mask, batch=batch)
@@ -307,6 +310,18 @@ class EncoderLayer(nn.Module):
         """
         x, _ = to_dense_batch(x, batch) 
         mask, _ = to_dense_batch(mask, batch)
+
+        # print('***', x[~mask].min(), x[~mask].max())
+
+        print('-----')
+        # print(x.size())
+        print(mask.size(), attn_bias.size(), batch)
+        # print(mask.sum(axis=1))
+        # print((x[1:2,:,:] < -1e7).sum(axis=(1,2)))
+        print(x.min(), x.max())
+        # print((attn_bias[2:3,2:3,:,:]).sum(axis=2))
+        # print((attn_bias[2:3,2:3,:,:]).sum(axis=3))
+        # print(mask.sum())
 
         y = self.self_attention_norm(x)
         attn_bias = attn_bias.squeeze()
