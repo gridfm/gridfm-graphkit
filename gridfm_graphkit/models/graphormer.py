@@ -6,12 +6,12 @@ import torch.nn as nn
 import pytorch_lightning as pl
 
 from torch.nn import functional as F
-from losses import active_power_loss
+
 
 
 
 @MODELS_REGISTRY.register("Graphormer")
-class GMAE_node(nn.Module):
+class Graphormer(nn.Module):
     """
     TODO fill in description
     """
@@ -37,34 +37,43 @@ class GMAE_node(nn.Module):
         args
     ):
         super().__init__()
-        self.save_hyperparameters()
+
         self.n_node_features = args.model.input_dim
         self.num_heads = 8  # TODO make this configurable or to match their structure
         self.hidden_dim = args.model.hidden_size
+        self.n_encoder_layers = args.model.num_layers
         intput_dropout_rate = 0.3
         dropout_rate = 0.3
         attention_dropout_rate = 0.3
 
-        self.input_proj = nn.Linear(n_node_features, hidden_dim)
+        self.input_proj = nn.Linear(self.n_node_features, self.hidden_dim)
         self.input_dropout = nn.Dropout(intput_dropout_rate)
-        encoders = [EncoderLayer(hidden_dim, hidden_dim, dropout_rate, attention_dropout_rate, num_heads)
-                    for _ in range(n_encoder_layers)]
+        encoders = [
+                EncoderLayer(
+                        self.hidden_dim, 
+                        self.hidden_dim, 
+                        dropout_rate, 
+                        attention_dropout_rate, 
+                        self.num_heads
+                        )
+                    for _ in range(self.n_encoder_layers)
+                    ]
         self.encoder_layers = nn.ModuleList(encoders)
-        self.encoder_final_ln = nn.LayerNorm(hidden_dim)
+        self.encoder_final_ln = nn.LayerNorm(self.hidden_dim)
 
         self.decoder = nn.Sequential(
-            nn.Linear(hidden_dim, hidden_dim),
+            nn.Linear(self.hidden_dim, self.hidden_dim),
             nn.LeakyReLU(),
-            nn.Linear(hidden_dim, self.n_node_features)
+            nn.Linear(self.hidden_dim, self.n_node_features)
         )
         
 
         # for pos embeddings
-        self.spatial_pos_encoder = nn.Embedding(512, num_heads, padding_idx=0)
+        self.spatial_pos_encoder = nn.Embedding(512, self.num_heads, padding_idx=0)
         self.in_degree_encoder = nn.Embedding(
-            512, hidden_dim, padding_idx=0)
+            512, self.hidden_dim, padding_idx=0)
         self.out_degree_encoder = nn.Embedding(
-            512, hidden_dim, padding_idx=0)
+            512, self.hidden_dim, padding_idx=0)
 
         # self.loss_fn = F.mse_loss # TODO remove eventually as they are specd elsewhere
         # self.masking_value = -4
