@@ -15,7 +15,7 @@ from torch_geometric.utils import (
     to_torch_csr_tensor,
 )
 
-# import numpy as np
+import numpy as np
 # import pyximport
 # pyximport.install(setup_args={'include_dirs': np.get_include()})
 # import gridfm_graphkit.models.algos as algos
@@ -105,14 +105,15 @@ def preprocess_item(data):
 
     adj = edge_adj.to_dense()
 
-    # node adj matrix [N, N] bool
-    adj = adj.bool()
-
+    # TODO replace the placeholder with actual algorithm
+    shortest_path_result = np.ones((N,N))
     # shortest_path_result, path = algos.floyd_warshall(adj.numpy())
-    gg = to_networkx(data)
-    shortest_path_result = floyd_warshall_numpy(gg)
-    print('sp>>>', shortest_path_result)
-    print(shortest_path_result.shape)
+    #gg = to_networkx(data)
+    #shortest_path_result = floyd_warshall_numpy(gg)
+    
+    # TODO the output of fw is integer number of hops in n x n, review if need to norm etc.
+    # print('sp>>>', shortest_path_result)
+    # print(shortest_path_result.shape)
     spatial_pos = torch.from_numpy((shortest_path_result)).long()
     attn_bias = torch.zeros([N, N], dtype=torch.float)  # TODO verifie is updated
 
@@ -143,10 +144,10 @@ class AddGraphormerEncodings(BaseTransform):
         attn_bias, spatial_pos, in_degree, out_degree = preprocess_item(data)
 
         # data[self.attr_name] = pe
-        data['attn_bias'] = attn_bias
-        data['spatial_pos'] = spatial_pos
-        data['in_degree'] = in_degree
-        data['in_degree'] = out_degree
+        data['attn_bias'] = attn_bias.unsqueeze(0)
+        data['spatial_pos'] = spatial_pos.unsqueeze(0)
+        data['in_degree'] = in_degree   # assume undirected ie in == out
+        # data['out_degree'] = out_degree.unsqueeze(0)
 
         return data
 

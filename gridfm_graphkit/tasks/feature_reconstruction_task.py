@@ -74,11 +74,11 @@ class FeatureReconstructionTask(L.LightningModule):
         self.edge_normalizers = edge_normalizers
         self.save_hyperparameters()
 
-    def forward(self, x, pe, edge_index, edge_attr, batch, mask=None):
+    def forward(self, x, pe, edge_index, edge_attr, batch, mask=None, data=None):
         if mask is not None:
             mask_value_expanded = self.model.mask_value.expand(x.shape[0], -1)
             x[:, : mask.shape[1]][mask] = mask_value_expanded[mask]
-        return self.model(x, pe, edge_index, edge_attr, batch)
+        return self.model(x, pe, edge_index, edge_attr, batch, data)
 
     @rank_zero_only
     def on_fit_start(self):
@@ -117,6 +117,7 @@ class FeatureReconstructionTask(L.LightningModule):
             edge_attr=batch.edge_attr,
             batch=batch.batch,
             mask=batch.mask,
+            data=batch
         )
 
         loss_dict = self.loss_fn(
