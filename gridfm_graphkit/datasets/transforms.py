@@ -106,9 +106,17 @@ def convert_to_single_emb(x, offset=512):
     The edge feature embedding range is set to start at 512 to accomodate
     negative branch feature values in PF data.
     """
+    x = torch.clamp(x, 0, 512)
     feature_num = x.size(1) if len(x.size()) > 1 else 1
     feature_offset = 1 + \
-        torch.arange(offset, (feature_num + 1) * offset, offset, dtype=torch.long)
+        torch.arange(
+                0, 
+                (feature_num) * offset, 
+                offset,
+                 dtype=torch.long
+                 )  # start range at offset to accomodate -ve values TODO finalize
+        # torch.arange(offset, (feature_num + 1) * offset, offset, dtype=torch.long)
+        
     x = x + feature_offset
     
     return x
