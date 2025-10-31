@@ -139,7 +139,8 @@ def preprocess_item(data):
     attn_bias = torch.zeros([N, N], dtype=torch.float).to(data.x.device)  # TODO verifie is updated
 
     if edge_attr is not None:
-        max_dist = np.amax(shortest_path_result)
+        max_dist = N    # fix this to allow multiple graphs # np.amax(shortest_path_result)
+        # print('----->', max_dist) # TODO remove
         attn_edge_type, edge_input = get_edge_encoding(edge_attr, N, edge_index, max_dist, path)
     else:
         edge_input = None
@@ -216,11 +217,15 @@ class AddGraphormerEncodings(BaseTransform):
             raise ValueError("Expected data.num_nodes to be not None")
 
         attn_bias, spatial_pos, in_degree, out_degree, attn_edge_type, edge_input = preprocess_item(data)
+        
+        # print('e>E>E>E>>E>E>', attn_edge_type.size(), edge_input.size())
         attn_bias = pad_attn_bias_unsqueeze(attn_bias, self.max_node_num)
         spatial_pos = pad_spatial_pos_unsqueeze(spatial_pos, self.max_node_num)
         in_degree = pad_1d_unsqueeze(in_degree, self.max_node_num).squeeze()
         edge_input = pad_edge_bias_unsqueeze(edge_input, self.max_node_num) # TODO if using change function name
- 
+        # TODO check padding of attn_edge_type, and num steps to sort out batching issue
+        # print('ffe>E>E>E>>E>E>', attn_edge_type.size(), edge_input.size())
+
         data = add_node_attr(data, attn_bias, attr_name='attn_bias')
         data = add_node_attr(data, spatial_pos, attr_name='spatial_pos')
         data = add_node_attr(data, in_degree, attr_name='in_degree')
