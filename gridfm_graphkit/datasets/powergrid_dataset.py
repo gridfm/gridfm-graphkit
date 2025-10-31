@@ -2,6 +2,7 @@ from gridfm_graphkit.datasets.normalizers import Normalizer, BaseMVANormalizer
 from gridfm_graphkit.datasets.transforms import (
     AddEdgeWeights,
     AddNormalizedRandomWalkPE,
+    AddGraphormerEncodings
 )
 
 import os.path as osp
@@ -204,7 +205,13 @@ class GridDatasetDisk(Dataset):
         data = torch.load(file_name, weights_only=False)
         if self.transform:
             data = self.transform(data)
-        # print('data>>>>>>>',data) # TODO remove
+
+        # TODO move this to the pretreatment when validated
+        gr_transform = AddGraphormerEncodings(
+                attr_name="gr",
+            )
+        data = gr_transform(data)
+        print('data>>>>>>>', data) # TODO remove
         return data
 
     def change_transform(self, new_transform):

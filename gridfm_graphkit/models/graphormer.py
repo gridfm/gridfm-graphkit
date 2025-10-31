@@ -1,4 +1,5 @@
 
+from gridfm_graphkit.io.registries import MODELS_REGISTRY
 import torch
 import numpy as np
 import torch.nn as nn
@@ -10,7 +11,7 @@ from losses import active_power_loss
 
 
 @MODELS_REGISTRY.register("Graphormer")
-class GMAE_node(pl.LightningModule):
+class GMAE_node(nn.Module):
     """
     TODO fill in description
     """
@@ -57,8 +58,37 @@ class GMAE_node(pl.LightningModule):
             nn.Linear(hidden_dim, self.n_node_features)
         )
         
+
+        # for pos embeddings
+        self.spatial_pos_encoder = nn.Embedding(512, num_heads, padding_idx=0)
+        self.in_degree_encoder = nn.Embedding(
+            512, hidden_dim, padding_idx=0)
+        self.out_degree_encoder = nn.Embedding(
+            512, hidden_dim, padding_idx=0)
+
         # self.loss_fn = F.mse_loss # TODO remove eventually as they are specd elsewhere
         # self.masking_value = -4
+
+    def compute_pos_embeddings(self, batched_data):
+        attn_bias, spatial_pos, x = batched_data.attn_bias, batched_data.spatial_pos, batched_data.x
+        in_degree, out_degree = batched_data.in_degree, batched_data.in_degree
+        # graph_attn_bias
+        graph_attn_bias = attn_bias.clone()
+        graph_attn_bias = graph_attn_bias.unsqueeze(1).repeat(
+            1, self.num_heads, 1, 1)  # [n_graph, n_head, n_node, n_node]
+        # spatial pos
+        # [n_graph, n_node, n_node, n_head] -> [n_graph, n_head, n_node, n_node]
+        spatial_pos_bias = self.spatial_pos_encoder(spatial_pos).permute(0, 3, 1, 2)
+        graph_attn_bias = graph_attn_bias + spatial_pos_bias
+        graph_attn_bias = graph_attn_bias + attn_bias.unsqueeze(1)  # reset
+
+        node_feature = self.input_proj(x)
+        node_feature = node_feature + \
+            self.in_degree_encoder(in_degree) + \
+            self.out_degree_encoder(out_degree)
+        graph_node_feature = node_feature
+
+        return graph_node_feature, graph_attn_bias
 
 
     def encoder(self, graph_node_feature, graph_attn_bias, mask=None):
@@ -95,8 +125,7 @@ class GMAE_node(pl.LightningModule):
         """
 
         # TODO in the baseline code the PE is an input here and passes through
-        # a normalization before being concatenated to the features
-        
+        # a normalization before being concatenated to the features, follow this in final version
         
         graph_node_feature, graph_attn_bias = self.compute_pos_embeddings(batched_data)
         in_degree = batched_data.in_degree

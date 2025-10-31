@@ -15,6 +15,10 @@ from torch_geometric.utils import (
     to_torch_csr_tensor,
 )
 
+import pyximport
+pyximport.install(setup_args={'include_dirs': np.get_include()})
+import algos
+
 
 class AddNormalizedRandomWalkPE(BaseTransform):
     r"""Adds the random walk positional encoding from the
@@ -80,6 +84,61 @@ class AddNormalizedRandomWalkPE(BaseTransform):
 
         pe = torch.stack(pe_list, dim=-1)
         data[self.attr_name] = pe
+
+        return data
+
+def preprocess_item(data):
+    """
+    TODO fill in header for the function
+    """
+    edge_index = data.edge_index
+    N = data.num_nodes
+    edge_adj = torch.sparse.FloatTensor(
+                                    edge_index,
+                                    torch.ones(edge_index.shape[1]),
+                                    [N, N]
+                                    )
+
+    adj = edge_adj.to_dense()
+
+    # node adj matrix [N, N] bool
+    adj = adj.bool()
+
+    shortest_path_result, path = algos.floyd_warshall(adj.numpy())
+    spatial_pos = torch.from_numpy((shortest_path_result)).long()
+    attn_bias = torch.zeros([N, N], dtype=torch.float)  # TODO verifie is updated
+
+    in_degree = adj.long().sum(dim=1).view(-1)
+    out_degree = adj.long().sum(dim=0).view(-1)
+    return attn_bias, spatial_pos, in_degree, out_degree
+
+class AddGraphormerEncodings(BaseTransform):
+    r"""...
+    TODO update with encoding info
+    """
+
+    def __init__(
+        self,
+        attr_name: Optional[str] = "gres",  # TODO remove if not needed
+    ) -> None:
+        self.attr_name = attr_name
+
+    def forward(self, data: Data) -> Data:
+        if data.edge_index is None:
+            raise ValueError("Expected data.edge_index to be not None")
+
+        N = data.num_nodes
+        if N is None:
+            raise ValueError("Expected data.num_nodes to be not None")
+
+        
+        attn_bias, spatial_pos, in_degree, out_degree = preprocess_item(data)
+
+        # data[self.attr_name] = pe
+        data['attn_bias'] = attn_bias
+        data['spatial_pos'] = spatial_pos
+        data['in_degree'] = in_degree
+        data['in_degree'] = out_degree
 
         return data
 
