@@ -129,6 +129,8 @@ class FeatureReconstructionTask(L.LightningModule):
         return output, loss_dict
 
     def training_step(self, batch):
+        # print('trainbatch>>>>', batch.size())     # TODO remove
+        # print(batch)
         _, loss_dict = self.shared_step(batch)
         current_lr = self.optimizer.param_groups[0]["lr"]
         metrics = {}
