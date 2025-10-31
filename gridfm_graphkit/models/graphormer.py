@@ -89,7 +89,7 @@ class Graphormer(nn.Module):
         Calculate Graphormer positional encodings, and attention biases
 
         Args:
-            data (Data): Input node features of shape [num_nodes, input_dim].
+            data (Data): Pytorch geometric Data/Batch object
 
         Returns:
             graph_node_feature (Tensor): data.x with positional encoding appended.
@@ -139,7 +139,7 @@ class Graphormer(nn.Module):
             edge_index (Tensor): Edge indices for graph convolution.
             edge_attr (Tensor): Edge feature tensor.
             batch (Tensor): Batch vector assigning nodes to graphs.
-            data (Data): Pytorch Geometric Batch() object.
+            data (Data): Pytorch Geometric Data/Batch object.
 
         Returns:
             output (Tensor): Output node features of shape [num_nodes, output_dim].
