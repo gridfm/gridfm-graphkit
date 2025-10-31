@@ -50,7 +50,8 @@ dependencies = [
     "plotly",
     "pyyaml",
     "lightning",
-    "seaborn"
+    "seaborn",
+    "cython"
 ]
 
 [project.optional-dependencies]
