@@ -101,11 +101,22 @@ def add_node_attr(data: Data, value: Any,
 
     return data
 
+def get_edge_encoding(edge_attr):
+    if len(edge_attr.size()) == 1:
+            edge_attr = edge_attr[:, None]
+    attn_edge_type = torch.zeros([N, N, edge_attr.size(-1)], dtype=torch.long)
+    attn_edge_type[edge_index[0, :], edge_index[1, :]
+                    ] = convert_to_single_emb(edge_attr.long()) + 1
+    edge_input = algos.gen_edge_input(max_dist, path, attn_edge_type.numpy())
+
+    return attn_edge_type, torch.from_numpy(edge_input).long()
+
 def preprocess_item(data):
     """
     Calculation of the attention bias, and positional/structural data
     """
     edge_index = data.edge_index
+    edge_attr = data.edge_attr
     N = data.num_nodes
     edge_adj = torch.sparse_coo_tensor(
                                     edge_index,
@@ -119,9 +130,15 @@ def preprocess_item(data):
     spatial_pos = torch.from_numpy((shortest_path_result)).long().to(data.x.device)
     attn_bias = torch.zeros([N, N], dtype=torch.float).to(data.x.device)  # TODO verifie is updated
 
+    if edge_attr is not None:
+        attn_edge_type, edge_input = get_edge_encoding(edge_attr)
+    else:
+        edge_input = None
+        attn_edge_type = None
+
     in_degree = adj.long().sum(dim=1).view(-1)
     out_degree = adj.long().sum(dim=0).view(-1)
-    return attn_bias, spatial_pos, in_degree, out_degree
+    return attn_bias, spatial_pos, in_degree, out_degree, attn_edge_type, edge_input
 
 def pad_1d_unsqueeze(x, padlen):
     xlen = x.size(0)
@@ -179,15 +196,21 @@ class AddGraphormerEncodings(BaseTransform):
         if N is None:
             raise ValueError("Expected data.num_nodes to be not None")
 
-        attn_bias, spatial_pos, in_degree, out_degree = preprocess_item(data)
+        attn_bias, spatial_pos, in_degree, out_degree, attn_edge_type, edge_input = preprocess_item(data)
 
         attn_bias = pad_attn_bias_unsqueeze(attn_bias, self.max_node_num)
         spatial_pos = pad_spatial_pos_unsqueeze(spatial_pos, self.max_node_num)
         in_degree = pad_1d_unsqueeze(in_degree, self.max_node_num).squeeze()
+        print('eeeeee>', edge_input.size())   # TODO remove
+        edge_input = pad_attn_bias_unsqueeze(edge_input, self.max_node_num) # TODO if using change function name
+        # TODO need to verify padding for attn_edge_type
+        print('etetetet>', attn_edge_type.size())
  
         data = add_node_attr(data, attn_bias, attr_name='attn_bias')
         data = add_node_attr(data, spatial_pos, attr_name='spatial_pos')
         data = add_node_attr(data, in_degree, attr_name='in_degree')
+        data = add_node_attr(data, edge_input, attr_name='edge_input')
+        data = add_node_attr(data, edge_input, attr_name='attn_edge_type')
 
         data.x = pad_2d_unsqueeze(data.x, self.max_node_num).squeeze()
         data.y = pad_2d_unsqueeze(data.y, self.max_node_num).squeeze()
