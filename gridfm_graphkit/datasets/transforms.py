@@ -20,9 +20,6 @@ import pyximport
 pyximport.install(setup_args={'include_dirs': np.get_include()})
 import gridfm_graphkit.models.algos as algos
 
-# from networkx import floyd_warshall_numpy
-# from torch_geometric.utils import to_networkx
-
 
 class AddNormalizedRandomWalkPE(BaseTransform):
     r"""Adds the random walk positional encoding from the
@@ -118,18 +115,7 @@ def preprocess_item(data):
 
     adj = edge_adj.to_dense().to(torch.int16)
 
-    # TODO replace the placeholder with actual algorithm
-    # shortest_path_result = np.ones((N,N))
-
-    # print('+++++++',adj.dtype, adj.numpy().dtype)
     shortest_path_result, path = algos.floyd_warshall(adj.numpy().astype(np.int32))
-    #gg = to_networkx(data)
-    #shortest_path_result = floyd_warshall_numpy(gg)
-    
-    # TODO the output of fw is integer number of hops in n x n, review if need to norm etc.
-    # print('sp>>>', shortest_path_result)
-    # print('sp>>>', shortest_path_result.shape)
-    # print(shortest_path_result.shape)
     spatial_pos = torch.from_numpy((shortest_path_result)).long().to(data.x.device)
     attn_bias = torch.zeros([N, N], dtype=torch.float).to(data.x.device)  # TODO verifie is updated
 
@@ -138,7 +124,6 @@ def preprocess_item(data):
     return attn_bias, spatial_pos, in_degree, out_degree
 
 def pad_1d_unsqueeze(x, padlen):
-    # x = x + 1  # pad id = 0 #TODO remove all +1s
     xlen = x.size(0)
     if xlen < padlen:
         new_x = x.new_zeros([padlen], dtype=x.dtype)
@@ -146,10 +131,7 @@ def pad_1d_unsqueeze(x, padlen):
         x = new_x
     return x.unsqueeze(0)
 
-
 def pad_2d_unsqueeze(x, padlen):
-    # x = x + 1  # pad id = 0
-    # print('-------->', x.size())
     xlen, xdim = x.size()
     if xlen < padlen:
         new_x = x.new_zeros([padlen, xdim], dtype=x.dtype)
@@ -157,7 +139,6 @@ def pad_2d_unsqueeze(x, padlen):
         new_x[:xlen, :] = x
         x = new_x
     return x.unsqueeze(0)
-
 
 def pad_attn_bias_unsqueeze(x, padlen):
     xlen = x.size(0)
@@ -169,9 +150,7 @@ def pad_attn_bias_unsqueeze(x, padlen):
         x = new_x
     return x.unsqueeze(0)
 
-
 def pad_spatial_pos_unsqueeze(x, padlen):
-    x = x + 1
     xlen = x.size(0)
     if xlen < padlen:
         new_x = x.new_zeros([padlen, padlen], dtype=x.dtype)
@@ -179,16 +158,18 @@ def pad_spatial_pos_unsqueeze(x, padlen):
         x = new_x
     return x.unsqueeze(0)
 
+
 class AddGraphormerEncodings(BaseTransform):
-    """
-    TODO update with encoding info
+    """Adds a positional encoding (node centrallity) to the given graph, as 
+    well as the attention biases, as described in: Do transformers really 
+    perform badly for graph representation?, C. Ying et al., 2021.
     """
 
     def __init__(
         self,
-        attr_name: Optional[str] = "gres"  # TODO remove if not needed
+        max_node_num: int,
     ) -> None:
-        self.attr_name = attr_name
+        self.max_node_num = max_node_num
 
     def forward(self, data: Data) -> Data:
         if data.edge_index is None:
@@ -198,20 +179,18 @@ class AddGraphormerEncodings(BaseTransform):
         if N is None:
             raise ValueError("Expected data.num_nodes to be not None")
 
-        
         attn_bias, spatial_pos, in_degree, out_degree = preprocess_item(data)
 
-        max_node_num = 118 # TODO extract from batch
-        attn_bias = pad_attn_bias_unsqueeze(attn_bias, max_node_num)
-        spatial_pos = pad_spatial_pos_unsqueeze(spatial_pos, max_node_num)
-        in_degree = pad_1d_unsqueeze(in_degree, max_node_num).squeeze()
+        attn_bias = pad_attn_bias_unsqueeze(attn_bias, self.max_node_num)
+        spatial_pos = pad_spatial_pos_unsqueeze(spatial_pos, self.max_node_num)
+        in_degree = pad_1d_unsqueeze(in_degree, self.max_node_num).squeeze()
  
         data = add_node_attr(data, attn_bias, attr_name='attn_bias')
         data = add_node_attr(data, spatial_pos, attr_name='spatial_pos')
         data = add_node_attr(data, in_degree, attr_name='in_degree')
 
-        data.x = pad_2d_unsqueeze(data.x, max_node_num).squeeze()
-        data.y = pad_2d_unsqueeze(data.y, max_node_num).squeeze()
+        data.x = pad_2d_unsqueeze(data.x, self.max_node_num).squeeze()
+        data.y = pad_2d_unsqueeze(data.y, self.max_node_num).squeeze()
 
         return data
 

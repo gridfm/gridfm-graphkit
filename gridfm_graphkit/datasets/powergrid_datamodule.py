@@ -128,6 +128,7 @@ class LitGridDataModule(L.LightningDataModule):
                 pe_dim=self.args.model.pe_dim,
                 mask_dim=self.args.data.mask_dim,
                 transform=get_transform(args=self.args),
+                args=self.args.data
             )
             self.datasets.append(dataset)
 
