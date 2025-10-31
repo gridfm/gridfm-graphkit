@@ -118,8 +118,6 @@ class GMAE_node(nn.Module):
         # a normalization before being concatenated to the features, follow this in final version
         
         graph_node_feature, graph_attn_bias = self.compute_pos_embeddings(batched_data)
-        in_degree = batched_data.in_degree
-        out_degree = batched_data.out_degree
 
         output = self.encoder(graph_node_feature, graph_attn_bias)
         output = self.decoder(output)
