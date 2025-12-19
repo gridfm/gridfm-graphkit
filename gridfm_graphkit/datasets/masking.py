@@ -24,6 +24,8 @@ from gridfm_graphkit.datasets.globals import (
     MAX_VM_H,
     MIN_QG_H,
     MAX_QG_H,
+    BS,
+    GS,
     VN_KV,
     # Generator feature indices
     PG_H,
@@ -196,6 +198,87 @@ class AddOPFHeteroMask(BaseTransform):
         )
         mask_branch[:, P_E] = True
         mask_branch[:, Q_E] = True
+
+        data.mask_dict = {
+            "bus": mask_bus,
+            "gen": mask_gen,
+            "branch": mask_branch,
+            "PQ": mask_PQ,
+            "PV": mask_PV,
+            "REF": mask_REF,
+        }
+
+        return data
+
+
+class AddPretrainMask(BaseTransform):
+    """
+    Probabilistic masking for pre-training a power flow heterogeneous graph.
+
+    Strategy:
+    - Vm, Va at buses → mask with p_high
+    - Pg at generators → mask with p_high
+    - Pd, Qd, node type flags (PQ, PV, REF) → never masked
+    - Qg → always masked
+    - Other bus features → mask with p_low
+    - Other generator features → mask with p_low
+    - P, Q on edges → mask with p_low
+    """
+
+    def __init__(self, args):
+        super().__init__()
+        self.p_high = args.data.mask_p_high
+        self.p_low = args.data.mask_p_low
+
+    def forward(self, data):
+        bus_x = data.x_dict["bus"]
+        gen_x = data.x_dict["gen"]
+        # Identify bus types
+        mask_PQ = bus_x[:, PQ_H] == 1
+        mask_PV = bus_x[:, PV_H] == 1
+        mask_REF = bus_x[:, REF_H] == 1
+
+        # ===================
+        # === BUS MASKING ===
+        # ===================
+        bus_x = data.x_dict["bus"]
+        num_bus, bus_dim = bus_x.shape
+
+        # Mask first with low probability
+        mask_bus = torch.rand(num_bus, bus_dim) < self.p_low
+
+        # Overwrite the masking with HIGH probability for Vm, Va
+        mask_bus[:, VM_H] = torch.rand(num_bus) < self.p_high
+        mask_bus[:, VA_H] = torch.rand(num_bus) < self.p_high
+
+        # NEVER mask Pd, Qd, PQ/PV/REF flags
+        never_bus = torch.tensor([PD_H, QD_H, PQ_H, PV_H, REF_H, BS, GS])
+        mask_bus[:, never_bus] = False
+
+        # ALWAYS mask Qg
+        mask_bus[:, QG_H] = True
+
+        # ======================
+        # === GENERATOR MASK ===
+        # ======================
+        gen_x = data.x_dict["gen"]
+        num_gen, gen_dim = gen_x.shape
+        mask_gen = torch.rand(num_gen, gen_dim) < self.p_low
+
+        # Enforce that Pg follows p_high, overwrite
+        mask_gen[:, PG_H] = torch.rand(num_gen) < self.p_high
+
+        # ======================
+        # === BRANCH MASKING ===
+        # ======================
+        branch_x = data.edge_attr_dict[("bus", "connects", "bus")]
+        num_br, br_dim = branch_x.shape
+
+        mask_branch = torch.zeros((num_br, br_dim), dtype=torch.bool)
+
+        # P, Q masked with low probability
+        mask_branch[:, P_E] = torch.rand(num_br) < self.p_low
+        mask_branch[:, Q_E] = torch.rand(num_br) < self.p_low
 
         data.mask_dict = {
             "bus": mask_bus,

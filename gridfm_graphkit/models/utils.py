@@ -79,8 +79,9 @@ def compute_shunt_power(bus_data_pred, bus_data_orig):
     return p_shunt, q_shunt
 
 
+@PHYSICS_DECODER_REGISTRY.register("PreTraining")
 @PHYSICS_DECODER_REGISTRY.register("OptimalPowerFlow")
-class PhysicsDecoderOPF(nn.Module):
+class PhysicsDecoderOPF_PT(nn.Module):
     def forward(self, P_in, Q_in, bus_data_pred, bus_data_orig, agg_bus, mask_dict):
         mask_pv = mask_dict["PV"]
         mask_ref = mask_dict["REF"]

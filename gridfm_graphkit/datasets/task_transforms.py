@@ -7,6 +7,7 @@ from gridfm_graphkit.datasets.transforms import (
 from gridfm_graphkit.datasets.masking import (
     AddOPFHeteroMask,
     AddPFHeteroMask,
+    AddPretrainMask,
     SimulateMeasurements,
 )
 from gridfm_graphkit.io.registries import TRANSFORM_REGISTRY
@@ -20,6 +21,20 @@ class PowerFlowTransforms(Compose):
         transforms.append(RemoveInactiveBranches())
         transforms.append(RemoveInactiveGenerators())
         transforms.append(AddPFHeteroMask())
+        transforms.append(ApplyMasking(args=args))
+
+        # Pass the list of transforms to Compose
+        super().__init__(transforms)
+
+
+@TRANSFORM_REGISTRY.register("PreTraining")
+class PreTrainingTransforms(Compose):
+    def __init__(self, args):
+        transforms = []
+
+        transforms.append(RemoveInactiveBranches())
+        transforms.append(RemoveInactiveGenerators())
+        transforms.append(AddPretrainMask(args=args))
         transforms.append(ApplyMasking(args=args))
 
         # Pass the list of transforms to Compose

@@ -10,6 +10,7 @@ from gridfm_graphkit.datasets.normalizers import (
 from gridfm_graphkit.datasets.task_transforms import (
     PowerFlowTransforms,
     OptimalPowerFlowTransforms,
+    PreTrainingTransforms,
 )
 
 __all__ = [
@@ -21,4 +22,5 @@ __all__ = [
     "PowerFlowTransforms",
     "OptimalPowerFlowTransforms",
     "StateEstimationTransforms",
+    "PreTrainingTransforms",
 ]
