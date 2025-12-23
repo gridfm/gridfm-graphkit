@@ -335,24 +335,29 @@ class FeatureReconstructionTask(L.LightningModule):
             df.to_csv(csv_path, index=False)
 
     def configure_optimizers(self):
-        self.optimizer = torch.optim.Adam(
+        if self.args.optimizer.type is None:
+            self.args.optimizer.type = "Adam"
+        optimizer = getattr(torch.optim, self.args.optimizer.type)
+        self.optimizer = optimizer(
             self.model.parameters(),
             lr=self.args.optimizer.learning_rate,
-            betas=(self.args.optimizer.beta1, self.args.optimizer.beta2),
+            **self.args.optimizer.optimizer_params, #unpack all other optim parameters
         )
+        if self.args.optimizer.scheduler_type  is None:
+            return {"optimizer": self.optimizer}
 
-        self.scheduler = ReduceLROnPlateau(
+        #TODO: add interval handling for scheduler
+        scheduler = getattr(torch.optim.lr_scheduler, self.args.optimizer.scheduler_type )
+        self.scheduler = scheduler(
             self.optimizer,
-            mode="min",
-            factor=self.args.optimizer.lr_decay,
-            patience=self.args.optimizer.lr_patience,
+            **self.args.optimizer.scheduler_params
         )
         config_optim = {
             "optimizer": self.optimizer,
             "lr_scheduler": {
                 "scheduler": self.scheduler,
                 "monitor": "Validation loss",
-                "reduce_on_plateau": True,
+                # "reduce_on_plateau": True,
             },
         }
         return config_optim
