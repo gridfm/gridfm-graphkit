@@ -17,10 +17,6 @@ from jsonargparse import Namespace
 DEFAULT_SEED = 42
 
 
-
-
-
-
 def main_cli(args):
     logger = MLFlowLogger(
         save_dir=args.log_dir,
@@ -106,25 +102,18 @@ def main_cli(args):
         print(f"Saved predictions to {csv_path}")
 
 
-
-
-
-
 def iterate_cli(config_args):
-    #validate inputs
+    # validate inputs
     if config_args.seed is not None:
-        assert isinstance(config_args.seed, int), (
-                "seed must be an integer"
-           )
+        assert isinstance(config_args.seed, int), "seed must be an integer"
     else:
         config_init.seed = DEFAULT_SEED
     torch.manual_seed(config_args.seed)
     random.seed(config_args.seed)
     np.random.seed(config_args.seed)
 
-
     run_iterate_experiments(
-        args=config_args, #TODO
+        args=config_args,  # TODO
         model_spec=config_args.model,
         training_spec=config_args.training,
         optimizer_spec=config_args.optimizer,
@@ -132,5 +121,4 @@ def iterate_cli(config_args):
         hpo_spec=config_args.hpo_spec,
         tasks=config_args.tasks,
         seed=config_args.seed,
-        )
-        
+    )
