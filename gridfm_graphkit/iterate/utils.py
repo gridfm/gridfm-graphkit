@@ -5,21 +5,13 @@ import mlflow
 import optuna
 import logging
 import datetime
+import pandas as pd
 from mlflow.entities.experiment import Experiment
 from gridfm_graphkit.utils.types import (
     optimization_space_type,
     TaskSpec,
-
     ParameterBounds,
-    HyperParameterOptmizerSpec, 
-    CallbackSpec,
-    OptimizerSpec, 
-    ModelSpec, 
-    TrainingSpec, 
-    DataSpec,
-    direction_type_to_optuna
-    )
-
+)
 
 
 # Custom function to parse the optimization space argument
@@ -76,6 +68,61 @@ def get_logger(log_level="INFO", log_folder="./experiment_logs") -> logging.Root
     logger.addHandler(handler)
     logging.basicConfig(level=logging.CRITICAL)
     return logger
+
+
+def get_best_val(
+    storage_uri: str,
+    run: mlflow.entities.Run,
+    metric: str,
+    direction: str,
+):
+    client = mlflow.tracking.MlflowClient(
+        tracking_uri=storage_uri,
+    )
+
+    if not metric.lower().startswith("val"):
+        raise Exception(
+            f"Metric {metric} does not start with `val`. Please choose a validation metric"
+        )
+    for_pd_collect = []
+    val_metrics_names = []
+
+    for metric_name in client.get_run(run.info.run_id).data.metrics:
+        if metric_name.lower().startswith("val"):
+            val_metrics_names.append(metric_name)
+            val_metric_history = client.get_metric_history(run.info.run_id, metric_name)
+            pd_convertible_metric_history = [
+                {
+                    "metric_name": mm.key,
+                    "step": mm.step,
+                    "value": mm.value,
+                }
+                for mm in val_metric_history
+            ]
+            for_pd_collect += pd_convertible_metric_history
+    df_val_metrics = pd.DataFrame.from_records(for_pd_collect)
+    df_val_metrics = df_val_metrics.set_index(
+        ["metric_name", "step"], verify_integrity=True
+    )
+    series_val_metrics = df_val_metrics["value"]
+    assert metric in series_val_metrics, (
+        f"Error! {metric} is not in {series_val_metrics}"
+    )
+    if direction == "max":
+        best_step = series_val_metrics[metric].idxmax()
+    elif direction == "min":
+        best_step = series_val_metrics[metric].idxmin()
+    else:
+        raise Exception(
+            f"Error! Direction must be either `max` or `min` but got {direction}"
+        )
+
+    for val_metric_name in val_metrics_names:
+        mlflow.log_metric(
+            f"best_step_{val_metric_name}",
+            series_val_metrics[(val_metric_name, best_step)],
+        )
+    return series_val_metrics[(metric, best_step)]
 
 
 def check_existing_experiments(
@@ -191,8 +238,6 @@ def check_existing_experiments(
     return output
 
 
-
-
 def delete_nested_experiment_parent_runs(
     logger: logging.RootLogger,
     delete_runs: list,
@@ -255,7 +300,6 @@ def delete_nested_experiment_parent_runs(
             client.delete_run(run_id)
             os.system(f"rm -r {experiment_info.artifact_location}/{run_id}")
     return incomplete_run_to_finish
-
 
 
 def check_existing_task_parent_runs(
@@ -329,10 +373,6 @@ def check_existing_task_parent_runs(
         all_tasks_finished = False
     complete_task_run_names = list(set(complete_task_run_names))
     return complete_task_run_names, all_tasks_finished, task_run_to_id_match
-
-
-
-
 
 
 def sync_mlflow_optuna(
@@ -438,4 +478,3 @@ def sync_mlflow_optuna(
             task_run_id = None
     logging.info(f"sync_mlflow_optuna returns {task_run_id=}")
     return task_run_id
-

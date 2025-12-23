@@ -4,25 +4,17 @@ This module contains all the logic for fitting models
 
 import abc
 import copy
-import dataclasses
-import importlib
 import os
 import shutil
-import types
-import uuid
 import torch
 import warnings
 from abc import abstractmethod
-from functools import wraps
-from typing import Callable
-import pandas as pd
 import lightning.pytorch as pl
 import mlflow
 import optuna
 from lightning import Callback, Trainer
 from lightning.pytorch.callbacks import (
     ModelCheckpoint,
-    
 )
 from jsonargparse import Namespace
 
@@ -36,9 +28,9 @@ from gridfm_graphkit.training.callbacks import get_training_callbacks
 from gridfm_graphkit.datasets.powergrid_datamodule import LitGridDataModule
 
 from gridfm_graphkit.utils.types import (
-    OptimizerSpec, 
-    ModelSpec, 
-    TrainingSpec, 
+    OptimizerSpec,
+    ModelSpec,
+    TrainingSpec,
     TaskSpec,
     CallbackSpec,
     valid_task_types,
@@ -46,7 +38,7 @@ from gridfm_graphkit.utils.types import (
     ParameterTypeEnum,
     optimization_space_type,
     recursive_merge,
-    )
+)
 
 from gridfm_graphkit.tasks import (
     FeatureReconstructionTask,
@@ -54,9 +46,7 @@ from gridfm_graphkit.tasks import (
 )
 
 
-
-
-from gridfm_graphkit.iterate.utils import get_logger
+from gridfm_graphkit.iterate.utils import get_logger, get_best_val
 
 LOGGER = get_logger()
 
@@ -96,12 +86,9 @@ class OptunaParameterPicker(ParameterPicker):
 
 
 def inject_hparams(
-    training_spec: TrainingSpec,
-    optimizer_spec: OptimizerSpec,
-    config: dict):
-    assert isinstance(config, dict), (
-        f"Error! Unexpected config type: {config}"
-    )
+    training_spec: TrainingSpec, optimizer_spec: OptimizerSpec, config: dict
+):
+    assert isinstance(config, dict), f"Error! Unexpected config type: {config}"
     training_spec_with_hparams = copy.deepcopy(training_spec)
     optimizer_spec_with_hparams = copy.deepcopy(optimizer_spec)
 
@@ -186,18 +173,14 @@ def _generate_parameters(
                 )
 
 
-
-            
-
-
-
-
 """
 single node - optuna
 """
+
+
 def launch_training(
     trainer: Trainer,
-    model: FeatureReconstructionTask, #TODO: create basetask in tasks folder
+    model: FeatureReconstructionTask,  # TODO: create basetask in tasks folder
     optimizer_spec: OptimizerSpec,
     datamodule: LitGridDataModule,
     run_name: str,
@@ -209,7 +192,6 @@ def launch_training(
     test_models: bool,
     delete_models_after_testing: bool,
 ) -> float:
-    
     with mlflow.start_run(run_name=run_name, nested=True) as run:
         mlflow.set_tag("mlflow.parentRunId", parent_run_id)
         # explicitly log batch_size. Since it is not a model param, it will not be logged
@@ -222,12 +204,17 @@ def launch_training(
             log_model=not delete_models_after_testing,
         )
         trainer.fit(model, datamodule=datamodule)
+
+        output = get_best_val(
+            storage_uri=storage_uri,
+            run=run,
+            metric=metric,
+            direction=direction,
+        )
+
         if test_models:
-            test_metrics = trainer.test(
-                model,
-                ckpt_path="best", 
-                datamodule=datamodule)
-            test_metrics =test_metrics[0]
+            test_metrics = trainer.test(model, ckpt_path="best", datamodule=datamodule)
+            output = test_metrics
         if delete_models_after_testing:
             # delete the checkpoints folder in the run
             ckpts_folder = os.path.join(
@@ -238,61 +225,7 @@ def launch_training(
             )
             shutil.rmtree(ckpts_folder)
 
-        client = mlflow.tracking.MlflowClient(
-            tracking_uri=storage_uri,
-        )
-
-        if not metric.lower().startswith("val"):
-            raise Exception(
-                f"Metric {metric} does not start with `val`. Please choose a validation metric"
-            )
-        for_pd_collect = []
-        val_metrics_names = []
-
-        print(f'{client.get_run(run.info.run_id)=}')
-
-        for cname in client.get_run(run.info.run_id).data.metrics:
-            print(f'{cname=}')
-            
-        for metric_name in client.get_run(run.info.run_id).data.metrics:
-            if metric_name.lower().startswith("val"):
-                val_metrics_names.append(metric_name)
-                val_metric_history = client.get_metric_history(
-                    run.info.run_id, metric_name
-                )
-                pd_convertible_metric_history = [
-                    {
-                        "metric_name": mm.key,
-                        "step": mm.step,
-                        "value": mm.value,
-                    }
-                    for mm in val_metric_history
-                ]
-                for_pd_collect += pd_convertible_metric_history
-        df_val_metrics = pd.DataFrame.from_records(for_pd_collect)
-        df_val_metrics = df_val_metrics.set_index(
-            ["metric_name", "step"], verify_integrity=True
-        )
-        series_val_metrics = df_val_metrics["value"]
-        assert metric in series_val_metrics, (
-            f"Error! {metric} is not in {series_val_metrics}"
-        )
-        if direction == "max":
-            best_step = series_val_metrics[metric].idxmax()
-        elif direction == "min":
-            best_step = series_val_metrics[metric].idxmin()
-        else:
-            raise Exception(
-                f"Error! Direction must be either `max` or `min` but got {direction}"
-            )
-
-        for val_metric_name in val_metrics_names:
-            mlflow.log_metric(
-                f"best_step_{val_metric_name}",
-                series_val_metrics[(val_metric_name, best_step)],
-            )
-
-        return series_val_metrics[(metric, best_step)]
+        return output
 
 
 def fit_model(
@@ -311,11 +244,11 @@ def fit_model(
     test_models: bool = False,
     seed: int = 42,
     trial: optuna.Trial | None = None,
-) -> tuple[float, str]:
+) -> dict:
     pl.seed_everything(seed, workers=True)
     training_spec_copy = copy.deepcopy(training_spec)
 
-    #get callbacks
+    # get callbacks
     callbacks: list[Callback] = get_training_callbacks(callbacks_spec)
     if callbacks_spec.optuna_early_prune and trial is not None:
         callbacks.append(
@@ -332,21 +265,19 @@ def fit_model(
         save_models = True
         delete_models_after_testing = True
     if save_models:
-        callbacks.append(
-            ModelCheckpoint(monitor=task.metric, mode=task.direction)
-        )
+        callbacks.append(ModelCheckpoint(monitor=task.metric, mode=task.direction))
     enable_checkpointing = False
     if any([isinstance(cb, ModelCheckpoint) for cb in callbacks]):
-        enable_checkpointing=True
+        enable_checkpointing = True
 
-    # # initialize datamodule 
+    # # initialize datamodule
     args.data = task.data
     datamodule = LitGridDataModule(args, task.data.data_path)
 
-    #initialize model
+    # initialize model
     lightning_task_class: valid_task_types = task.type.get_class_from_enum()
     model = lightning_task_class(
-        args,#TODO: load model, training, optim separataly
+        args,  # TODO: load model, training, optim separataly
         datamodule.node_normalizers,
         datamodule.edge_normalizers,
     )
@@ -371,21 +302,19 @@ def fit_model(
         f"launch_training {trainer=} {lightning_task_class=} {datamodule=} \
         {run_name=} {experiment_name=} {task.metric=} {storage_uri=} {task.direction=}"
     )
-    return (
-        launch_training(
-            trainer=trainer,
-            model=model,
-            optimizer_spec=optimizer_spec,
-            datamodule=datamodule,
-            run_name=run_name,
-            experiment_name=experiment_name,
-            metric=task.metric,
-            storage_uri=storage_uri,
-            parent_run_id=parent_run_id,
-            direction=task.direction,
-            test_models=test_models,
-            delete_models_after_testing=delete_models_after_testing,
-        )
+    return launch_training(
+        trainer=trainer,
+        model=model,
+        optimizer_spec=optimizer_spec,
+        datamodule=datamodule,
+        run_name=run_name,
+        experiment_name=experiment_name,
+        metric=task.metric,
+        storage_uri=storage_uri,
+        parent_run_id=parent_run_id,
+        direction=task.direction,
+        test_models=test_models,
+        delete_models_after_testing=delete_models_after_testing,
     )
 
 
@@ -424,7 +353,7 @@ def fit_model_with_hparams(
         training_spec, optimizer_spec, current_hparams
     )
 
-    output =  fit_model(
+    output = fit_model(
         args=args,
         model_spec=model_spec,
         training_spec=training_spec,
@@ -442,7 +371,4 @@ def fit_model_with_hparams(
         trial=trial,
     )  # return only the metric value for optuna
 
-    print(f'{output=}')
-
     return output
-

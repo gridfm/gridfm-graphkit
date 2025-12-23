@@ -2,29 +2,18 @@
 This module defines all the types expected at input. Used for type checking by jsonargparse.
 """
 
-from ast import Dict
 from typing import Literal
-import copy
 import enum
-from dataclasses import dataclass, field, replace
-from typing import Any, Optional, Union
+from dataclasses import dataclass, field
+from typing import Any, Union
 from gridfm_graphkit.tasks import (
     FeatureReconstructionTask,
-    # ContingencyAnalysisTask,
 )
-from gridfm_graphkit.datasets.powergrid_datamodule import LitGridDataModule
 
 
-import logging
-
-
-valid_task_types = type[
-    FeatureReconstructionTask
-    # | ContingencyAnalysisTask
-]
+valid_task_types = type[FeatureReconstructionTask]
 
 direction_type_to_optuna = {"min": "minimize", "max": "maximize"}
-
 
 
 @dataclass
@@ -34,7 +23,6 @@ class TaskTypeEnum(enum.Enum):
     """
 
     feature_reconstruction = "feature_reconstruction"
-    # contingency_analysis = "contingency_analysis"
 
     def get_class_from_enum(
         self,
@@ -42,8 +30,6 @@ class TaskTypeEnum(enum.Enum):
         match self.value:
             case TaskTypeEnum.feature_reconstruction.value:
                 return FeatureReconstructionTask
-            case TaskTypeEnum.contingency_analysis.value:
-                return ContingencyAnalysisTask
             case _:
                 raise TypeError("Task type does not exist")
 
@@ -79,13 +65,9 @@ class ParameterBounds:
             self.type = ParameterTypeEnum(self.type)
 
 
-
 optimization_space_type = dict[
     str, Union[list, dict, ParameterBounds, "optimization_space_type"]
 ]
-
-
-
 
 
 @dataclass
@@ -108,9 +90,10 @@ class HyperParameterOptmizerSpec:
         max_run_duration (str, None): maximum allowed run duration in the form DD:HH:MM:SS; will stop a run after this
             amount of time. Defaults to None, which doesn't stop runs by time.
     """
+
     experiment_name: str
     run_name: str
-    
+
     results_folder: str
     save_models: bool = False
     n_trials: int = 5
@@ -124,14 +107,13 @@ class HyperParameterOptmizerSpec:
     optimization_space: dict | None = None
 
 
-
-
 @dataclass
 class TrainingSpec:
     """
     Parameters passed to define lightning trainer
-        
+
     """
+
     batch_size: int
     epochs: int
     losses: list[str]
@@ -143,14 +125,13 @@ class TrainingSpec:
     enable_progress_bar: bool = False
 
 
-
-
 @dataclass
 class ModelSpec:
     """
     Parameters passed to define Model
-      
+
     """
+
     attention_head: int
     dropout: float
     edge_dim: int
@@ -163,14 +144,13 @@ class ModelSpec:
     model_path: str
 
 
-
-
 @dataclass
 class OptimizerSpec:
     """
-    Parameters passed to define Optimization and Scheduling parameters. Learning rate will be overwritten for 'iterate' subcommand. 
-    
+    Parameters passed to define Optimization and Scheduling parameters. Learning rate will be overwritten for 'iterate' subcommand.
+
     """
+
     learning_rate: float
     type: str
     optimizer_params: dict
@@ -178,13 +158,13 @@ class OptimizerSpec:
     scheduler_params: dict | None
 
 
-
 @dataclass
 class DataSpec:
     """
-    Parameters passed to define training data. Ignored for 'iterate' subcommand. 
-    
+    Parameters passed to define training data. Ignored for 'iterate' subcommand.
+
     """
+
     networks: list[str]
     scenarios: list[int]
     normalization: str
@@ -200,7 +180,6 @@ class DataSpec:
     data_path: str
 
 
-
 @dataclass
 class CallbackSpec:
     """
@@ -209,16 +188,15 @@ class CallbackSpec:
     Args:
         patience (int): patience for early stopping
         tol (int): ...
-        
+
     """
-    #TODO: use dicts for each callback type
+
+    # TODO: use dicts for each callback type
     patience: int | None = None
     tol: int | None = None
     max_run_duration: int | None = None
     monitor_learning_rate: bool = True
-    optuna_early_prune: bool = False #only processed with iterate command
-
-
+    optuna_early_prune: bool = False  # only processed with iterate command
 
 
 @dataclass
@@ -236,9 +214,10 @@ class TaskSpec:
         data: datamodule (BaseDataModule  | GeoBenchDataModule): Datamodule to be used.
 
     """
+
     name: str
     type: TaskTypeEnum = field(repr=False)
-    data: DataSpec # = field(repr=False)
+    data: DataSpec  # = field(repr=False)
     metric: str = "val/constraint_violations"
     direction: Literal["min", "max"] = "min"
 
