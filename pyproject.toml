@@ -51,6 +51,8 @@ dependencies = [
     "pyyaml",
     "lightning",
     "seaborn",
+    "jsonargparse>4.0",
+    "optuna>4.0",
 ]
 
 [project.optional-dependencies]
