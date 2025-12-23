@@ -31,11 +31,15 @@ training:
   devices: auto
   strategy: auto
 optimizer:
+  type: Adam
   learning_rate: 0.0001
-  beta1: 0.9
-  beta2: 0.999
-  lr_decay: 0.7
-  lr_patience: 10
+  optimizer_params:
+    betas: [0.9, 0.999]
+  scheduler_type:  ReduceLROnPlateau
+  scheduler_params:
+    mode: min
+    factor: 0.7
+    patience: 10
 callbacks:
   patience: 100
   tol: 0
