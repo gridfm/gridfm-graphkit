@@ -1,6 +1,6 @@
 from gridfm_graphkit.datasets.powergrid_datamodule import LitGridDataModule
 from gridfm_graphkit.io.param_handler import NestedNamespace
-from gridfm_graphkit.training.callbacks import SaveBestModelStateDict
+from gridfm_graphkit.training.callbacks import get_training_callbacks
 import numpy as np
 import os
 import yaml
@@ -8,36 +8,11 @@ import torch
 import random
 import pandas as pd
 
-from gridfm_graphkit.tasks.feature_reconstruction_task import FeatureReconstructionTask
-from lightning.pytorch.callbacks.early_stopping import EarlyStopping
-from lightning.pytorch.callbacks.model_checkpoint import ModelCheckpoint
+from gridfm_graphkit.tasks import FeatureReconstructionTask
+
 from lightning.pytorch.loggers import MLFlowLogger
 import lightning as L
 
-
-def get_training_callbacks(args):
-    early_stop_callback = EarlyStopping(
-        monitor="Validation loss",
-        min_delta=args.callbacks.tol,
-        patience=args.callbacks.patience,
-        verbose=False,
-        mode="min",
-    )
-
-    save_best_model_callback = SaveBestModelStateDict(
-        monitor="Validation loss",
-        mode="min",
-        filename="best_model_state_dict.pt",
-    )
-
-    checkpoint_callback = ModelCheckpoint(
-        monitor="Validation loss",  # or whichever metric you track
-        mode="min",
-        save_last=True,
-        save_top_k=0,
-    )
-
-    return [early_stop_callback, save_best_model_callback, checkpoint_callback]
 
 
 def main_cli(args):
@@ -46,6 +21,9 @@ def main_cli(args):
         experiment_name=args.exp_name,
         run_name=args.run_name,
     )
+
+    subcommand = args.subcommand
+    args = args[subcommand]
 
     with open(args.config, "r") as f:
         base_config = yaml.safe_load(f)
@@ -62,7 +40,7 @@ def main_cli(args):
         litGrid.node_normalizers,
         litGrid.edge_normalizers,
     )
-    if args.command != "train":
+    if subcommand != "train":
         print(f"Loading model weights from {args.model_path}")
         state_dict = torch.load(args.model_path)
         model.load_state_dict(state_dict)
@@ -75,15 +53,15 @@ def main_cli(args):
         log_every_n_steps=1,
         default_root_dir=args.log_dir,
         max_epochs=config_args.training.epochs,
-        callbacks=get_training_callbacks(config_args),
+        callbacks=get_training_callbacks(config_args.callbacks),
     )
-    if args.command == "train" or args.command == "finetune":
+    if subcommand == "train" or subcommand == "finetune":
         trainer.fit(model=model, datamodule=litGrid)
 
-    if args.command != "predict":
+    if subcommand != "predict":
         trainer.test(model=model, datamodule=litGrid)
 
-    if args.command == "predict":
+    if subcommand == "predict":
         predictions = trainer.predict(model=model, datamodule=litGrid)
         all_outputs = []
         all_scenarios = []
@@ -120,3 +98,50 @@ def main_cli(args):
         df.to_csv(csv_path, index=False)
 
         print(f"Saved predictions to {csv_path}")
+
+
+
+
+
+from gridfm_graphkit.utils.types import (
+    HyperParameterOptmizerSpec, TaskSpec, CallbackSpec,
+    OptimizerSpec, ModelSpec, TrainingSpec, DataSpec
+    )
+
+from gridfm_graphkit.iterate import run_iterate_experiments
+
+from jsonargparse import Namespace
+
+
+DEFAULT_SEED = 42
+
+
+
+
+
+
+
+def iterate_cli(config_args):
+    #validate inputs
+    if config_args.seed is not None:
+        assert isinstance(config_args.seed, int), (
+                "seed must be an integer"
+           )
+    else:
+        config_init.seed = DEFAULT_SEED
+    torch.manual_seed(config_args.seed)
+    random.seed(config_args.seed)
+    np.random.seed(config_args.seed)
+
+
+    run_iterate_experiments(
+        args=config_args, #TODO
+        model_spec=config_args.model,
+        training_spec=config_args.training,
+        optimizer_spec=config_args.optimizer,
+        callbacks_spec=config_args.callbacks,
+        hpo_spec=config_args.hpo_spec,
+        tasks=config_args.tasks,
+        seed=config_args.seed,
+        )
+        
