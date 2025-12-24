@@ -57,6 +57,7 @@ Available commands:
 * `finetune` – Fine-tune an existing pre-trained model
 * `evaluate` – Evaluate model performance on a dataset
 * `predict` – Run inference and save predictions
+* `iterate` – Run hyperparameter optimization (HPO) and repeated experiments on multiple datasets/tasks
 
 ---
 
@@ -144,3 +145,28 @@ gridfm_graphkit predict --config path/to/config.yaml --model_path path/to/model.
 | `--output_path` | `str` | Directory where predictions are saved.        | `data`    |
 
 ---
+
+---
+
+## Running Iterate
+
+```bash
+gridfm_graphkit iterate --config path/to/config.yaml
+```
+
+### Arguments
+
+| Argument        | Type        | Description                                   | Default   |
+| --------------- | -----       | --------------------------------------------- | --------- |
+| `--config`      | `str`       | Path to `iterate`  config file.               | `None`    |
+| `--seed`        | `int`.      | Seed for reproducibility.                     | `None`    |
+| `--hpo_spec`    | `namespace` | Parameters for HPO/repeated experiments                       | `None`    |
+| `--tasks`       | `namespace` | MLflow run name.                              | `None`    |
+| `--model`       | `namespace` | MLflow logging directory.                     | `None`    |
+| `--optimizer`   | `namespace` | Dataset directory.                            | `None`    |
+| `--training`    | `namespace` | Directory where predictions are saved.        | `None`    |
+| `--callbacks`   | `namespace` | Directory where predictions are saved.        | `None`    |
+
+---
+**Note:** Namespace inputs can be provided in the config or as command line arguments. If provided on the command line, namespaces inputs can be provided with `.` notation, e.g. `--hpo_spec.experiment_name my_exp`. Run `gridfm_graphkit iterate -h` for full list of inputs allows in each namespace.
+
