@@ -36,6 +36,16 @@ def main():
     finetune_parser.add_argument("--log_dir", type=str, default="mlruns")
     finetune_parser.add_argument("--data_path", type=str, default="data")
 
+    # ---- EVALUATE SUBCOMMAND ----
+    # evaluate_parser = subparsers.add_parser("evaluate", help="Evaluate model performance")
+    evaluate_parser = ArgumentParser()
+    evaluate_parser.add_argument("--config", type=str, required=True)
+    evaluate_parser.add_argument("--model_path", type=str, required=True)
+    evaluate_parser.add_argument("--exp_name", type=str, default=exp_name)
+    evaluate_parser.add_argument("--run_name", type=str, default="run")
+    evaluate_parser.add_argument("--log_dir", type=str, default="mlruns")
+    evaluate_parser.add_argument("--data_path", type=str, default="data")
+
     # ---- PREDICT SUBCOMMAND ----
     # predict_parser = subparsers.add_parser("predict", help="Evaluate model performance")
     predict_parser = ArgumentParser()
@@ -50,6 +60,7 @@ def main():
     # ---- ITERATE SUBCOMMAND ----
     # iterate_parser = subparsers.add_parser("iterate", help="Run model benchmarking")
     iterate_parser = ArgumentParser()
+    iterate_parser.add_argument("--config", action="config")
     iterate_parser.add_argument("--seed", type=int) 
     iterate_parser.add_argument("--hpo_spec", type=HyperParameterOptmizerSpec)
     iterate_parser.add_argument("--tasks", type=list[TaskSpec])
@@ -57,7 +68,7 @@ def main():
     iterate_parser.add_argument("--optimizer", type=OptimizerSpec)
     iterate_parser.add_argument("--training", type=TrainingSpec)
     iterate_parser.add_argument("--callbacks", type=CallbackSpec)
-    iterate_parser.add_argument("--config", action="config")
+    
 
     parser = ArgumentParser(
         prog="gridfm_graphkit",
@@ -66,14 +77,14 @@ def main():
     subcommands = parser.add_subcommands()
     subcommands.add_subcommand('train', train_parser)
     subcommands.add_subcommand('finetune', finetune_parser)
+    subcommands.add_subcommand('evaluate', finetune_parser)
     subcommands.add_subcommand('predict', predict_parser)
     subcommands.add_subcommand('iterate', iterate_parser)
 
     args = parser.parse_args()
     if args.subcommand == "iterate":
-        # config = args.iterate.config
-        # config_args: Namespace = iterate_parser.instantiate_classes(config)
-        iterate_cli(args.iterate)
+        experiment_ids = iterate_cli(args.iterate)
+        return experiment_ids
     else:
         main_cli(args)
 

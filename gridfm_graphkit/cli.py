@@ -14,8 +14,6 @@ import lightning as L
 
 from jsonargparse import Namespace
 
-DEFAULT_SEED = 42
-
 
 def main_cli(args):
     logger = MLFlowLogger(
@@ -106,13 +104,11 @@ def iterate_cli(config_args):
     # validate inputs
     if config_args.seed is not None:
         assert isinstance(config_args.seed, int), "seed must be an integer"
-    else:
-        config_init.seed = DEFAULT_SEED
     torch.manual_seed(config_args.seed)
     random.seed(config_args.seed)
     np.random.seed(config_args.seed)
 
-    run_iterate_experiments(
+    return run_iterate_experiments(
         args=config_args,  # TODO
         model_spec=config_args.model,
         training_spec=config_args.training,
