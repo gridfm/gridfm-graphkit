@@ -1,5 +1,4 @@
 import torch
-from torch.optim.lr_scheduler import ReduceLROnPlateau
 import lightning as L
 from pytorch_lightning.utilities import rank_zero_only
 import numpy as np
@@ -45,7 +44,7 @@ class FeatureReconstructionTask(L.LightningModule):
         predict_step(batch, batch_idx, dataloader_idx=0):
             Run inference and return denormalized outputs + node masks.
         configure_optimizers():
-            Setup Adam optimizer and ReduceLROnPlateau scheduler.
+            Setup optimizer and scheduler.
         on_fit_start():
             Save normalization statistics at the beginning of training.
         on_test_end():
@@ -110,7 +109,7 @@ class FeatureReconstructionTask(L.LightningModule):
                 )
 
     def shared_step(self, batch):
-        output = self.forward(
+        output = self(
             x=batch.x,
             pe=batch.pe,
             edge_index=batch.edge_index,
@@ -224,7 +223,7 @@ class FeatureReconstructionTask(L.LightningModule):
 
         loss_dict["Test loss"] = loss_dict.pop("loss").detach()
         for metric, value in loss_dict.items():
-            metric_name = f"{dataset_name}/{metric}"
+            metric_name = f"Test - {dataset_name}/{metric}"
             if "p.u." in metric:
                 # Denormalize metrics expressed in p.u.
                 value *= self.node_normalizers[dataloader_idx].baseMVA
@@ -235,7 +234,7 @@ class FeatureReconstructionTask(L.LightningModule):
                 batch_size=batch.num_graphs,
                 add_dataloader_idx=False,
                 sync_dist=True,
-                logger=False,
+                logger=True,
             )
         return
 
@@ -283,7 +282,7 @@ class FeatureReconstructionTask(L.LightningModule):
                 pass
 
             if "/" in full_key:
-                dataset_name, metric = full_key.split("/", 1)
+                dataset_name, metric = full_key.replace("Test - ", "").split("/", 1)
                 if dataset_name not in grouped_metrics:
                     grouped_metrics[dataset_name] = {}
                 grouped_metrics[dataset_name][metric] = value

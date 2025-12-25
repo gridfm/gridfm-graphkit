@@ -4,11 +4,12 @@ import logging
 from jsonargparse import Namespace
 
 
-
-
+import warnings
+import time
+from random import randint
 
 from functools import partial
-from typing import Any, Dict
+from typing import Dict
 
 import mlflow
 import optuna
@@ -16,21 +17,24 @@ import pandas as pd
 import torch
 from optuna.pruners import HyperbandPruner
 from optuna.samplers import BaseSampler, RandomSampler
+from ast import literal_eval
 
-from gridfm_graphkit.iterate.model_fitting import fit_model, fit_model_with_hparams
+from gridfm_graphkit.iterate.model_fitting import (
+    fit_model,
+    fit_model_with_hparams,
+    inject_hparams,
+)
 
 from gridfm_graphkit.utils.types import (
-    HyperParameterOptmizerSpec, 
-    TaskSpec, 
+    HyperParameterOptmizerSpec,
+    TaskSpec,
     CallbackSpec,
-    OptimizerSpec, 
-    ModelSpec, 
-    TrainingSpec, 
-    DataSpec,
+    OptimizerSpec,
+    ModelSpec,
+    TrainingSpec,
     direction_type_to_optuna,
-    optimization_space_type
-
-    )
+    optimization_space_type,
+)
 
 from gridfm_graphkit.iterate.utils import (
     parse_optimization_space,
@@ -39,12 +43,11 @@ from gridfm_graphkit.iterate.utils import (
     unflatten,
     get_logger,
     sync_mlflow_optuna,
-    )
-
+)
 
 
 def run_iterate_experiments(
-    args, #TODO: remove
+    args,  # TODO: remove
     model_spec: ModelSpec,
     training_spec: TrainingSpec,
     optimizer_spec: OptimizerSpec,
@@ -52,17 +55,26 @@ def run_iterate_experiments(
     hpo_spec: HyperParameterOptmizerSpec,
     tasks: list[TaskSpec],
     seed: int = 42,
-    ) -> bool:
-    """
-    runs full benchmarking (hpo + repeated) for a model across multiple tasks
+) -> dict[str, str, str]:
+    """Runs full benchmarking (hpo + repeated) for a model across multiple tasks.
 
     Args:
-
+        args: Experiment configuration. Expected fields include `training.batch_size`, `optimizer.*`, etc.
+        model_spec: ModelSpec, Model configuration. run "gridfm_graphkit iterate -h" to see allowed inputs
+        training_spec: TrainingSpec, Trainer configuration. run "gridfm_graphkit iterate -h" to see allowed inputs
+        optimizer_spec: OptimizerSpec, Optimizer configuration. run "gridfm_graphkit iterate -h" to see allowed inputs
+        callbacks_spec: CallbackSpec, Callbacks configuration. run "gridfm_graphkit iterate -h" to see allowed inputs
+        hpo_spec: HyperParameterOptmizerSpec, Model configuration. run "gridfm_graphkit iterate -h" to see allowed inputs
+        tasks: list[TaskSpec], Model configuration. run "gridfm_graphkit iterate -h" to see allowed inputs
+        seed: int = 42, seed lightning
 
     Return:
-    
+        Dict:
+            hpo_experiment_id: str,
+            hpo_finished_run_id: str
+            repeated_experiment_id: str
     """
-    #create folders and initialize logger
+    # create folders and initialize logger
     base = Path(args.hpo_spec.results_folder)
     HPO_EXP_FOLDER = base / "hpo_mlflow_output"
     REPEATED_EXP_FOLDER = base / "repeated_mlflow_output"
@@ -72,12 +84,12 @@ def run_iterate_experiments(
     for f in folders:
         os.makedirs(str(f), exist_ok=True)
     logger = get_logger(log_folder=str(LOG_FOLDER))
+    experiment_ids = {}
 
-    benchmarking_completed = False
     try:
-        # run hpo on model across multiple tasks 
+        # run hpo on model across multiple tasks
         hpo_output = run_hpo_experiments(
-            args=args, #TODO: remove args
+            args=args,  # TODO: remove args
             logger=logger,
             model_spec=model_spec,
             training_spec=training_spec,
@@ -87,12 +99,13 @@ def run_iterate_experiments(
             tasks=tasks,
             seed=seed,
             storage_uri=HPO_EXP_FOLDER,
-            )
-
+        )
+        
+        
         if args.hpo_spec.num_repetitions >= 1:
             # run repeated experiments
-            run_repeated_experiments(
-                args=args, #TODO: remove args
+            repeated_output = run_repeated_experiments(
+                args=args,  # TODO: remove args
                 logger=logger,
                 model_spec=model_spec,
                 training_spec=training_spec,
@@ -104,17 +117,17 @@ def run_iterate_experiments(
                 repeated_storage_uri=REPEATED_EXP_FOLDER,
                 hpo_storage_uri=HPO_EXP_FOLDER,
                 csv_folder=REPEATED_CSV_FOLDER,
-                experiment_id=hpo_output["experiment_id"],
-                parent_run_id=hpo_output["finished_run_id"],
-            )   
+                hpo_parent_run_id=hpo_output["hpo_finished_run_id"],
+            )
+            hpo_output["repeated_experiment_id"] = repeated_output
+        return hpo_output
     except Exception as e:
         logger.info(f"Could not complete due to error {e}")
         raise
 
 
-
 def run_hpo_experiments(
-    args: Namespace, #TODO: remove
+    args: Namespace,  # TODO: remove
     logger: logging.RootLogger,
     model_spec: ModelSpec,
     training_spec: TrainingSpec,
@@ -125,34 +138,37 @@ def run_hpo_experiments(
     seed: int,
     storage_uri: Path,
 ) -> Dict[str, str]:
-    """Highest level function to run hpo only for a model across multiple tasks
+    """Highest level function to run hpo only for a model across multiple tasks.
 
     Args:
-        args: Namespace, #TODO: remove
-        logger: logging.RootLogger,
-        model_spec: ModelSpec,
-        training_spec: TrainingSpec,
-        optimizer_spec: OptimizerSpec,
-        callbacks_spec: CallbackSpec,
-        hpo_spec: HyperParameterOptmizerSpec,
-        tasks: list[TaskSpec],
-        seed: int,
-        storage_uri: Path,
-
+        args: Experiment configuration. Expected fields include `training.batch_size`, `optimizer.*`, etc.
+        logger: logging.RootLogger, Logger for experiment
+        model_spec: ModelSpec, Model configuration. run "gridfm_graphkit iterate -h" to see allowed inputs
+        training_spec: TrainingSpec, Trainer configuration. run "gridfm_graphkit iterate -h" to see allowed inputs
+        optimizer_spec: OptimizerSpec, Optimizer configuration. run "gridfm_graphkit iterate -h" to see allowed inputs
+        callbacks_spec: CallbackSpec, Callbacks configuration. run "gridfm_graphkit iterate -h" to see allowed inputs
+        hpo_spec: HyperParameterOptmizerSpec, Model configuration. run "gridfm_graphkit iterate -h" to see allowed inputs
+        tasks: list[TaskSpec], Model configuration. run "gridfm_graphkit iterate -h" to see allowed inputs
+        seed: int = 42, seed lightning
+        storage_uri: Path, location to store mlflow output from HPO
 
     Return:
-
-
+        Dict:
+            hpo_experiment_id: str,
+            hpo_finished_run_id: str
     """
     # https://mlflow.org/docs/latest/ml/tracking/system-metrics/#using-the-environment-variable-to-control-system-metrics-logging
     if os.getenv("MLFLOW_ENABLE_SYSTEM_METRICS_LOGGING") is None:
         os.environ["MLFLOW_ENABLE_SYSTEM_METRICS_LOGGING"] = "true"
 
-    model_type: str = model_spec.type
     run_id: str = hpo_spec.run_id
     experiment_name: str = hpo_spec.experiment_name
     task_names = [task.name for task in tasks]
-    run_name = f"top_run_{hpo_spec.experiment_name}" if hpo_spec.run_name is None else hpo_spec.run_name
+    run_name = (
+        f"top_run_{hpo_spec.experiment_name}"
+        if hpo_spec.run_name is None
+        else hpo_spec.run_name
+    )
     optimization_space = parse_optimization_space(hpo_spec.optimization_space)
     completed_task_run_names = []
     optimize_hyperparams = True
@@ -205,15 +221,15 @@ def run_hpo_experiments(
     # only run hyperparameter optimization (HPO) if there are no experiments with finished HPO
     if optimize_hyperparams:
         if hpo_spec.bayesian_search:
-            sampler = None # defaults to TPESampler
+            sampler = None  # defaults to TPESampler
         else:
             sampler = RandomSampler()
         experiment_id, finished_run_id = _run_hpo(
-            args=args, #TODO
+            args=args,  # TODO
             model_spec=model_spec,
             training_spec=training_spec,
             optimizer_spec=optimizer_spec,
-            callbacks_spec=callbacks_spec,    
+            callbacks_spec=callbacks_spec,
             run_name=run_name,
             run_id=run_id,
             tasks=tasks,
@@ -230,10 +246,8 @@ def run_hpo_experiments(
             logger=logger,
             seed=seed,
         )
-        logger.info("HPO complete")
-    return {"experiment_id": experiment_id, "finished_run_id": finished_run_id}
-
-
+        logger.info("HPO complete\n\n\nß")
+    return {"hpo_experiment_id": experiment_id, "hpo_finished_run_id": finished_run_id}
 
 
 def _run_hpo(
@@ -259,8 +273,7 @@ def _run_hpo(
     test_models: bool = False,
     seed: int = 42,
 ) -> tuple[str, str]:
-    """
-    run HPO for multiple tasks under a single experiment.
+    """Run HPO for multiple tasks under a single experiment.
 
     Args:
         arg: Namespace, contains all parameters to be passed to model and datamodule. To be removed
@@ -287,11 +300,8 @@ def _run_hpo(
 
 
     """
-    logger.info(
-        f"Running hyperparameter optimization: {run_name=} {run_id=}"
-    )
-    if run_id is not None:
-        run_name = None
+    logger.info(f"Running hyperparameter optimization: {run_name=} {run_id=}")
+    storage_uri = str(storage_uri)
 
     with mlflow.start_run(
         run_name=run_name, run_id=run_id, description=description
@@ -311,14 +321,14 @@ def _run_hpo(
                 else None
             )
             best_value, metric_name, hparams = _run_hpo_per_task(
-                args=args, #TODO
+                args=args,  # TODO
                 model_spec=model_spec,
                 training_spec=training_spec,
                 optimizer_spec=optimizer_spec,
-                callbacks_spec=callbacks_spec,  
+                callbacks_spec=callbacks_spec,
                 logger=logger,
                 task=task,
-                storage_uri=str(storage_uri),
+                storage_uri=storage_uri,
                 experiment_name=experiment_name,
                 experiment_run_id=run.info.run_id,
                 task_run_id=task_run_id,
@@ -349,12 +359,8 @@ def _run_hpo(
     return experiment_id, finished_run_id
 
 
-
-
-
-
 def _run_hpo_per_task(
-    args: Namespace, #TODO: remove args
+    args: Namespace,  # TODO: remove args
     model_spec: ModelSpec,
     training_spec: TrainingSpec,
     optimizer_spec: OptimizerSpec,
@@ -371,7 +377,7 @@ def _run_hpo_per_task(
     sampler: BaseSampler | None = None,
     test_models: bool = False,
     seed: int = 42,
-):     
+) -> tuple[str, float, dict]:
     """
     Performs HPO on a single task
 
@@ -427,7 +433,7 @@ def _run_hpo_per_task(
         logger.info(f"starting task run with id: {run.info.run_id}")
         if training_spec.epochs is None:
             raise Exception("Must specify epochs for training")
-        
+
         # if no optimization params, just run it
         if optimization_space is None:
             return (
@@ -510,9 +516,8 @@ def _run_hpo_per_task(
         return study.best_value, task.metric, best_params
 
 
-
 def run_repeated_experiments(
-    args: Namespace, #TODO: remove args
+    args: Namespace,  # TODO: remove args
     logger: logging.RootLogger,
     model_spec: ModelSpec,
     training_spec: TrainingSpec,
@@ -524,30 +529,41 @@ def run_repeated_experiments(
     repeated_storage_uri: Path,
     hpo_storage_uri: Path,
     csv_folder: Path,
-    experiment_id: str,
-    parent_run_id: str,
-):
-    """Repeat best experiments from a benchmark run. Only works with a ray cluster.
+    hpo_parent_run_id: str,
+)-> str:
+    """Repeat best experiments from a benchmark run across multiple tasks.
 
     Args:
+        args: Experiment configuration. Expected fields include `training.batch_size`, `optimizer.*`, etc.
+        logger: logging.RootLogger, Logger for experiment
+        model_spec: ModelSpec, Model configuration. run "gridfm_graphkit iterate -h" to see allowed inputs
+        training_spec: TrainingSpec, Trainer configuration. run "gridfm_graphkit iterate -h" to see allowed inputs
+        optimizer_spec: OptimizerSpec, Optimizer configuration. run "gridfm_graphkit iterate -h" to see allowed inputs
+        callbacks_spec: CallbackSpec, Callbacks configuration. run "gridfm_graphkit iterate -h" to see allowed inputs
+        hpo_spec: HyperParameterOptmizerSpec, Model configuration. run "gridfm_graphkit iterate -h" to see allowed inputs
+        tasks: list[TaskSpec], Model configuration. run "gridfm_graphkit iterate -h" to see allowed inputs
+        seed: int = 42, seed lightning
+        repeated_storage_uri: Path, location to store mlflow output from repeated experiments
+        hpo_storage_uri: Path, location where mlflow output from completed HPO experiments is stored
+        csv_folder: Path, Location where csv files with repeated experimnets are stored
+        hpo_parent_run_id: str, run id of successful HPO experiment
 
-
+    Return:
+        str: experiment_id of completed Repeated experiment
     """
-    
 
-    # if backbone_import:
-    #     importlib.import_module(backbone_import)
+    logger.info("Starting repeated experiments")
 
     experiment_name = hpo_spec.experiment_name
     num_repetitions = hpo_spec.num_repetitions
-    #find completed HPO tasks
+    # find completed HPO tasks
     mlflow.set_tracking_uri(str(hpo_storage_uri))
     mlflow.set_experiment(experiment_name)
 
     runs: list[mlflow.entities.Run] = mlflow.search_runs(
-        filter_string=f"tags.mlflow.parentRunId='{parent_run_id}'", output_format="list"
+        filter_string=f"tags.mlflow.parentRunId='{hpo_parent_run_id}'", output_format="list"
     )  # type: ignore
-    logger.info(f"parent_run_id {parent_run_id}")
+    logger.info(f"hpo_parent_run_id {hpo_parent_run_id}")
     logger.info(f"Found runs: {[run.info.run_name for run in runs]}")
 
     task_names = [task.name for task in tasks]
@@ -561,16 +577,12 @@ def run_repeated_experiments(
         "mlflow_run_id",
         "mlflow_run_status",
     ]
-    table_entries = []
 
     mlflow.set_tracking_uri(repeated_storage_uri)
     mlflow.set_experiment(experiment_name)
-    experiment_id = mlflow.get_experiment_by_name(experiment_name).experiment_id
     output_path = csv_folder / f"{experiment_name}_repeated_exp_mlflow.csv"
     if not os.path.isabs(output_path):
-        raise Exception(
-            f"output_path must be absolute."
-        )
+        raise Exception(f"output_path must be absolute. got: {output_path}")
 
     # backbone_name = defaults.terratorch_task["model_args"]["backbone"]
     with mlflow.start_run(run_name=experiment_name, run_id=None) as run:
@@ -612,9 +624,10 @@ def run_repeated_experiments(
             best_params = matching_runs[0].data.params
             best_params = {k: literal_eval(v) for k, v in best_params.items()}
 
-            training_spec = combine_with_defaults(task, defaults)
-            lightning_task_class = training_spec.task.type.get_class_from_enum()
-            
+            training_spec_with_best_hparams, optimizer_spec_with_best_hparams = (
+                inject_hparams(training_spec, optimizer_spec, best_params)
+            )
+
             experiment_info = mlflow.get_experiment_by_name(experiment_name)
             seeds = [randint(1, 5000) for i in range(num_repetitions * 5)]
             seeds = [seed for seed in seeds if seed not in past_seeds]
@@ -631,21 +644,28 @@ def run_repeated_experiments(
                     output_format="list",
                 )  # type: ignore
                 if len(seed_run_data) > 0:
-                    continue
+                    for item in seed_run_data:
+                        logger.info(f"deleting existing run: {item}")
+                        mlflow.delete_run(item.info.run_id)
 
-                score = non_remote_fit(
-                    experiment_name=repeated_experiment_name,
-                    parent_run_id=run.info.run_id,
-                    storage_uri=repeated_storage_uri,
-                    task=task,
+                score = fit_model(
+                    args=args,
+                    model_spec=model_spec,
                     training_spec=training_spec,
-                    lightning_task_class=lightning_task_class,
-                    best_params=best_params,
+                    optimizer_spec=optimizer_spec,
+                    callbacks_spec=callbacks_spec,
+                    task=task,
+                    run_name=seed_run_name,
+                    experiment_name=experiment_name,
+                    storage_uri=repeated_storage_uri,
+                    parent_run_id=run.info.run_id,
+                    save_models=hpo_spec.save_models,
+                    test_models=True,
                     seed=seed,
-                    backbone_import=backbone_import,
-                    save_models=save_models,
-                    report_on_best_val=report_on_best_val,
+                    logger=logger,
+                    # repeat_on_best=hpo_spec.repeat_on_best,
                 )
+
                 # check if run with name finished successfully
                 logger.info(f"score: {score}")
                 # TODO improve this sleep command - try to get a better estimate than this
@@ -690,9 +710,7 @@ def run_repeated_experiments(
                         logger.info(f"rows: {rows} \t cols: {cols}")
                         if rows == 0:
                             logger.info("no past results for this task")
-                        existing_output = pd.concat(
-                            [existing_output, new_data], axis=0
-                        )
+                        existing_output = pd.concat([existing_output, new_data], axis=0)
                         existing_output.reset_index(inplace=True)
                         existing_output = existing_output.drop(
                             columns=["index", "level_0"]
@@ -700,101 +718,5 @@ def run_repeated_experiments(
                         existing_output.to_csv(output_path, index=False)
                     else:
                         new_data.to_csv(output_path, index=False)
-
-
-def _run_repeated_per_task(
-    args: Namespace, #TODO: remove args
-    model_spec: ModelSpec,
-    training_spec: TrainingSpec,
-    optimizer_spec: OptimizerSpec,
-    callbacks_spec: CallbackSpec,
-    logger: logging.RootLogger,
-    task: TaskSpec,
-    storage_uri: str,
-    experiment_name: str,
-    experiment_run_id: str,
-    task_run_id: str | None = None,
-    optimization_space: optimization_space_type | None = None,
-    n_trials: int = 1,
-    save_models: bool = False,
-    sampler: BaseSampler | None = None,
-    test_models: bool = False,
-    seed: int = 42,
-):     
-    """
-    Performs HPO on a single task
-
-    Args:
-        args: Namespace, #TODO: remove args
-        model_spec: ModelSpec,
-        training_spec: TrainingSpec,
-        optimizer_spec: OptimizerSpec,
-        callbacks_spec: CallbackSpec,
-        logger: logging.RootLogger,
-        task: TaskSpec,
-        storage_uri: str,
-        experiment_name: str,
-        experiment_run_id: str,
-        task_run_id: str | None = None,
-        optimization_space: optimization_space_type | None = None,
-        n_trials: int = 1,
-        save_models: bool = False,
-        sampler: BaseSampler | None = None,
-        test_models: bool = False,
-        seed: int = 42,
-
-    """
-    logger.info(
-        f"starting backbone benchmark on task {task.name} {task_run_id=} {experiment_name=}"
-    )
-    if storage_uri.startswith("http"):
-        optuna_db_path = Path(".") / "optuna_db"
-    else:
-        optuna_db_path = Path(storage_uri).parents[0] / "optuna_db"
-
-    if not os.path.exists(optuna_db_path):
-        os.makedirs(optuna_db_path)
-    optuna_db_path = optuna_db_path / f"{experiment_name}_{experiment_run_id}"
-    optuna_db_path = str(optuna_db_path)
-
-    task_run_id = sync_mlflow_optuna(
-        optuna_db_path=optuna_db_path,
-        storage_uri=storage_uri,
-        experiment_name=experiment_name,
-        task_run_id=task_run_id,
-        task=task,
-        n_trials=n_trials,
-        logger=logger,
-    )
-    if task_run_id is not None:
-        # run_name is used only when run_id is unspecified.
-        run_name = None
-    else:
-        run_name = task.name
-    logger.info(f"start run: {run_name=} {task_run_id=}")
-    with mlflow.start_run(run_name=run_name, nested=True, run_id=task_run_id) as run:
-        logger.info(f"starting task run with id: {run.info.run_id}")
-        if training_spec.epochs is None:
-            raise Exception("Must specify epochs for training")
-        
-
-        # if no optimization params, just run it
-        if optimization_space is None:
-            return (
-                *fit_model(
-                    args=args,
-                    model_spec=model_spec,
-                    training_spec=training_spec,
-                    optimizer_spec=optimizer_spec,
-                    callbacks_spec=callbacks_spec,
-                    task=task,
-                    run_name=run.info.run_name,
-                    experiment_name=experiment_name,
-                    storage_uri=storage_uri,
-                    parent_run_id=run.info.run_id,
-                    save_models=save_models,
-                    test_models=test_models,
-                    seed=seed,
-                    logger=logger,
-                ),
-            )
+    logger.info("Repeated experiments complete \n\n\n")
+    return experiment_info.experiment_id

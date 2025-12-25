@@ -42,13 +42,10 @@ from gridfm_graphkit.utils.types import (
 
 from gridfm_graphkit.tasks import (
     FeatureReconstructionTask,
-    # ContingencyAnalysisTask,
 )
 
 
-from gridfm_graphkit.iterate.utils import get_logger, get_best_val
-
-LOGGER = get_logger()
+from gridfm_graphkit.iterate.utils import get_best_validation_metric, get_test_metric
 
 
 os.environ["TUNE_DISABLE_AUTO_CALLBACK_LOGGERS"] = (
@@ -173,11 +170,6 @@ def _generate_parameters(
                 )
 
 
-"""
-single node - optuna
-"""
-
-
 def launch_training(
     trainer: Trainer,
     model: FeatureReconstructionTask,  # TODO: create basetask in tasks folder
@@ -205,16 +197,27 @@ def launch_training(
         )
         trainer.fit(model, datamodule=datamodule)
 
-        output = get_best_val(
-            storage_uri=storage_uri,
-            run=run,
-            metric=metric,
-            direction=direction,
-        )
-
         if test_models:
-            test_metrics = trainer.test(model, ckpt_path="best", datamodule=datamodule)
-            output = test_metrics
+            trainer.test(
+                model=model, 
+                # ckpt_path="best", 
+                datamodule=datamodule
+                )
+            metric = metric.replace("Validation", "Test")
+            output = get_test_metric(
+                storage_uri=str(storage_uri),
+                run=run,
+                metric=metric,
+                direction=direction,
+            )
+        else:
+            output = get_best_validation_metric(
+                storage_uri=str(storage_uri),
+                run=run,
+                metric=metric,
+                direction=direction,
+            )
+
         if delete_models_after_testing:
             # delete the checkpoints folder in the run
             ckpts_folder = os.path.join(
@@ -244,7 +247,7 @@ def fit_model(
     test_models: bool = False,
     seed: int = 42,
     trial: optuna.Trial | None = None,
-) -> dict:
+) -> float:
     pl.seed_everything(seed, workers=True)
     training_spec_copy = copy.deepcopy(training_spec)
 
@@ -264,11 +267,25 @@ def fit_model(
         # we need to save the models during training to be able to test but can be deleted afterwards
         save_models = True
         delete_models_after_testing = True
+    
     if save_models:
-        callbacks.append(ModelCheckpoint(monitor=task.metric, mode=task.direction))
-    enable_checkpointing = False
-    if any([isinstance(cb, ModelCheckpoint) for cb in callbacks]):
+        callbacks = [
+            cb
+            for cb in callbacks
+            if not (isinstance(cb, ModelCheckpoint) and cb.monitor==task.metric)
+            ]
+        callbacks.append(
+            ModelCheckpoint(
+                monitor=task.metric, 
+                mode=task.direction, 
+                save_top_k=1, 
+            )
+        )        
         enable_checkpointing = True
+    else:
+        callbacks = [cb for cb in callbacks if not isinstance(cb, ModelCheckpoint)]
+        enable_checkpointing = False
+
 
     # # initialize datamodule
     args.data = task.data
@@ -296,6 +313,7 @@ def fit_model(
         callbacks=callbacks,
         enable_checkpointing=enable_checkpointing,
         enable_progress_bar=training_spec_copy.enable_progress_bar,
+        # deterministic=True,
     )
 
     logger.info(
