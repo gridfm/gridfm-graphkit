@@ -1,0 +1,73 @@
+seed: 42
+model:
+  attention_head: 8
+  dropout: 0.1
+  edge_dim: 2
+  hidden_size: 256
+  input_dim: 9
+  num_layers: 8
+  output_dim: 6
+  pe_dim: 20
+  type: GPSTransformer
+  model_path: "gridfm-graphkit/examples/models/GridFM_v0_2.pth"
+training:
+  batch_size: 1
+  epochs: 1
+  losses: ["MaskedMSE", "PBE"]
+  loss_weights: [0.01, 0.99]
+  accelerator: auto
+  devices: auto
+  strategy: auto
+optimizer:
+  type: Adam
+  learning_rate: 0.0001
+  optimizer_params:
+    betas: [0.9, 0.999]
+  scheduler_type:  ReduceLROnPlateau
+  scheduler_params:
+    mode: min
+    factor: 0.7
+    patience: 10
+callbacks:
+  patience: 100
+  tol: 0
+  optuna_early_prune: True
+
+hpo_spec:
+  experiment_name:  GPSTransformer_test_exp
+  run_name: top_run
+  optimization_space:
+    batch_size: [8, 16, 32]
+    learning_rate:
+      min: 0.000006
+      max: 0.001
+      type: real
+      log: true
+  n_trials: 1
+  bayesian_search: True
+  results_folder: "results/iterate"
+  save_models: False
+  num_repetitions: 1
+  repeat_on_best: True
+  report_on_best_val: True
+  continue_existing_experiment: True
+  
+tasks: 
+  - name: feature_reconstruction_base
+    type: feature_reconstruction
+    metric: "Validation loss"
+    direction: min
+    data:
+      data_path:  "data/"
+      networks: ["case30_ieee"]
+      scenarios: [1023]
+      normalization: "baseMVAnorm"
+      baseMVA: 100
+      mask_type: "rnd"
+      mask_value: 0.0
+      mask_ratio: 0.5
+      mask_dim: 6
+      learn_mask: False
+      val_ratio: 0.1
+      test_ratio: 0.1
+      workers: 4
