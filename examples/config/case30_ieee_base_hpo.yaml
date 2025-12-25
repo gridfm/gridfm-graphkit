@@ -47,7 +47,7 @@ callbacks:
   optuna_early_prune: True
 
 hpo_spec:
-  experiment_name:  1#GPSTransformer_test_exp
+  experiment_name:  GPSTransformer_8
   run_name: top_run
   optimization_space:
     batch_size: [8, 16, 32]
@@ -65,7 +65,7 @@ hpo_spec:
   report_on_best_val: True
   continue_existing_experiment: True
   
-tasks: #cannot overwrite any parameters here
+tasks: 
   - name: feature_reconstruction_base
     type: feature_reconstruction
     metric: "Validation loss"

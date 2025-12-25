@@ -70,7 +70,7 @@ def get_logger(log_level="INFO", log_folder="./experiment_logs") -> logging.Root
     return logger
 
 
-def get_best_val(
+def get_best_validation_metric(
     storage_uri: str,
     run: mlflow.entities.Run,
     metric: str,
@@ -125,6 +125,49 @@ def get_best_val(
     return series_val_metrics[(metric, best_step)]
 
 
+
+
+def get_test_metric(
+    storage_uri: str,
+    run: mlflow.entities.Run,
+    metric: str,
+    direction: str,
+):
+    client = mlflow.tracking.MlflowClient(
+        tracking_uri=storage_uri,
+    )
+
+    if not metric.lower().startswith("test"):
+        raise Exception(
+            f"Metric {metric} does not start with `test`. Please choose a test metric"
+        )
+    for_pd_collect = []
+    test_metrics_names = []
+
+    print(f'{client.get_run(run.info.run_id)=}')
+    metric_value_across_datasets = []
+
+    for metric_log_name in client.get_run(run.info.run_id).data.metrics:
+        if "Test - " not in metric_log_name:
+            continue
+        dataset_name, metric_name = metric_log_name.replace("Test - ", "").split("/", 1)
+        if metric == metric_name:
+            test_metrics_names.append(metric_name)
+            test_metric_history = client.get_metric_history(run.info.run_id, metric_log_name)
+            pd_convertible_metric_history = [
+                {
+                    "metric_name": mm.key,
+                    "step": mm.step,
+                    "value": mm.value,
+                }
+                for mm in test_metric_history
+            ]
+            for_pd_collect += pd_convertible_metric_history
+    df_test_metrics = pd.DataFrame.from_records(for_pd_collect)
+    metric_value = df_test_metrics.loc[:, 'value'].mean()
+    return metric_value
+
+
 def check_existing_experiments(
     logger: logging.RootLogger,
     storage_uri: str,
@@ -163,7 +206,8 @@ def check_existing_experiments(
         return output
 
     experiment_id = experiment_info.experiment_id
-    logger.info(f"\nexperiment_id: {experiment_id}")
+    logger.info(f"Checking existing experiment")
+    logger.info(f"experiment_id: {experiment_id}")
     logger.info(f"experiment_name: {experiment_name}")
     output["experiment_id"] = experiment_id
     experiment_parent_run_data = client.search_runs(
