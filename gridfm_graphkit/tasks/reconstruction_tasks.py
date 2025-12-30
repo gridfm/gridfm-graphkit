@@ -75,7 +75,7 @@ class ReconstructionTask(BaseTask):
         self.model = load_model(args=args)
         self.loss_fn = get_loss_function(args)
         self.batch_size = int(args.training.batch_size)
-        self.test_outputs = {i: [] for i in range(len(args.data.networks))}
+        self.test_outputs = {i: [] for i in range(len(args.data.test_networks))}
 
     def forward(self, x_dict, edge_index_dict, edge_attr_dict, mask_dict):
         return self.model(x_dict, edge_index_dict, edge_attr_dict, mask_dict)
@@ -311,7 +311,7 @@ class OptimalPowerFlowTask(ReconstructionTask):
 
     def test_step(self, batch, batch_idx, dataloader_idx=0):
         output, loss_dict = self.shared_step(batch)
-        dataset_name = self.args.data.networks[dataloader_idx]
+        dataset_name = self.args.data.test_networks[dataloader_idx]
 
         self.data_normalizers[dataloader_idx].inverse_transform(batch)
         self.data_normalizers[dataloader_idx].inverse_output(output)
@@ -658,7 +658,7 @@ class OptimalPowerFlowTask(ReconstructionTask):
 
         if self.args.verbose:
             for dataset_idx, outputs in self.test_outputs.items():
-                dataset_name = self.args.data.networks[dataset_idx]
+                dataset_name = self.args.data.test_networks[dataset_idx]
 
                 plot_dir = os.path.join(artifact_dir, "test_plots", dataset_name)
                 os.makedirs(plot_dir, exist_ok=True)
@@ -751,7 +751,7 @@ class PowerFlowTask(ReconstructionTask):
 
     def test_step(self, batch, batch_idx, dataloader_idx=0):
         output, loss_dict = self.shared_step(batch)
-        dataset_name = self.args.data.networks[dataloader_idx]
+        dataset_name = self.args.data.test_networks[dataloader_idx]
 
         self.data_normalizers[dataloader_idx].inverse_transform(batch)
         self.data_normalizers[dataloader_idx].inverse_output(output)
@@ -989,7 +989,7 @@ class PowerFlowTask(ReconstructionTask):
 
         if self.args.verbose:
             for dataset_idx, outputs in self.test_outputs.items():
-                dataset_name = self.args.data.networks[dataset_idx]
+                dataset_name = self.args.data.test_networks[dataset_idx]
 
                 plot_dir = os.path.join(artifact_dir, "test_plots", dataset_name)
                 os.makedirs(plot_dir, exist_ok=True)
@@ -1045,7 +1045,7 @@ class PreTrainingTask(ReconstructionTask):
 
     def test_step(self, batch, batch_idx, dataloader_idx=0):
         output, loss_dict = self.shared_step(batch)
-        dataset_name = self.args.data.networks[dataloader_idx]
+        dataset_name = self.args.data.test_networks[dataloader_idx]
 
         self.data_normalizers[dataloader_idx].inverse_transform(batch)
         self.data_normalizers[dataloader_idx].inverse_output(output)
@@ -1293,7 +1293,7 @@ class PreTrainingTask(ReconstructionTask):
 
         if self.args.verbose:
             for dataset_idx, outputs in self.test_outputs.items():
-                dataset_name = self.args.data.networks[dataset_idx]
+                dataset_name = self.args.data.test_networks[dataset_idx]
 
                 plot_dir = os.path.join(artifact_dir, "test_plots", dataset_name)
                 os.makedirs(plot_dir, exist_ok=True)

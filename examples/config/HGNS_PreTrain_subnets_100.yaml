@@ -1,0 +1,72 @@
+callbacks:
+  patience: 100
+  tol: 0
+task:
+  task_name: PreTraining
+data:
+  baseMVA: 100
+  mask_value: 0.0
+  mask_p_high: 0.8
+  mask_p_low: 0.1
+  normalization: HeteroDataMVANormalizer
+  training_networks: 100
+  validation_networks:
+  - subnet_case4619_goc_idx_30
+  - subnet_case4837_goc_idx_30
+  - subnet_case4917_goc_idx_30
+  - subnet_case5658_epigrids_idx_30
+  - subnet_case7336_epigrids_idx_30
+  - subnet_case9591_goc_idx_30
+  - subnet_case10480_goc_idx_30
+  - subnet_case19402_goc_idx_30
+  - subnet_case20758_epigrids_idx_30
+  - subnet_case30000_goc_idx_30
+  test_networks:
+  - subnet_case4619_goc_idx_25
+  - subnet_case4837_goc_idx_25
+  - subnet_case4917_goc_idx_25
+  - subnet_case5658_epigrids_idx_25
+  - subnet_case7336_epigrids_idx_25
+  - subnet_case9591_goc_idx_25
+  - subnet_case10480_goc_idx_25
+  - subnet_case19402_goc_idx_25
+  - subnet_case20758_epigrids_idx_25
+  - subnet_case30000_goc_idx_25
+  workers: 16
+model:
+  attention_head: 8
+  edge_dim: 10
+  hidden_size: 48
+  input_bus_dim: 15
+  input_gen_dim: 6
+  output_bus_dim: 2
+  output_gen_dim: 1
+  num_layers: 12
+  type: GNS_heterogeneous
+optimizer:
+  beta1: 0.9
+  beta2: 0.999
+  learning_rate: 0.0005
+  lr_decay: 0.7
+  lr_patience: 5
+seed: 200
+training:
+  batch_size: 8
+  epochs: 200
+  loss_weights:
+  - 0.1
+  - 0.1
+  - 0.8
+  losses:
+  - LayeredWeightedPhysics
+  - MaskedGenMSE
+  - MaskedBusMSE
+  loss_args:
+  - base_weight: 0.5
+  - {}
+  - {}
+  base_weight: 0.5
+  accelerator: auto
+  devices: auto
+  strategy: auto
+verbose: true
