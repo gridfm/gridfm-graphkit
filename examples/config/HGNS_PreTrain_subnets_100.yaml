@@ -11,27 +11,27 @@ data:
   normalization: HeteroDataMVANormalizer
   training_networks: 100
   validation_networks:
-  - subnet_case4619_goc_idx_30
-  - subnet_case4837_goc_idx_30
-  - subnet_case4917_goc_idx_30
-  - subnet_case5658_epigrids_idx_30
-  - subnet_case7336_epigrids_idx_30
-  - subnet_case9591_goc_idx_30
-  - subnet_case10480_goc_idx_30
-  - subnet_case19402_goc_idx_30
-  - subnet_case20758_epigrids_idx_30
-  - subnet_case30000_goc_idx_30
+  - subnet_case4619_goc_idx_1
+  - subnet_case4837_goc_idx_2
+  - subnet_case4917_goc_idx_1
+  - subnet_case5658_epigrids_idx_3
+  - subnet_case7336_epigrids_idx_6
+  - subnet_case9591_goc_idx_4
+  - subnet_case10480_goc_idx_7
+  - subnet_case19402_goc_idx_3
+  - subnet_case20758_epigrids_idx_3
+  - subnet_case30000_goc_idx_2
   test_networks:
-  - subnet_case4619_goc_idx_25
-  - subnet_case4837_goc_idx_25
-  - subnet_case4917_goc_idx_25
-  - subnet_case5658_epigrids_idx_25
-  - subnet_case7336_epigrids_idx_25
-  - subnet_case9591_goc_idx_25
-  - subnet_case10480_goc_idx_25
-  - subnet_case19402_goc_idx_25
-  - subnet_case20758_epigrids_idx_25
-  - subnet_case30000_goc_idx_25
+  - subnet_case4619_goc_idx_2
+  - subnet_case4837_goc_idx_4
+  - subnet_case4917_goc_idx_3
+  - subnet_case5658_epigrids_idx_4
+  - subnet_case7336_epigrids_idx_7
+  - subnet_case9591_goc_idx_5
+  - subnet_case10480_goc_idx_8
+  - subnet_case19402_goc_idx_4
+  - subnet_case20758_epigrids_idx_6
+  - subnet_case30000_goc_idx_3
   workers: 16
 model:
   attention_head: 8
@@ -51,7 +51,7 @@ optimizer:
   lr_patience: 5
 seed: 200
 training:
-  batch_size: 8
+  batch_size: 16
   epochs: 200
   loss_weights:
   - 0.1

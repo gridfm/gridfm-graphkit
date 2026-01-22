@@ -42,34 +42,6 @@ import pandas as pd
 
 
 class ReconstructionTask(BaseTask):
-    """
-    PyTorch Lightning task for node feature reconstruction on power grid graphs.
-
-    This task wraps a GridFM model inside a LightningModule and defines the full
-    training, validation, testing, and prediction logic. It is designed to
-    reconstruct masked node features from graph-structured input data, using
-    datasets and normalizers provided by `gridfm-graphkit`.
-
-    Args:
-        args (NestedNamespace): Experiment configuration. Expected fields include `training.batch_size`, `optimizer.*`, etc.
-        data_normalizers (list): One normalizer per dataset to (de)normalize features.
-
-    Attributes:
-        model (torch.nn.Module): model loaded via `load_model`.
-        loss_fn (callable): Loss function resolved from configuration.
-        batch_size (int): Training batch size. From ``args.training.batch_size``
-        data_normalizers (list): Dataset-wise feature normalizers.
-
-    Methods:
-        forward(x, pe, edge_index, edge_attr, batch, mask=None):
-            Forward pass with optional feature masking.
-        training_step(batch):
-            One training step: computes loss, logs metrics, returns loss.
-        validation_step(batch, batch_idx):
-            One validation step: computes losses and logs metrics.
-
-    """
-
     def __init__(self, args, data_normalizers):
         super().__init__(args, data_normalizers)
         self.model = load_model(args=args)
@@ -101,9 +73,10 @@ class ReconstructionTask(BaseTask):
     def training_step(self, batch):
         _, loss_dict = self.shared_step(batch)
         current_lr = self.optimizer.param_groups[0]["lr"]
-        metrics = {}
-        metrics["Training Loss"] = loss_dict["loss"].detach()
-        metrics["Learning Rate"] = current_lr
+        metrics = {
+            "Training Loss": loss_dict["loss"].detach(),
+            "Learning Rate": current_lr,
+        }
         for metric, value in metrics.items():
             self.log(
                 metric,
@@ -117,6 +90,7 @@ class ReconstructionTask(BaseTask):
             )
         return loss_dict["loss"]
 
+    # keep original validation_step
     def validation_step(self, batch, batch_idx):
         _, loss_dict = self.shared_step(batch)
         loss_dict["loss"] = loss_dict["loss"].detach()
@@ -131,13 +105,64 @@ class ReconstructionTask(BaseTask):
                 logger=True,
                 on_step=False,
             )
-
         return loss_dict["loss"]
-
+    
     @rank_zero_only
     def on_test_end(self):
         """Optional shared test end logic, like clearing stored outputs"""
         self.test_outputs.clear()
+
+    # def _finetune_and_eval_validation(self, epochs: int = 5):
+    #     """
+    #     Fine-tune on validation set for `epochs` using a fresh optimizer
+    #     (starts scheduling from scratch) and evaluate.
+    #     Multi-GPU safe.
+    #     """
+        
+    #     print("Starting fine-tuning on validation set...")
+    #     val_loader = self.trainer.datamodule.val_dataloader()
+
+    #     # Create a fresh optimizer for fine-tuning
+    #     optimizer = torch.optim.AdamW(
+    #         self.model.parameters(),
+    #         lr=self.args.optimizer.learning_rate,
+    #         betas=(self.args.optimizer.beta1, self.args.optimizer.beta2),
+    #     )
+
+    #     self.model.train()
+
+    #     # Fine-tune for the specified number of epochs
+    #     for _ in range(epochs):
+    #         for batch in val_loader:
+    #             optimizer.zero_grad()
+    #             output, loss_dict = self.shared_step(batch)
+    #             loss_dict["loss"].backward()
+    #             optimizer.step()
+
+    #     # Evaluate fine-tuned model
+    #     self.model.eval()
+    #     total_loss = 0.0
+    #     total_graphs = 0
+    #     with torch.no_grad():
+    #         for batch in val_loader:
+    #             _, loss_dict = self.shared_step(batch)
+    #             total_loss += loss_dict["loss"].item() * batch.num_graphs
+    #             total_graphs += batch.num_graphs
+
+    #     avg_val_loss = total_loss / total_graphs
+
+    #     # Log validation loss across all GPUs
+    #     self.log("Validation Loss (finetuned)", avg_val_loss, sync_dist=True)
+
+    # # Run once before training starts
+    # def on_train_start(self):
+    #     self._finetune_and_eval_validation(epochs=5)
+
+    # # Run every 5 training epochs
+    # def on_train_epoch_end(self):
+    #     if (self.current_epoch + 1) % 10 == 0:  # +1 because epoch is 0-indexed
+    #         self._finetune_and_eval_validation(epochs=5)
+
 
 
 def residual_stats_by_type(residual, mask, bus_batch):
