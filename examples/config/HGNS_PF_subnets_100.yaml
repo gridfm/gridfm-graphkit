@@ -1,0 +1,66 @@
+callbacks:
+  patience: 100
+  tol: 0
+task:
+  task_name: PowerFlow
+data:
+  baseMVA: 100
+  mask_value: 0.0
+  normalization: HeteroDataMVANormalizer
+  training_networks: 100
+  validation_networks:
+  - subnet_case4619_goc_idx_1
+  - subnet_case4837_goc_idx_2
+  - subnet_case4917_goc_idx_1
+  - subnet_case5658_epigrids_idx_3
+  - subnet_case7336_epigrids_idx_6
+  - subnet_case9591_goc_idx_4
+  - subnet_case10480_goc_idx_7
+  - subnet_case19402_goc_idx_3
+  - subnet_case20758_epigrids_idx_3
+  - subnet_case30000_goc_idx_2
+  test_networks:
+  - subnet_case4619_goc_idx_2
+  - subnet_case4837_goc_idx_4
+  - subnet_case4917_goc_idx_3
+  - subnet_case5658_epigrids_idx_4
+  - subnet_case7336_epigrids_idx_7
+  - subnet_case9591_goc_idx_5
+  - subnet_case10480_goc_idx_8
+  - subnet_case19402_goc_idx_4
+  - subnet_case20758_epigrids_idx_6
+  - subnet_case30000_goc_idx_3
+  workers: 16
+model:
+  attention_head: 8
+  edge_dim: 10
+  hidden_size: 48
+  input_bus_dim: 15
+  input_gen_dim: 6
+  output_bus_dim: 2
+  output_gen_dim: 1
+  num_layers: 12
+  type: GNS_heterogeneous
+optimizer:
+  beta1: 0.9
+  beta2: 0.999
+  learning_rate: 0.0005
+  lr_decay: 0.7
+  lr_patience: 5
+seed: 200
+training:
+  batch_size: 16
+  epochs: 200
+  loss_weights:
+  - 0.1
+  - 0.9
+  losses:
+  - LayeredWeightedPhysics
+  - MaskedBusMSE
+  loss_args:
+  - base_weight: 0.5
+  - {}
+  accelerator: auto
+  devices: auto
+  strategy: auto
+verbose: true
