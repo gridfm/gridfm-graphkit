@@ -68,7 +68,7 @@ def main_cli(args):
         accelerator=config_args.training.accelerator,
         devices=config_args.training.devices,
         strategy=config_args.training.strategy,
-        log_every_n_steps=1,
+        log_every_n_steps=100,
         default_root_dir=args.log_dir,
         max_epochs=config_args.training.epochs,
         callbacks=get_training_callbacks(config_args),

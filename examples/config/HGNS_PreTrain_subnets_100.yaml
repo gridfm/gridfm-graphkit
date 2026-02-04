@@ -52,7 +52,7 @@ optimizer:
 seed: 200
 training:
   batch_size: 16
-  epochs: 200
+  epochs: 300
   loss_weights:
   - 0.1
   - 0.1
