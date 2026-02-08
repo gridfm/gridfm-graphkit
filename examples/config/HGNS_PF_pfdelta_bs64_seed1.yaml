@@ -40,4 +40,4 @@ training:
   accelerator: auto
   devices: auto
   strategy: auto
-verbose: true
+verbose: false

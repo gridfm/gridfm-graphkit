@@ -27,7 +27,7 @@ def get_training_callbacks(args):
     save_best_model_callback = SaveBestModelStateDict(
         monitor="Validation loss",
         mode="min",
-        filename="best_model_state_dict.pt",
+        filename="best_model_state_dict",
     )
 
     checkpoint_callback = ModelCheckpoint(

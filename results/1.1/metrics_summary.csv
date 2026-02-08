@@ -1,0 +1,5 @@
+grid,perturbation,feasibility,model,"PBE (Mean, p.u.)","PBE (Max, p.u.)","PBE (Mean, p.u.) std","PBE (Max, p.u.) std","PBE (Mean, p.u.) latex","PBE (Max, p.u.) latex"
+case118,avg,nose,bs64_same_norm_shuffle_train_paper,0.3007470300462511,42.96384894476996,0.082013997457341,19.1737265879175,3.0\std{0.8\e{-1}},4.3\std{1.9\e{1}}
+case118,n,feasible,bs64_same_norm_shuffle_train_paper,0.0014365429679552711,0.07681269168853759,0.00038566372924967053,0.04780402976637889,1.4\std{0.4\e{-3}},7.7\std{4.8\e{-2}}
+case118,n-1,feasible,bs64_same_norm_shuffle_train_paper,0.042099264462788895,25.254430338541667,0.02183983789776223,7.31270250508165,4.2\std{2.2\e{-2}},2.5\std{0.7\e{1}}
+case118,n-2,feasible,bs64_same_norm_shuffle_train_paper,0.05048130909601847,30.152460123697917,0.026133216315799984,8.563172370539453,5.0\std{2.6\e{-2}},3.0\std{0.9\e{1}}
