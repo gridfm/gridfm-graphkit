@@ -53,7 +53,7 @@ dependencies = [
     "torchvision>=0.22.1",
     "lightning",
     "seaborn",
-    "datakit>=1.0.2",
+    "gridfm-datakit>=1.0.2",
 ]
 
 [project.optional-dependencies]
