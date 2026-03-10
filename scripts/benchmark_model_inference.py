@@ -4,8 +4,21 @@
 """
 A unified script for benchmarking and limited custom profiling. Benchmarking columns in the output csv are [batch_size,avg_time_per_sample_ms].
 
-Example usage:
-    python benchmark_model_inference.py --config model_conf.yaml --num_nodes 30 --num_edges 82 --num_gens 6 --iterations 20 --output_csv out.csv
+Example usagef (edge count is 2*E (branch count)):
+
+######################################
+
+CONF_PATH=../examples/config
+OUT_DIR=../scripts
+mkdir $OUT_DIR
+
+python benchmark_model_inference.py --config $CONF_PATH/case30_ieee_base.yaml --num_nodes 30 --num_edges 82 --num_gens 6 --iterations 20 --output_csv $OUT_DIR/case30.csv || true
+python benchmark_model_inference.py --config $CONF_PATH/case57_ieee_base.yaml --num_nodes 57 --num_edges 160 --num_gens 7 --iterations 20 --output_csv $OUT_DIR/case57.csv || true
+python benchmark_model_inference.py --config $CONF_PATH/case118_ieee_base.yaml --num_nodes 118 --num_edges 372 --num_gens 54 --iterations 20 --output_csv $OUT_DIR/case118.csv || true
+python benchmark_model_inference.py --config $CONF_PATH/case500_ieee_base.yaml --num_nodes 500 --num_edges 1466 --num_gens 224 --iterations 20 --output_csv $OUT_DIR/case500.csv || true
+python benchmark_model_inference.py --config $CONF_PATH/case2000_ieee_base.yaml --num_nodes 2000 --num_edges 7278 --num_gens 384 --iterations 20 --output_csv $OUT_DIR/case2000.csv || true
+
+######################################
 
 Author(s): Mangaliso M. - mngomezulum@ibm.com
            Matteo M. - Not Available
