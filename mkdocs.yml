@@ -20,6 +20,9 @@ nav:
       - Transforms: datasets/transforms.md
     - Tasks:
       - Feature Reconstruction: tasks/feature_reconstruction.md
+      - Power Flow: tasks/power_flow.md
+      - Optimal Power Flow: tasks/optimal_power_flow.md
+      - State Estimation: tasks/state_estimation.md
     - Models: models/models.md
     - Training:
       - Losses: training/loss.md
