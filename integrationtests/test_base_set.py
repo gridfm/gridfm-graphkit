@@ -6,20 +6,14 @@ import pandas as pd
 import yaml
 import urllib.request
 
-def execute_and_fail(cmd) -> None:
-    """
-    Execute a CLI command and fail in case return code is not 0.
-    """
+def execute_and_live_output(cmd) -> None:
+    # Remove capture_output=True
+    # We use check=True to raise an exception automatically if returncode != 0
     result = subprocess.run(
         cmd,
-        capture_output=True,
         text=True,
         shell=True,
-    )
-    assert result.returncode == 0, (
-        f"{cmd} failed (exit {result.returncode}).\n"
-        f"stdout:\n{result.stdout}\n"
-        f"stderr:\n{result.stderr}"
+        check=True 
     )
 
 def prepare_config():
@@ -52,6 +46,29 @@ def prepare_config():
     
     return config_path
 
+def prepare_training_config():
+    """
+    Modify the training config to set epochs to 2 for testing.
+    """
+    config_path = "examples/config/HGNS_PF_datakit_case14.yaml"
+    
+    # Read the config
+    with open(config_path, 'r') as f:
+        config = yaml.safe_load(f)
+    
+    # Ensure epochs is set to 2
+    if 'training' not in config:
+        config['training'] = {}
+    config['training']['epochs'] = 2
+    
+    # Write back the modified config
+    with open(config_path, 'w') as f:
+        yaml.dump(config, f, default_flow_style=False, sort_keys=False)
+    
+    print(f"Training config updated: epochs set to {config['training']['epochs']}")
+    
+    return config_path
+
 def test_prepare_data():
     """
     gridfm-datakit must be installable via pip with exit code 0.
@@ -70,14 +87,17 @@ def test_prepare_data():
         config_path = prepare_config()
         
         # Generate data using the prepared config
-        execute_and_fail(
+        execute_and_live_output(
             f'gridfm_datakit generate {config_path}'
         )
     else:
         print(f"Data directory '{data_dir}' already exists, skipping data generation.")
     
-    execute_and_fail(
-        'gridfm_graphkit train --config examples/config/HGNS_PF_datakit_case14.yaml --data_path data_out/ --exp_name exp1 --run_name run1 --log_dir logs'
+    # Prepare training config with epochs=2
+    training_config_path = prepare_training_config()
+    
+    execute_and_live_output(
+        f'gridfm_graphkit train --config {training_config_path} --data_path data_out/ --exp_name exp1 --run_name run1 --log_dir logs'
     )
     
     # Find the latest log directory
@@ -104,10 +124,10 @@ def test_prepare_data():
     pbe_mean_value = float(pbe_mean_row.iloc[0]['Value'])
     
     assert 1.1 <= pbe_mean_value <= 2.9, (
-        f"PBE Mean value {pbe_mean_value} is outside acceptable range [1.4, 1.6]"
+        f"PBE Mean value {pbe_mean_value} is outside acceptable range [1.1, 2.9]"
     )
     
-    print(f"✓ PBE Mean value {pbe_mean_value} is within acceptable range [1.4, 1.6]")
+    print(f"PBE Mean value {pbe_mean_value} is within acceptable range [1.1, 2.9]")
 
 
 
