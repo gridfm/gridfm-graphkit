@@ -14,3 +14,4 @@ integrationtests/data_out*
 .julia
 *logs*
 *data_out*
+site*

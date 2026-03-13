@@ -1,16 +1,12 @@
 # Loss Functions
 
-### `Power Balance Equation Loss`
+## Base Loss
 
-$$
-\mathcal{L}_{\text{PBE}} = \frac{1}{N} \sum_{i=1}^N \left| (P_{G,i} - P_{D,i}) + j(Q_{G,i} - Q_{D,i}) - S_{\text{injection}, i} \right|
-$$
-
-::: gridfm_graphkit.training.loss.PBELoss
+::: gridfm_graphkit.training.loss.BaseLoss
 
 ---
 
-### `Mean Squared Error Loss`
+## Mean Squared Error Loss
 
 $$
 \mathcal{L}_{\text{MSE}} = \frac{1}{N} \sum_{i=1}^N (y_i - \hat{y}_i)^2
@@ -20,7 +16,7 @@ $$
 
 ---
 
-### `Masked Mean Squared Error Loss`
+## Masked Mean Squared Error Loss
 
 $$
 \mathcal{L}_{\text{MaskedMSE}} = \frac{1}{|M|} \sum_{i \in M} (y_i - \hat{y}_i)^2
@@ -30,20 +26,34 @@ $$
 
 ---
 
-### `Scaled Cosine Error Loss`
+## Masked Generator MSE Loss
 
-$$
-\mathcal{L}_{\text{SCE}} = \frac{1}{N} \sum_{i=1}^N \left(1 - \frac{\hat{y}^T_i \cdot y_i}{\|\hat{y}_i\| \|y_i\|}\right)^\alpha \text{ , } \alpha \geq 1
-$$
-
-::: gridfm_graphkit.training.loss.SCELoss
+::: gridfm_graphkit.training.loss.MaskedGenMSE
 
 ---
 
-### `Mixed Loss`
+## Masked Bus MSE Loss
+
+::: gridfm_graphkit.training.loss.MaskedBusMSE
+
+---
+
+## Mixed Loss
 
 $$
 \mathcal{L}_{\text{Mixed}} = \sum_{m=1}^M w_m \cdot \mathcal{L}_m
 $$
 
 ::: gridfm_graphkit.training.loss.MixedLoss
+
+---
+
+## Layered Weighted Physics Loss
+
+::: gridfm_graphkit.training.loss.LayeredWeightedPhysicsLoss
+
+---
+
+## Loss Per Dimension
+
+::: gridfm_graphkit.training.loss.LossPerDim

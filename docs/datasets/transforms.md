@@ -2,26 +2,18 @@
 
 > Each transformation class inherits from [`BaseTransform`](https://pytorch-geometric.readthedocs.io/en/latest/modules/transforms.html#torch_geometric.transforms.BaseTransform) provided by [PyTorch Geometric](https://pytorch-geometric.readthedocs.io/).
 
-### `AddNormalizedRandomWalkPE`
+### `RemoveInactiveGenerators`
 
-::: gridfm_graphkit.datasets.transforms.AddNormalizedRandomWalkPE
+::: gridfm_graphkit.datasets.transforms.RemoveInactiveGenerators
 
-### `AddEdgeWeights`
+### `RemoveInactiveBranches`
 
-::: gridfm_graphkit.datasets.transforms.AddEdgeWeights
+::: gridfm_graphkit.datasets.transforms.RemoveInactiveBranches
 
-### `AddIdentityMask`
+### `ApplyMasking`
 
-::: gridfm_graphkit.datasets.transforms.AddIdentityMask
+::: gridfm_graphkit.datasets.transforms.ApplyMasking
 
-### `AddRandomMask`
+### `LoadGridParamsFromPath`
 
-::: gridfm_graphkit.datasets.transforms.AddRandomMask
-
-### `AddPFMask`
-
-::: gridfm_graphkit.datasets.transforms.AddPFMask
-
-### `AddOPFMask`
-
-::: gridfm_graphkit.datasets.transforms.AddOPFMask
+::: gridfm_graphkit.datasets.transforms.LoadGridParamsFromPath

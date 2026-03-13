@@ -1,3 +1,3 @@
-## `GridDatasetDisk`
+## `HeteroGridDatasetDisk`
 
-::: gridfm_graphkit.datasets.powergrid_dataset.GridDatasetDisk
+::: gridfm_graphkit.datasets.powergrid_hetero_dataset.HeteroGridDatasetDisk

@@ -1,3 +1,3 @@
-# LitGridDataModule
+# LitGridHeteroDataModule
 
-::: gridfm_graphkit.datasets.powergrid_datamodule.LitGridDataModule
+::: gridfm_graphkit.datasets.hetero_powergrid_datamodule.LitGridHeteroDataModule

@@ -3,12 +3,10 @@
 
 
 Normalization improves neural network training by ensuring features are well-scaled, preventing issues like exploding gradients and slow convergence. In power grids, where variables like voltage and power span wide ranges, normalization is essential.
-The `gridfm-graphkit` package offers four methods:
+The `gridfm-graphkit` package offers normalization methods based on the per-unit (p.u.) system:
 
-- [`Min-Max Normalization`](#minmaxnormalizer)
-- [`Standardization (Z-score)`](#standardizer)
-- [`Identity (no normalization)`](#identitynormalizer)
-- [`BaseMVA Normalization`](#basemvanormalizer)
+- [`BaseMVA Normalization`](#heterodatamvanormalizer)
+- [`Per-Sample BaseMVA Normalization`](#heterodatapersamplemvanormalizer)
 
 Each of these strategies implements a unified interface and can be used interchangeably depending on the learning task and data characteristics.
 
@@ -25,27 +23,15 @@ Each of these strategies implements a unified interface and can be used intercha
 
 ---
 
-### `MinMaxNormalizer`
+### `HeteroDataMVANormalizer`
 
-::: gridfm_graphkit.datasets.normalizers.MinMaxNormalizer
-
----
-
-### `Standardizer`
-
-::: gridfm_graphkit.datasets.normalizers.Standardizer
+::: gridfm_graphkit.datasets.normalizers.HeteroDataMVANormalizer
 
 ---
 
-### `BaseMVANormalizer`
+### `HeteroDataPerSampleMVANormalizer`
 
-::: gridfm_graphkit.datasets.normalizers.BaseMVANormalizer
-
----
-
-### `IdentityNormalizer`
-
-::: gridfm_graphkit.datasets.normalizers.IdentityNormalizer
+::: gridfm_graphkit.datasets.normalizers.HeteroDataPerSampleMVANormalizer
 
 ---
 
@@ -54,13 +40,18 @@ Each of these strategies implements a unified interface and can be used intercha
 Example:
 
 ```python
-from gridfm_graphkit.datasets.normalizers import MinMaxNormalizer
-import torch
+from gridfm_graphkit.datasets.normalizers import HeteroDataMVANormalizer
+from torch_geometric.data import HeteroData
 
-data = torch.randn(100, 5)  # Example tensor
+# Create normalizer
+normalizer = HeteroDataMVANormalizer(args)
 
-normalizer = MinMaxNormalizer(node_data=True,args=None)
-params = normalizer.fit(data)
-normalized = normalizer.transform(data)
-restored = normalizer.inverse_transform(normalized)
+# Fit on training data
+params = normalizer.fit(data_path, scenario_ids)
+
+# Transform data
+normalizer.transform(hetero_data)
+
+# Inverse transform to restore original scale
+normalizer.inverse_transform(hetero_data)
 ```

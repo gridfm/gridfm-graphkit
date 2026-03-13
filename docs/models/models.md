@@ -1,10 +1,37 @@
 # Models
 
-### `GPSTransformer`
+### `GNS_heterogeneous`
 
-::: gridfm_graphkit.models.gps_transformer.GPSTransformer
+::: gridfm_graphkit.models.gnn_heterogeneous_gns.GNS_heterogeneous
 
+---
 
-### `GNN_TransformerConv`
+## Physics Decoders
 
-::: gridfm_graphkit.models.gnn_transformer.GNN_TransformerConv
+### `PhysicsDecoderOPF`
+
+::: gridfm_graphkit.models.utils.PhysicsDecoderOPF
+
+### `PhysicsDecoderPF`
+
+::: gridfm_graphkit.models.utils.PhysicsDecoderPF
+
+### `PhysicsDecoderSE`
+
+::: gridfm_graphkit.models.utils.PhysicsDecoderSE
+
+---
+
+## Utility Modules
+
+### `ComputeBranchFlow`
+
+::: gridfm_graphkit.models.utils.ComputeBranchFlow
+
+### `ComputeNodeInjection`
+
+::: gridfm_graphkit.models.utils.ComputeNodeInjection
+
+### `ComputeNodeResiduals`
+
+::: gridfm_graphkit.models.utils.ComputeNodeResiduals
