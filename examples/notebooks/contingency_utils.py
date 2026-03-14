@@ -202,39 +202,6 @@ def plot_cm(TN, FP, FN, TP, model_name, label_plot):
     """
     cm = np.array([[TN, FP], [FN, TP]])
 
-    cm_labels = ["Non-overload", "Overload"]
-
-    fig_cm, ax_cm = plt.subplots(figsize=(6, 6))
-
-    sns.heatmap(
-        cm,
-        annot=True,
-        fmt="d",
-        cbar=False,
-        square=True,
-        linewidths=0.5,
-        cmap="Blues",
-        xticklabels=cm_labels,
-        yticklabels=cm_labels,
-        ax=ax_cm,
-        annot_kws={"size": 14},
-    )
-
-    ax_cm.set_xlabel("Predicted", fontsize=12)
-    ax_cm.set_ylabel("True", fontsize=12)
-    ax_cm.set_title(f"Confusion Matrix {label_plot}", fontsize=14)
-    ax_cm.tick_params(axis="both", labelsize=12)
-
-    plt.tight_layout()
-    plt.savefig(f"confusion_matrix_overload_{model_name}.png", bbox_inches="tight")
-    plt.show()
-
-def plot_cm_vm(TN, FP, FN, TP, model_name, label_plot):
-    """
-    TODO docstring
-    """
-    cm = np.array([[TN, FP], [FN, TP]])
-
     cm_labels = ["No violation", "Violation"]
 
     fig_cm, ax_cm = plt.subplots(figsize=(6, 6))
