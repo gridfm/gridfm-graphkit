@@ -39,7 +39,7 @@ def prepare_config():
     with open(config_path, 'w') as f:
         yaml.dump(config, f, default_flow_style=False, sort_keys=False)
     
-    print(f"✓ Config prepared at {config_path} with:")
+    print(f"Config prepared at {config_path} with:")
     print(f"  - network.name: {config['network']['name']}")
     print(f"  - load.scenarios: {config['load']['scenarios']}")
     print(f"  - topology_perturbation.n_topology_variants: {config['topology_perturbation']['n_topology_variants']}")
@@ -105,7 +105,7 @@ def test_prepare_data():
     exp_dirs = glob.glob(os.path.join(log_base, "*"))
     assert len(exp_dirs) > 0, "No experiment directories found in logs/"
     
-    latest_exp_dir = max(exp_dirs, key=os.path.getmtime)
+    latest_exp_dir = sorted(exp_dirs, key=os.path.getctime)[-1]
     run_dirs = glob.glob(os.path.join(latest_exp_dir, "*"))
     assert len(run_dirs) > 0, f"No run directories found in {latest_exp_dir}"
     
