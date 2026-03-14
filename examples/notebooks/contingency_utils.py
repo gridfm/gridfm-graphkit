@@ -265,6 +265,8 @@ def plot_mass_correlation_density_voltage(
     y_min=0.85,
     x_max=1.15,
     y_max=1.15,
+    vm_nominal=1.0,
+    vm_dev_threshold=0.05,
 ):
     """
     TODO docstrings
@@ -305,10 +307,12 @@ def plot_mass_correlation_density_voltage(
         norm=LogNorm(vmin=vmin, vmax=vmax),
         cmap="inferno",
     )
-    ax1.axvline(x_min + 0.05, color="black", linestyle="--", linewidth=2.0)
-    ax1.axhline(y_min + 0.05, color="black", linestyle="--", linewidth=2.0)
-    ax1.axvline(x_max - 0.05, color="black", linestyle="--", linewidth=2.0)
-    ax1.axhline(y_max - 0.05, color="black", linestyle="--", linewidth=2.0)
+    vm_lower_limit = vm_nominal - vm_dev_threshold
+    vm_upper_limit = vm_nominal + vm_dev_threshold
+    ax1.axvline(vm_lower_limit, color="black", linestyle="--", linewidth=2.0)
+    ax1.axhline(vm_lower_limit, color="black", linestyle="--", linewidth=2.0)
+    ax1.axvline(vm_upper_limit, color="black", linestyle="--", linewidth=2.0)
+    ax1.axhline(vm_upper_limit, color="black", linestyle="--", linewidth=2.0)
 
     ax1.plot([0, 5], [0, 5], "k--", linewidth=0.5)
     ax1.set_xlabel("True Voltage Magnitude", fontsize=12)
