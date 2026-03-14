@@ -98,7 +98,7 @@ def cleanup_test_artifacts():
             shutil.rmtree(d, ignore_errors=True)
 
 
-def test_prepare_data(cleanup_test_artifacts):
+def test_train(cleanup_test_artifacts):
     """
     Integration test for gridfm-datakit data generation and gridfm-graphkit training.
 
