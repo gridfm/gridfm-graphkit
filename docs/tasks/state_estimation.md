@@ -72,6 +72,8 @@ The State Estimation task is automatically selected when you specify `task.name:
 
 ## Related
 
+- [Base Task](base_task.md): Abstract base class for all tasks
+- [Reconstruction Task](reconstruction_task.md): Base class for reconstruction tasks
 - [Power Flow Task](power_flow.md): For standard power flow analysis
 - [Optimal Power Flow Task](optimal_power_flow.md): For optimization-based power flow
-- [Feature Reconstruction](feature_reconstruction.md): Base reconstruction task
+- [Task Overview](feature_reconstruction.md): Overview of all task classes

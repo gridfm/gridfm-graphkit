@@ -166,6 +166,8 @@ The Power Flow task is automatically selected when you specify `task.name: Power
 
 ## Related
 
+- [Base Task](base_task.md): Abstract base class for all tasks
+- [Reconstruction Task](reconstruction_task.md): Base class for reconstruction tasks
 - [Optimal Power Flow Task](optimal_power_flow.md): For optimization-based power flow with economic objectives
 - [State Estimation Task](state_estimation.md): For state estimation from noisy measurements
-- [Feature Reconstruction](feature_reconstruction.md): Base reconstruction task
+- [Task Overview](feature_reconstruction.md): Overview of all task classes

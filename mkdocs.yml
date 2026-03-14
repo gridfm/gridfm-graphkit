@@ -19,7 +19,9 @@ nav:
       - Data Modules: datasets/data_modules.md
       - Transforms: datasets/transforms.md
     - Tasks:
-      - Feature Reconstruction: tasks/feature_reconstruction.md
+      - Overview: tasks/feature_reconstruction.md
+      - Base Task: tasks/base_task.md
+      - Reconstruction Task: tasks/reconstruction_task.md
       - Power Flow: tasks/power_flow.md
       - Optimal Power Flow: tasks/optimal_power_flow.md
       - State Estimation: tasks/state_estimation.md
