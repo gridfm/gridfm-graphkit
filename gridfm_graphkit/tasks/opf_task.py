@@ -256,8 +256,8 @@ class OptimalPowerFlowTask(ReconstructionTask):
         loss_dict["Opt gap"] = optimality_gap
         loss_dict["MSE PG"] = mse_PG[PG_H]
 
-        loss_dict["Branch termal violation from"] = mean_thermal_violation_forward
-        loss_dict["Branch termal violation to"] = mean_thermal_violation_reverse
+        loss_dict["Branch thermal violation from"] = mean_thermal_violation_forward
+        loss_dict["Branch thermal violation to"] = mean_thermal_violation_reverse
         loss_dict["Branch voltage angle difference violations"] = (
             branch_angle_violation_mean
         )

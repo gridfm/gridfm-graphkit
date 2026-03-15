@@ -22,6 +22,9 @@ nav:
       - Overview: tasks/feature_reconstruction.md
       - Base Task: tasks/base_task.md
       - Reconstruction Task: tasks/reconstruction_task.md
+      - Power Flow Task: tasks/power_flow.md
+      - Optimal Power Flow Task: tasks/optimal_power_flow.md
+      - State Estimation Task: tasks/state_estimation.md
     - Models: models/models.md
     - Training:
       - Losses: training/loss.md
