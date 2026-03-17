@@ -55,10 +55,12 @@ def main_cli(args):
     L.seed_everything(config_args.seed, workers=True)
 
     normalizer_stats_path = getattr(args, "normalizer_stats", None)
+    dataset_wrapper = getattr(args, "dataset_wrapper", None)
     litGrid = LitGridHeteroDataModule(
         config_args,
         args.data_path,
         normalizer_stats_path=normalizer_stats_path,
+        dataset_wrapper=dataset_wrapper,
     )
     model = get_task(config_args, litGrid.data_normalizers)
     if args.command != "train":
