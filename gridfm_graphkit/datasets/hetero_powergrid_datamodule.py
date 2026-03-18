@@ -152,27 +152,6 @@ class LitGridHeteroDataModule(L.LightningDataModule):
                     transform=get_task_transforms(args=self.args),
                 )
 
-            if self.dataset_wrapper is not None:
-                import importlib
-                if "." not in self.dataset_wrapper:
-                    raise ValueError(
-                        f"dataset_wrapper '{self.dataset_wrapper}' is not a fully-qualified "
-                        "class name (expected 'module.ClassName').",
-                    )
-                module_name, class_name = self.dataset_wrapper.rsplit(".", 1)
-                try:
-                    module = importlib.import_module(module_name)
-                except ModuleNotFoundError as e:
-                    raise ModuleNotFoundError(
-                        f"dataset_wrapper module '{module_name}' could not be imported: {e}.",
-                    ) from e
-                wrapper_cls = getattr(module, class_name, None)
-                if wrapper_cls is None:
-                    raise AttributeError(
-                        f"dataset_wrapper class '{class_name}' not found in module '{module_name}'.",
-                    )
-                dataset = wrapper_cls(dataset)
-
             self.datasets.append(dataset)
 
             num_scenarios = self.args.data.scenarios[i]
@@ -194,6 +173,27 @@ class LitGridHeteroDataModule(L.LightningDataModule):
             load_scenarios = dataset.load_scenarios[subset_indices]
 
             dataset = Subset(dataset, subset_indices)
+
+            if self.dataset_wrapper is not None:
+                import importlib
+                if "." not in self.dataset_wrapper:
+                    raise ValueError(
+                        f"dataset_wrapper '{self.dataset_wrapper}' is not a fully-qualified "
+                        "class name (expected 'module.ClassName').",
+                    )
+                module_name, class_name = self.dataset_wrapper.rsplit(".", 1)
+                try:
+                    module = importlib.import_module(module_name)
+                except ModuleNotFoundError as e:
+                    raise ModuleNotFoundError(
+                        f"dataset_wrapper module '{module_name}' could not be imported: {e}.",
+                    ) from e
+                wrapper_cls = getattr(module, class_name, None)
+                if wrapper_cls is None:
+                    raise AttributeError(
+                        f"dataset_wrapper class '{class_name}' not found in module '{module_name}'.",
+                    )
+                dataset = wrapper_cls(dataset)
 
             # Random seed set before every split, same as above
             np.random.seed(self.args.seed)
