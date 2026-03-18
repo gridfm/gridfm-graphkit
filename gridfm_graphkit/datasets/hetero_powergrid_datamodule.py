@@ -372,9 +372,8 @@ class LitGridHeteroDataModule(L.LightningDataModule):
         kwargs = dict(
             num_workers=num_workers,
             pin_memory=torch.cuda.is_available(),
+            persistent_workers=num_workers > 0,
         )
-        if num_workers > 0:
-            kwargs["multiprocessing_context"] = "fork"
         return kwargs
 
     def train_dataloader(self):
