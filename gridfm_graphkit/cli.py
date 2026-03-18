@@ -56,6 +56,18 @@ def main_cli(args):
 
     normalizer_stats_path = getattr(args, "normalizer_stats", None)
     dataset_wrapper = getattr(args, "dataset_wrapper", None)
+
+    # Import plugin packages so their @DATASET_WRAPPER_REGISTRY.register decorators fire
+    import importlib
+    for plugin_pkg in getattr(args, "plugins", []):
+        try:
+            importlib.import_module(plugin_pkg)
+        except ModuleNotFoundError as e:
+            raise ModuleNotFoundError(
+                f"Plugin package '{plugin_pkg}' could not be imported: {e}. "
+                "Make sure it is installed in the current environment."
+            ) from e
+
     litGrid = LitGridHeteroDataModule(
         config_args,
         args.data_path,

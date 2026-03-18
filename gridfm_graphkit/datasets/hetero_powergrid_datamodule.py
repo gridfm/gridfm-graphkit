@@ -19,6 +19,7 @@ _dm_log = logging.getLogger("gridfm.datamodule")
 
 def _debug_worker_init(worker_id):
     _dm_log.debug("Worker %d started (pid=%d)", worker_id, os.getpid())
+from gridfm_graphkit.io.registries import DATASET_WRAPPER_REGISTRY
 from gridfm_graphkit.io.param_handler import (
     NestedNamespace,
     load_normalizer,
@@ -191,24 +192,7 @@ class LitGridHeteroDataModule(L.LightningDataModule):
 
             if self.dataset_wrapper is not None:
                 _dm_log.debug("Wrapping dataset with '%s' (size=%d)", self.dataset_wrapper, len(dataset))
-                import importlib
-                if "." not in self.dataset_wrapper:
-                    raise ValueError(
-                        f"dataset_wrapper '{self.dataset_wrapper}' is not a fully-qualified "
-                        "class name (expected 'module.ClassName').",
-                    )
-                module_name, class_name = self.dataset_wrapper.rsplit(".", 1)
-                try:
-                    module = importlib.import_module(module_name)
-                except ModuleNotFoundError as e:
-                    raise ModuleNotFoundError(
-                        f"dataset_wrapper module '{module_name}' could not be imported: {e}.",
-                    ) from e
-                wrapper_cls = getattr(module, class_name, None)
-                if wrapper_cls is None:
-                    raise AttributeError(
-                        f"dataset_wrapper class '{class_name}' not found in module '{module_name}'.",
-                    )
+                wrapper_cls = DATASET_WRAPPER_REGISTRY.get(self.dataset_wrapper)
                 dataset = wrapper_cls(dataset)
                 _dm_log.debug("Dataset wrapped successfully: %s", type(dataset).__name__)
 
