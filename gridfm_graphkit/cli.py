@@ -57,6 +57,11 @@ def main_cli(args):
     normalizer_stats_path = getattr(args, "normalizer_stats", None)
     dataset_wrapper = getattr(args, "dataset_wrapper", None)
 
+    # CLI --num_workers overrides the YAML value (useful for debugging with 0)
+    num_workers_override = getattr(args, "num_workers", None)
+    if num_workers_override is not None:
+        config_args.data.workers = num_workers_override
+
     # Import plugin packages so their @DATASET_WRAPPER_REGISTRY.register decorators fire
     import importlib
     for plugin_pkg in getattr(args, "plugins", []):

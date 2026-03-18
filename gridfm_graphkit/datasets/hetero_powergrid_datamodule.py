@@ -1,24 +1,10 @@
 import json
 import torch
-import sys
 import os
-import logging
 from torch_geometric.loader import DataLoader
 from torch.utils.data import ConcatDataset
 from torch.utils.data import Subset
 import torch.distributed as dist
-
-logging.basicConfig(
-    level=logging.DEBUG,
-    format="%(asctime)s [%(process)d] %(levelname)s %(message)s",
-    stream=sys.stderr,
-    force=True,
-)
-_dm_log = logging.getLogger("gridfm.datamodule")
-
-
-def _debug_worker_init(worker_id):
-    _dm_log.debug("Worker %d started (pid=%d)", worker_id, os.getpid())
 from gridfm_graphkit.io.registries import DATASET_WRAPPER_REGISTRY
 from gridfm_graphkit.io.param_handler import (
     NestedNamespace,
@@ -191,27 +177,8 @@ class LitGridHeteroDataModule(L.LightningDataModule):
             dataset = Subset(dataset, subset_indices)
 
             if self.dataset_wrapper is not None:
-                _dm_log.debug("Wrapping dataset with '%s' (size=%d)", self.dataset_wrapper, len(dataset))
                 wrapper_cls = DATASET_WRAPPER_REGISTRY.get(self.dataset_wrapper)
                 dataset = wrapper_cls(dataset)
-                _dm_log.debug("Dataset wrapped successfully: %s", type(dataset).__name__)
-
-                # Monkey-patch __getitem__ to log every access and detect hangs
-                _original_getitem = dataset.__class__.__getitem__
-
-                def _traced_getitem(self_inner, idx):
-                    _dm_log.debug(
-                        "__getitem__(%d) called on %s (pid=%d)",
-                        idx, type(self_inner).__name__, os.getpid(),
-                    )
-                    result = _original_getitem(self_inner, idx)
-                    _dm_log.debug(
-                        "__getitem__(%d) returned on %s (pid=%d)",
-                        idx, type(self_inner).__name__, os.getpid(),
-                    )
-                    return result
-
-                dataset.__class__.__getitem__ = _traced_getitem
 
             # Random seed set before every split, same as above
             np.random.seed(self.args.seed)
@@ -387,22 +354,14 @@ class LitGridHeteroDataModule(L.LightningDataModule):
 
     def _dataloader_kwargs(self):
         num_workers = self.args.data.workers
-        _dm_log.debug(
-            "_dataloader_kwargs: num_workers=%d pin_memory=%s persistent_workers=%s",
-            num_workers,
-            torch.cuda.is_available(),
-            num_workers > 0,
-        )
         kwargs = dict(
             num_workers=num_workers,
             pin_memory=torch.cuda.is_available(),
             persistent_workers=num_workers > 0,
-            worker_init_fn=_debug_worker_init,
         )
         return kwargs
 
     def train_dataloader(self):
-        _dm_log.debug("Creating train_dataloader (dataset size=%d)", len(self.train_dataset_multi))
         return DataLoader(
             self.train_dataset_multi,
             batch_size=self.batch_size,
@@ -411,7 +370,6 @@ class LitGridHeteroDataModule(L.LightningDataModule):
         )
 
     def val_dataloader(self):
-        _dm_log.debug("Creating val_dataloader (dataset size=%d)", len(self.val_dataset_multi))
         return DataLoader(
             self.val_dataset_multi,
             batch_size=self.batch_size,
