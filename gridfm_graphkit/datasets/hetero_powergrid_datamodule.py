@@ -367,13 +367,22 @@ class LitGridHeteroDataModule(L.LightningDataModule):
             with open(splits_path, "w") as f:
                 json.dump(splits, f, indent=2)
 
+    def _dataloader_kwargs(self):
+        num_workers = self.args.data.workers
+        kwargs = dict(
+            num_workers=num_workers,
+            pin_memory=torch.cuda.is_available(),
+        )
+        if num_workers > 0:
+            kwargs["multiprocessing_context"] = "fork"
+        return kwargs
+
     def train_dataloader(self):
         return DataLoader(
             self.train_dataset_multi,
             batch_size=self.batch_size,
             shuffle=True,
-            num_workers=self.args.data.workers,
-            pin_memory=True,
+            **self._dataloader_kwargs(),
         )
 
     def val_dataloader(self):
@@ -381,8 +390,7 @@ class LitGridHeteroDataModule(L.LightningDataModule):
             self.val_dataset_multi,
             batch_size=self.batch_size,
             shuffle=False,
-            num_workers=self.args.data.workers,
-            pin_memory=True,
+            **self._dataloader_kwargs(),
         )
 
     def test_dataloader(self):
@@ -391,8 +399,7 @@ class LitGridHeteroDataModule(L.LightningDataModule):
                 i,
                 batch_size=self.batch_size,
                 shuffle=False,
-                num_workers=self.args.data.workers,
-                pin_memory=True,
+                **self._dataloader_kwargs(),
             )
             for i in self.test_datasets
         ]
@@ -403,8 +410,7 @@ class LitGridHeteroDataModule(L.LightningDataModule):
                 i,
                 batch_size=self.batch_size,
                 shuffle=False,
-                num_workers=self.args.data.workers,
-                pin_memory=True,
+                **self._dataloader_kwargs(),
             )
             for i in self.test_datasets
         ]
