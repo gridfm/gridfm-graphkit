@@ -174,17 +174,19 @@ jobs:
         security-events: write
       steps:
         - uses: actions/checkout@v4
-        - name: Run Trivy filesystem scan
-          # Updated to v0.34.0 which contains the fix for the v0.65.0 binary install error
-          uses: aquasecurity/trivy-action@0.34.0
+
+        - name: Run Trivy vulnerability scanner in repo mode
+          # We use the official container-based action to avoid binary install issues
+          uses: aquasecurity/trivy-action@master
           with:
             scan-type: 'fs'
-            scan-ref: '.'
+            ignore-unfixed: true
             format: 'sarif'
             output: 'trivy-results.sarif'
             severity: 'HIGH,CRITICAL'
-            ignore-unfixed: true
+
         - name: Upload SARIF to Code Scanning
           uses: github/codeql-action/upload-sarif@v3
+          if: always() # Upload results even if vulnerabilities are found
           with:
-            sarif_file: trivy-results.sarif
+            sarif_file: 'trivy-results.sarif'
