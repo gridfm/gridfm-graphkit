@@ -138,7 +138,10 @@ def test_train(cleanup_test_artifacts):
     latest_run_dir = max(run_dirs, key=os.path.getmtime)
 
     metrics_file = os.path.join(
-        latest_run_dir, "artifacts", "test", "case14_ieee_metrics.csv",
+        latest_run_dir,
+        "artifacts",
+        "test",
+        "case14_ieee_metrics.csv",
     )
 
     assert os.path.exists(metrics_file), f"Metrics file not found: {metrics_file}"
