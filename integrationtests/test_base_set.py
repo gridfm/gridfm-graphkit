@@ -9,12 +9,7 @@ import shutil
 
 
 def execute_and_live_output(cmd) -> None:
-    subprocess.run(
-        cmd,
-        text=True,
-        shell=True,
-        check=True
-    )
+    subprocess.run(cmd, text=True, shell=True, check=True)
 
 
 def prepare_config():
@@ -42,7 +37,7 @@ def prepare_config():
     print(f"  - load.scenarios: {config['load']['scenarios']}")
     print(
         f"  - topology_perturbation.n_topology_variants: "
-        f"{config['topology_perturbation']['n_topology_variants']}"
+        f"{config['topology_perturbation']['n_topology_variants']}",
     )
 
     return config_path
@@ -115,9 +110,7 @@ def test_train(cleanup_test_artifacts):
 
         config_path = prepare_config()
 
-        execute_and_live_output(
-            f"gridfm_datakit generate {config_path}"
-        )
+        execute_and_live_output(f"gridfm_datakit generate {config_path}")
     else:
         print(f"Data directory '{data_dir}' already exists, skipping generation.")
 
@@ -129,7 +122,7 @@ def test_train(cleanup_test_artifacts):
         f"--data_path data_out/ "
         f"--exp_name exp1 "
         f"--run_name run1 "
-        f"--log_dir logs"
+        f"--log_dir logs",
     )
 
     log_base = "logs"
@@ -145,10 +138,7 @@ def test_train(cleanup_test_artifacts):
     latest_run_dir = max(run_dirs, key=os.path.getmtime)
 
     metrics_file = os.path.join(
-        latest_run_dir,
-        "artifacts",
-        "test",
-        "case14_ieee_metrics.csv"
+        latest_run_dir, "artifacts", "test", "case14_ieee_metrics.csv",
     )
 
     assert os.path.exists(metrics_file), f"Metrics file not found: {metrics_file}"
