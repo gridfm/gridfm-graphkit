@@ -56,6 +56,7 @@ def main_cli(args):
 
     normalizer_stats_path = getattr(args, "normalizer_stats", None)
     dataset_wrapper = getattr(args, "dataset_wrapper", None)
+    dataset_wrapper_cache_dir = getattr(args, "dataset_wrapper_cache_dir", None)
 
     # CLI --num_workers overrides the YAML value (useful for debugging with 0)
     num_workers_override = getattr(args, "num_workers", None)
@@ -78,6 +79,7 @@ def main_cli(args):
         args.data_path,
         normalizer_stats_path=normalizer_stats_path,
         dataset_wrapper=dataset_wrapper,
+        dataset_wrapper_cache_dir=dataset_wrapper_cache_dir,
     )
     model = get_task(config_args, litGrid.data_normalizers)
     if args.command != "train":

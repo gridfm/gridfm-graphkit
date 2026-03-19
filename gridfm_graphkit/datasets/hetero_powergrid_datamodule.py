@@ -90,10 +90,12 @@ class LitGridHeteroDataModule(L.LightningDataModule):
         data_dir: str = "./data",
         normalizer_stats_path: str = None,
         dataset_wrapper: str = None,
+        dataset_wrapper_cache_dir: str = None,
     ):
         super().__init__()
         self.data_dir = data_dir
         self.dataset_wrapper = dataset_wrapper
+        self.dataset_wrapper_cache_dir = dataset_wrapper_cache_dir
         self.batch_size = int(args.training.batch_size)
         self.split_by_load_scenario_idx = getattr(
             args.data,
@@ -178,7 +180,11 @@ class LitGridHeteroDataModule(L.LightningDataModule):
 
             if self.dataset_wrapper is not None:
                 wrapper_cls = DATASET_WRAPPER_REGISTRY.get(self.dataset_wrapper)
-                dataset = wrapper_cls(dataset)
+                dataset = wrapper_cls(dataset, cache_dir=self.dataset_wrapper_cache_dir)
+                # Populate the cache eagerly so the progress bar is visible
+                # and the sanity check doesn't appear frozen.
+                if hasattr(dataset, "_setup_cache"):
+                    dataset._setup_cache()
 
             # Random seed set before every split, same as above
             np.random.seed(self.args.seed)
