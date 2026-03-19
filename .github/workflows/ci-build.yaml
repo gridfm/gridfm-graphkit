@@ -168,20 +168,23 @@ jobs:
         uses: pypa/gh-action-pip-audit@v1.1.0
 
   trivy_repo:
-    name: Trivy (repo scan)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Run Trivy filesystem scan
-        uses: aquasecurity/trivy-action@0.33.1
-        with:
-          scan-type: 'fs'
-          scan-ref: '.'
-          format: 'sarif'
-          output: 'trivy-results.sarif'
-          severity: 'HIGH,CRITICAL'
-          ignore-unfixed: true
-      - name: Upload SARIF to Code Scanning
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: trivy-results.sarif
+      name: Trivy (repo scan)
+      runs-on: ubuntu-latest
+      permissions:
+        security-events: write
+      steps:
+        - uses: actions/checkout@v4
+        - name: Run Trivy filesystem scan
+          # Updated to v0.34.0 which contains the fix for the v0.65.0 binary install error
+          uses: aquasecurity/trivy-action@0.34.0
+          with:
+            scan-type: 'fs'
+            scan-ref: '.'
+            format: 'sarif'
+            output: 'trivy-results.sarif'
+            severity: 'HIGH,CRITICAL'
+            ignore-unfixed: true
+        - name: Upload SARIF to Code Scanning
+          uses: github/codeql-action/upload-sarif@v3
+          with:
+            sarif_file: trivy-results.sarif
