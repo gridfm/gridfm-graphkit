@@ -168,23 +168,23 @@ class MyCustomTask(BaseTask):
     def __init__(self, args, data_normalizers):
         super().__init__(args, data_normalizers)
         # Initialize task-specific components
-        
+
     def forward(self, x_dict, edge_index_dict, edge_attr_dict, mask_dict):
         # Implement forward pass
         pass
-        
+
     def training_step(self, batch):
         # Implement training logic
         pass
-        
+
     def validation_step(self, batch, batch_idx):
         # Implement validation logic
         pass
-        
+
     def test_step(self, batch, batch_idx, dataloader_idx=0):
         # Implement test logic
         pass
-        
+
     def predict_step(self, batch, batch_idx, dataloader_idx=0):
         # Implement prediction logic
         pass

@@ -144,26 +144,26 @@ class MyCustomTask(ReconstructionTask):
     def __init__(self, args, data_normalizers):
         super().__init__(args, data_normalizers)
         # Add custom initialization
-    
+
     def test_step(self, batch, batch_idx, dataloader_idx=0):
         # Implement custom test logic
         output, loss_dict = self.shared_step(batch)
-        
+
         # Add custom metrics
         custom_metric = self.compute_custom_metric(output, batch)
         loss_dict["Custom Metric"] = custom_metric
-        
+
         # Log metrics
         for metric, value in loss_dict.items():
             self.log(f"{dataset_name}/{metric}", value)
-        
+
         return loss_dict["loss"]
-    
+
     def predict_step(self, batch, batch_idx, dataloader_idx=0):
         # Implement custom prediction logic
         output, _ = self.shared_step(batch)
         return {"predictions": output}
-    
+
     def on_test_end(self):
         # Custom analysis and visualization
         # Generate reports, plots, etc.

@@ -218,7 +218,7 @@ class CustomReconstructionTask(ReconstructionTask):
         output, loss_dict = self.shared_step(batch)
         # Add custom metrics
         return loss_dict["loss"]
-    
+
     def on_test_end(self):
         # Custom analysis and visualization
         super().on_test_end()

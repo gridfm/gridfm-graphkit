@@ -67,11 +67,11 @@ jobs:
           python3 -m pip install --upgrade pip
           python3 -m pip install --upgrade "git+https://github.com/ibm/detect-secrets.git@master#egg=detect-secrets"
           python3 -m pip install boxsdk
-          
+
       - name: Scan repository & write snapshot
         run: |
           mkdir -p security-outputs
-      
+
           # Run detect-secrets while skipping binary files
           detect-secrets scan \
             --exclude-files '.*\.ipynb$|.*\.(png|jpg|jpeg|gif|pdf|onnx|pt|pth|bin|zip)$' \
