@@ -181,10 +181,6 @@ class LitGridHeteroDataModule(L.LightningDataModule):
             if self.dataset_wrapper is not None:
                 wrapper_cls = DATASET_WRAPPER_REGISTRY.get(self.dataset_wrapper)
                 dataset = wrapper_cls(dataset, cache_dir=self.dataset_wrapper_cache_dir)
-                # Populate the cache eagerly so the progress bar is visible
-                # and the sanity check doesn't appear frozen.
-                if hasattr(dataset, "_setup_cache"):
-                    dataset._setup_cache()
 
             # Random seed set before every split, same as above
             np.random.seed(self.args.seed)
@@ -243,6 +239,11 @@ class LitGridHeteroDataModule(L.LightningDataModule):
                     num_scenarios,
                     saved_stats,
                 )
+
+            # Populate the wrapper cache now that the normalizer is fitted,
+            # so transform() has BaseMVA set when __getitem__ is called.
+            if self.dataset_wrapper is not None and hasattr(dataset, "_setup_cache"):
+                dataset._setup_cache()
 
             self.train_datasets.append(train_dataset)
             self.val_datasets.append(val_dataset)
