@@ -9,7 +9,7 @@ import shutil
 
 
 def execute_and_live_output(cmd) -> None:
-    result = subprocess.run(
+    subprocess.run(
         cmd,
         text=True,
         shell=True,

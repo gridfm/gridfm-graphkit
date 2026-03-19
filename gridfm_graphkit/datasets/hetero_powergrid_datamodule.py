@@ -19,7 +19,6 @@ from gridfm_graphkit.datasets.powergrid_hetero_dataset import HeteroGridDatasetD
 import numpy as np
 import random
 import warnings
-import os
 import lightning as L
 from typing import List
 from lightning.pytorch.loggers import MLFlowLogger
