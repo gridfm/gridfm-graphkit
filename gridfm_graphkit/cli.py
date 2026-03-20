@@ -1,6 +1,6 @@
 from gridfm_graphkit.datasets.hetero_powergrid_datamodule import LitGridHeteroDataModule
 from gridfm_graphkit.io.param_handler import NestedNamespace
-from gridfm_graphkit.training.callbacks import SaveBestModelStateDict
+from gridfm_graphkit.training.callbacks import SaveBestModelStateDict, TorchProfilerCallback
 import numpy as np
 import os
 import yaml
@@ -15,7 +15,7 @@ from lightning.pytorch.loggers import MLFlowLogger
 import lightning as L
 
 
-def get_training_callbacks(args):
+def get_training_callbacks(args, profile: bool = False, profile_dir: str = "profiler_output"):
     early_stop_callback = EarlyStopping(
         monitor="Validation loss",
         min_delta=args.callbacks.tol,
@@ -37,7 +37,10 @@ def get_training_callbacks(args):
         save_top_k=0,
     )
 
-    return [early_stop_callback, save_best_model_callback, checkpoint_callback]
+    callbacks = [early_stop_callback, save_best_model_callback, checkpoint_callback]
+    if profile:
+        callbacks.append(TorchProfilerCallback(output_dir=profile_dir))
+    return callbacks
 
 
 def main_cli(args):
@@ -96,7 +99,11 @@ def main_cli(args):
         log_every_n_steps=1000,
         default_root_dir=args.log_dir,
         max_epochs=config_args.training.epochs,
-        callbacks=get_training_callbacks(config_args),
+        callbacks=get_training_callbacks(
+            config_args,
+            profile=getattr(args, "profile", False),
+            profile_dir=getattr(args, "profile_dir", "profiler_output"),
+        ),
     )
     if args.command == "train" or args.command == "finetune":
         trainer.fit(model=model, datamodule=litGrid)

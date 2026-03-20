@@ -42,6 +42,18 @@ def main():
         default=None,
         help="Directory for the dataset wrapper's disk cache. If set, cache is loaded from here when present and saved here after first population.",
     )
+    train_parser.add_argument(
+        "--profile",
+        action="store_true",
+        default=False,
+        help="Enable torch.profiler during training. Traces are written to --profile_dir.",
+    )
+    train_parser.add_argument(
+        "--profile_dir",
+        type=str,
+        default="profiler_output",
+        help="Directory where torch.profiler traces and the key-averages summary are saved.",
+    )
 
     # ---- FINETUNE SUBCOMMAND ----
     finetune_parser = subparsers.add_parser("finetune", help="Run fine-tuning")
@@ -74,6 +86,18 @@ def main():
         type=str,
         default=None,
         help="Directory for the dataset wrapper's disk cache. If set, cache is loaded from here when present and saved here after first population.",
+    )
+    finetune_parser.add_argument(
+        "--profile",
+        action="store_true",
+        default=False,
+        help="Enable torch.profiler during fine-tuning. Traces are written to --profile_dir.",
+    )
+    finetune_parser.add_argument(
+        "--profile_dir",
+        type=str,
+        default="profiler_output",
+        help="Directory where torch.profiler traces and the key-averages summary are saved.",
     )
 
     # ---- EVALUATE SUBCOMMAND ----
