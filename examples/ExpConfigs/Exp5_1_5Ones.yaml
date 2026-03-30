@@ -1,0 +1,28 @@
+name: exp515Ones
+
+fixed:
+  model12: false
+  randomMask: false
+  removeNan: false
+  graphWise: true
+  nodeWise: false
+  topologyOnly: true
+  error_based: false
+  ones: true
+  generate: false
+  ablation: False
+  runIndividualFeatures: false
+  modelComparison: true
+  leaveOneOut: false
+
+  featureNames:
+    - PQ-VoltageMagnitude
+    - PQ-VoltageAngle
+    - PV-ReactivePowerGenerated
+    - PV-VoltageAngle
+    - REF-ActivePowerGenerated
+    - REF-ReactivePowerGenerated
+
+sweep:
+  generate: [true, false]
+  model12: [true, false]

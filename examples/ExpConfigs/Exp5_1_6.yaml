@@ -1,0 +1,28 @@
+name: exp516
+
+fixed:
+  model12: false
+  randomMask: false
+  removeNan: false
+  graphWise: true
+  nodeWise: false
+  topologyOnly: false
+  error_based: false
+  ones: false
+  generate: false
+  ablation: False
+  runIndividualFeatures: true
+  modelComparison: true
+  leaveOneOut: false
+
+  featureNames:
+    - PQ-VoltageMagnitude
+    - PQ-VoltageAngle
+    - PV-ReactivePowerGenerated
+    - PV-VoltageAngle
+    - REF-ActivePowerGenerated
+    - REF-ReactivePowerGenerated
+
+sweep:
+  generate: [true, false]
+  model12: [true, false]

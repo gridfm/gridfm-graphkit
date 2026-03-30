@@ -1,0 +1,24 @@
+name: exp623Small
+
+fixed:
+  model12: true
+  randomMask: false
+  removeNan: false
+  graphWise: false
+  nodeWise: true
+  topologyOnly: false
+  error_based: false
+  ones: false
+  generate: false
+  ablation: false
+  modelComparison: true
+  leaveOneOut: false
+
+
+  featureNames:
+    - PQ-VoltageMagnitude
+    - PQ-VoltageAngle
+    - PV-ReactivePowerGenerated
+    - PV-VoltageAngle
+    - REF-ActivePowerGenerated
+    - REF-ReactivePowerGenerated

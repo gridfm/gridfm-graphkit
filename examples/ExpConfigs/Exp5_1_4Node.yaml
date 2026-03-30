@@ -1,0 +1,28 @@
+name: exp514Node
+
+fixed:
+  model12: false
+  randomMask: false
+  removeNan: false
+  graphWise: false
+  nodeWise: true
+  topologyOnly: false
+  error_based: false
+  ones: false
+  generate: true
+  ablation: false
+  runIndividualFeatures: false
+  modelComparison: true
+  leaveOneOut: false
+
+  featureNames:
+    - PQ-VoltageMagnitude
+    - PQ-VoltageAngle
+    - PV-ReactivePowerGenerated
+    - PV-VoltageAngle
+    - REF-ActivePowerGenerated
+    - REF-ReactivePowerGenerated
+
+sweep:
+  model12: [true, false]
+  generate: [true, false]

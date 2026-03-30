@@ -1,11 +1,13 @@
 
-from MI import mainExperiments, genData, plotAll, evalMI, recombine
+from MI import genCasesSVMCrossEval, mainExperiments, genData, plotAll, evalMI, recombine 
+from genResultsPaper import genCasesCrossEvalStatTest
 from multiprocessing import Pool
 import torch
 import random
 from EvalUtils import loadModel
 from EvalUtils import getLabels, getFalseAlarmRate
 from itertools import repeat
+
 
 torch.manual_seed(0)
 random.seed(0)
@@ -88,7 +90,7 @@ def runExperimentsNodeWise(gen=False):
         mainExperiments(graphWise, nodeWise, model12, randomMask, topologyOnly, featureNames, removeNan, plot=False, MI=True,runIndividualFeatures=True,step='load')
     
 def runExperimentsSingleFeature():
-    graphWise = False
+    graphWise = True
     nodeWise = False
     model12 = False
     randomMask= False
@@ -97,9 +99,13 @@ def runExperimentsSingleFeature():
     featureNames = ['PQ-VoltageMagnitude','PQ-VoltageAngle','PV-ReactivePowerGenerated','PV-VoltageAngle','REF-ActivePowerGenerated','REF-ReactivePowerGenerated']
     if randomMask:
         featureNames = featureNames+['PQ-ActivePowerDemand','PQ-ReactivePowerDemand','PQ-ActivePowerGenerated','PQ-ReactivePowerGenerated', 'PV-ActivePowerDemand','PV-ReactivePowerDemand','PV-ReactivePowerGenerated', 'PV-VoltageMagnitude','REF-ActivePowerDemand','REF-ReactivePowerDemand', 'REF-VoltageMagnitude','REF-VoltageAngle']
-    mainExperiments(graphWise, nodeWise, model12, randomMask, topologyOnly, featureNames, removeNan, plot=False, MI=True,runIndividualFeatures=True,step='load')
-    topologyOnly=True
-    mainExperiments(graphWise, nodeWise, model12, randomMask, topologyOnly, featureNames, removeNan, plot=False, MI=True,runIndividualFeatures=True,step='load')
+    mainExperiments(graphWise, nodeWise, model12, randomMask, topologyOnly, featureNames, removeNan, plot=False, MI=True,runIndividualFeatures=True,step='load',error_based=False,modelComparison=True)
+    #topologyOnly=True
+    #mainExperiments(graphWise, nodeWise, model12, randomMask, topologyOnly, featureNames, removeNan, plot=False, MI=True,runIndividualFeatures=True,step='load',error_based=False,modelComparison=True)
+    model12 = True
+    mainExperiments(graphWise, nodeWise, model12, randomMask, topologyOnly, featureNames, removeNan, plot=False, MI=True,runIndividualFeatures=True,step='load',error_based=False,modelComparison=True)
+    #topologyOnly=False
+    #mainExperiments(graphWise, nodeWise, model12, randomMask, topologyOnly, featureNames, removeNan, plot=False, MI=True,runIndividualFeatures=True,step='load',error_based=False,modelComparison=True)
     
 def runGraphWise():
     runDist(True, True, True)
@@ -109,7 +115,7 @@ def runMissing():
     runDist(True, True, True)
 
 def runSmallTopology():
-    graphWise = False
+    graphWise = True
     nodeWise = False
     model12 = True
     randomMask= False
@@ -119,10 +125,187 @@ def runSmallTopology():
     if randomMask:
         featureNames = featureNames+['PQ-ActivePowerDemand','PQ-ReactivePowerDemand','PQ-ActivePowerGenerated','PQ-ReactivePowerGenerated', 'PV-ActivePowerDemand','PV-ReactivePowerDemand','PV-ReactivePowerGenerated', 'PV-VoltageMagnitude','REF-ActivePowerDemand','REF-ReactivePowerDemand', 'REF-VoltageMagnitude','REF-VoltageAngle']
     #mainExperiments(graphWise, nodeWise, model12, randomMask, topologyOnly, featureNames, removeNan, plot=False, MI=True,runIndividualFeatures=False,step='genserial')
-    mainExperiments(graphWise, nodeWise, model12, randomMask, topologyOnly, featureNames, removeNan, plot=False, MI=True,runIndividualFeatures=False,step='load')
-    
-def runAllExperiments():
+    mainExperiments(graphWise, nodeWise, model12, randomMask, topologyOnly, featureNames, removeNan, plot=False, MI=True,runIndividualFeatures=False,step='load',error_based=False)
+    model12=False
+    mainExperiments(graphWise, nodeWise, model12, randomMask, topologyOnly, featureNames, removeNan, plot=False, MI=True,runIndividualFeatures=False,step='load',error_based=False)
+
+def runNodeWise(model12 = False, topologyOnly=True):
+    randomMask= False
+    removeNan = False
+    graphWise = False
+    nodeWise = True
+    topologyOnly=True
+    featureNames = ['PQ-VoltageMagnitude','PQ-VoltageAngle','PV-ReactivePowerGenerated','PV-VoltageAngle','REF-ActivePowerGenerated','REF-ReactivePowerGenerated']
+    mainExperiments(graphWise, nodeWise, model12, randomMask, topologyOnly, featureNames, removeNan, plot=False, MI=True,runIndividualFeatures=False,step='genserial')
+    #mainExperiments(graphWise, nodeWise, model12, randomMask, topologyOnly, featureNames, removeNan, plot=False, MI=True,runIndividualFeatures=False,step='load')
+    #topologyOnly=False
+    #mainExperiments(graphWise, nodeWise, model12, randomMask, topologyOnly, featureNames, removeNan, plot=False, MI=True,runIndividualFeatures=False,step='genserial')
+    #mainExperiments(graphWise, nodeWise, model12, randomMask, topologyOnly, featureNames, removeNan, plot=False, MI=True,runIndividualFeatures=False,step='load')
+
+def sec634():
+    randomMask= False
+    removeNan = False
+    graphWise = False
+    nodeWise = True
+    topologyOnly=False
+    model12=False
+    error_based=False
+    featureNames = ['PQ-VoltageMagnitude','PQ-VoltageAngle','PV-ReactivePowerGenerated','PV-VoltageAngle','REF-ActivePowerGenerated','REF-ReactivePowerGenerated']
+    #mainExperiments(graphWise, nodeWise, model12, randomMask, topologyOnly, featureNames, removeNan, plot=False, MI=False,runIndividualFeatures=False,step='genserial',error_based=error_based)
+    mainExperiments(graphWise, nodeWise, model12, randomMask, topologyOnly, featureNames, removeNan, plot=False, MI=True,runIndividualFeatures=False,step='load',error_based=error_based,modelComparison=True)
+    model12=True
+    #graphWise = False
+    #mainExperiments(graphWise, nodeWise, model12, randomMask, topologyOnly, featureNames, removeNan, plot=False, MI=False,runIndividualFeatures=False,step='genserial',error_based=error_based)
+    mainExperiments(graphWise, nodeWise, model12, randomMask, topologyOnly, featureNames, removeNan, plot=False, MI=True,runIndividualFeatures=False,step='load',error_based=error_based,modelComparison=True)
+    nodeWise = False
+    #mainExperiments(graphWise, nodeWise, model12, randomMask, topologyOnly, featureNames, removeNan, plot=False, MI=False,runIndividualFeatures=False,step='genserial',error_based=Ferror_based)
+    mainExperiments(graphWise, nodeWise, model12, randomMask, topologyOnly, featureNames, removeNan, plot=False, MI=True,runIndividualFeatures=False,step='load',error_based=error_based,modelComparison=True)
+    model12 = False 
+    #graphWise = False
+    #mainExperiments(graphWise, nodeWise, model12, randomMask, topologyOnly, featureNames, removeNan, plot=False, MI=False,runIndividualFeatures=False,step='genserial',error_based=error_based)
+    mainExperiments(graphWise, nodeWise, model12, randomMask, topologyOnly, featureNames, removeNan, plot=False, MI=True,runIndividualFeatures=False,step='load',error_based=error_based,modelComparison=True)
+
+def runNonErrorBased():
+    randomMask= False
+    removeNan = False
+    graphWise = False
+    nodeWise = True
+    topologyOnly=False
+    model12=False
+    error_based=False
+    featureNames = ['PQ-VoltageMagnitude','PQ-VoltageAngle','PV-ReactivePowerGenerated','PV-VoltageAngle','REF-ActivePowerGenerated','REF-ReactivePowerGenerated']
+    #mainExperiments(graphWise, nodeWise, model12, randomMask, topologyOnly, featureNames, removeNan, plot=False, MI=False,runIndividualFeatures=False,step='genserial',error_based=error_based)
+    mainExperiments(graphWise, nodeWise, model12, randomMask, topologyOnly, featureNames, removeNan, plot=False, MI=True,runIndividualFeatures=False,step='load',error_based=error_based)
+    topologyOnly=False
+    #graphWise = False
+    #mainExperiments(graphWise, nodeWise, model12, randomMask, topologyOnly, featureNames, removeNan, plot=False, MI=False,runIndividualFeatures=False,step='genserial',error_based=error_based)
+    mainExperiments(graphWise, nodeWise, model12, randomMask, topologyOnly, featureNames, removeNan, plot=False, MI=True,runIndividualFeatures=False,step='load',error_based=error_based)
+    model12 = True 
+    #mainExperiments(graphWise, nodeWise, model12, randomMask, topologyOnly, featureNames, removeNan, plot=False, MI=False,runIndividualFeatures=False,step='genserial',error_based=Ferror_based)
+    mainExperiments(graphWise, nodeWise, model12, randomMask, topologyOnly, featureNames, removeNan, plot=False, MI=True,runIndividualFeatures=False,step='load',error_based=error_based)
+    topologyOnly=False
+    #graphWise = False
+    #mainExperiments(graphWise, nodeWise, model12, randomMask, topologyOnly, featureNames, removeNan, plot=False, MI=False,runIndividualFeatures=False,step='genserial',error_based=error_based)
+    mainExperiments(graphWise, nodeWise, model12, randomMask, topologyOnly, featureNames, removeNan, plot=False, MI=True,runIndividualFeatures=False,step='load',error_based=error_based)
+
+def sec657():
+    #run leave 1 out without error
+    leaveOneOut = True
+    model12=False
+    randomMask= False
+    removeNan = False
+    graphWise = True
+    nodeWise = False
+    topologyOnly=False
+    error_based = False
+    ones = False
+    ###data is already there, only add leave -1.
+    featureNames = ['PQ-VoltageMagnitude','PQ-VoltageAngle','PV-ReactivePowerGenerated','PV-VoltageAngle','REF-ActivePowerGenerated','REF-ReactivePowerGenerated']
+    mainExperiments(graphWise, nodeWise, model12, randomMask, topologyOnly, featureNames, removeNan, plot=False, MI=True,runIndividualFeatures=False,step='load',error_based=error_based,modelComparison=True,leaveOneOut=leaveOneOut)
     model12 = True
+    mainExperiments(graphWise, nodeWise, model12, randomMask, topologyOnly, featureNames, removeNan, plot=False, MI=True,runIndividualFeatures=False,step='load',error_based=error_based,modelComparison=True,leaveOneOut=leaveOneOut)
+    graphWise = False
+    model12 = False
+    mainExperiments(graphWise, nodeWise, model12, randomMask, topologyOnly, featureNames, removeNan, plot=False, MI=True,runIndividualFeatures=False,step='load',error_based=error_based,modelComparison=True,leaveOneOut=leaveOneOut)
+    model12 = True
+    mainExperiments(graphWise, nodeWise, model12, randomMask, topologyOnly, featureNames, removeNan, plot=False, MI=True,runIndividualFeatures=False,step='load',error_based=error_based,modelComparison=True,leaveOneOut=leaveOneOut)
+
+
+
+    pass
+
+def sec633():
+    model12=True
+    randomMask= False
+    removeNan = False
+    graphWise = False
+    nodeWise = False
+    topologyOnly=False
+    errorbased=False
+    featureNames = ['PQ-VoltageMagnitude','PQ-VoltageAngle','PV-ReactivePowerGenerated','PV-VoltageAngle','REF-ActivePowerGenerated','REF-ReactivePowerGenerated']
+    if True:
+        graphWise = True
+        model12 = False
+        mainExperiments(graphWise, nodeWise, model12, randomMask, topologyOnly, featureNames, removeNan, plot=False, MI=True,runIndividualFeatures=False,step='load',error_based=errorbased,modelComparison=True)
+        model12 = True
+        mainExperiments(graphWise, nodeWise, model12, randomMask, topologyOnly, featureNames, removeNan, plot=False, MI=True,runIndividualFeatures=False,step='load',error_based=errorbased,modelComparison=True)
+    if False:
+        #mainExperiments(graphWise, nodeWise, model12, randomMask, topologyOnly, featureNames, removeNan, plot=False, MI=True,runIndividualFeatures=False,step='genserial',error_based=errorbased)
+        mainExperiments(graphWise, nodeWise, model12, randomMask, topologyOnly, featureNames, removeNan, plot=False, MI=True,runIndividualFeatures=False,step='load',error_based=errorbased,modelComparison=True)
+        model12=False
+        #mainExperiments(graphWise, nodeWise, model12, randomMask, topologyOnly, featureNames, removeNan, plot=False, MI=True,runIndividualFeatures=False,step='genserial',error_based=errorbased)
+        mainExperiments(graphWise, nodeWise, model12, randomMask, topologyOnly, featureNames, removeNan, plot=False, MI=True,runIndividualFeatures=False,step='load',error_based=errorbased,modelComparison=True)
+        graphWise = False
+        nodeWise=True
+        #mainExperiments(graphWise, nodeWise, model12, randomMask, topologyOnly, featureNames, removeNan, plot=False, MI=True,runIndividualFeatures=False,step='genserial',error_based=errorbased)
+        mainExperiments(graphWise, nodeWise, model12, randomMask, topologyOnly, featureNames, removeNan, plot=False, MI=True,runIndividualFeatures=False,step='load',error_based=errorbased,modelComparison=True)
+        model12=True
+        #mainExperiments(graphWise, nodeWise, model12, randomMask, topologyOnly, featureNames, removeNan, plot=False, MI=True,runIndividualFeatures=False,step='genserial',error_based=Ferrorbased)
+        mainExperiments(graphWise, nodeWise, model12, randomMask, topologyOnly, featureNames, removeNan, plot=False, MI=True,runIndividualFeatures=False,step='load',error_based=errorbased,modelComparison=True)
+        nodeWise=False
+        model12 = False
+        #mainExperiments(graphWise, nodeWise, model12, randomMask, topologyOnly, featureNames, removeNan, plot=False, MI=True,runIndividualFeatures=False,step='genserial',error_based=errorbased)
+        mainExperiments(graphWise, nodeWise, model12, randomMask, topologyOnly, featureNames, removeNan, plot=False, MI=True,runIndividualFeatures=False,step='load',error_based=errorbased,modelComparison=True)
+        model12=True
+        #mainExperiments(graphWise, nodeWise, model12, randomMask, topologyOnly, featureNames, removeNan, plot=False, MI=True,runIndividualFeatures=False,step='genserial',error_based=Ferrorbased)
+        mainExperiments(graphWise, nodeWise, model12, randomMask, topologyOnly, featureNames, removeNan, plot=False, MI=True,runIndividualFeatures=False,step='load',error_based=errorbased,modelComparison=True)
+
+def sec6310():
+    model12=True
+    randomMask= False
+    removeNan = False
+    graphWise = True
+    nodeWise = False
+    topologyOnly=False
+    errorbased=True
+    featureNames = ['PQ-VoltageMagnitude','PQ-VoltageAngle','PV-ReactivePowerGenerated','PV-VoltageAngle','REF-ActivePowerGenerated','REF-ReactivePowerGenerated']
+    mainExperiments(graphWise, nodeWise, model12, randomMask, topologyOnly, featureNames, removeNan, plot=False, MI=True,runIndividualFeatures=False,step='load',error_based=errorbased,modelComparison=True)
+    # now rerun leave one out with full model comparison
+    mainExperiments(graphWise, nodeWise, model12, randomMask, topologyOnly, featureNames, removeNan, plot=False, MI=True,runIndividualFeatures=False,step='load',error_based=errorbased,modelComparison=True,leaveOneOut=True)
+    model12=False
+    mainExperiments(graphWise, nodeWise, model12, randomMask, topologyOnly, featureNames, removeNan, plot=False, MI=True,runIndividualFeatures=False,step='load',error_based=errorbased,modelComparison=True,leaveOneOut=True)
+
+
+
+def sec635():
+    model12=False
+    randomMask= False
+    removeNan = False
+    graphWise = True
+    nodeWise = False
+    topologyOnly=True
+    error_based = False
+    ones = False
+    featureNames = ['PQ-VoltageMagnitude','PQ-VoltageAngle','PV-ReactivePowerGenerated','PV-VoltageAngle','REF-ActivePowerGenerated','REF-ReactivePowerGenerated']
+    ##mainExperiments(graphWise, nodeWise, model12, randomMask, topologyOnly, featureNames, removeNan, plot=False, MI=True,runIndividualFeatures=False,step='genserial',error_based=error_based,ones=ones)
+    #mainExperiments(graphWise, nodeWise, model12, randomMask, topologyOnly, featureNames, removeNan, plot=False, MI=True,runIndividualFeatures=False,step='load',error_based=error_based,modelComparison=True,ones=ones)
+    model12=True
+    #mainExperiments(graphWise, nodeWise, model12, randomMask, topologyOnly, featureNames, removeNan, plot=False, MI=True,runIndividualFeatures=False,step='genserial',error_based=error_based,ones=ones)
+    ##mainExperiments(graphWise, nodeWise, model12, randomMask, topologyOnly, featureNames, removeNan, plot=False, MI=True,runIndividualFeatures=False,step='load',error_based=error_based,modelComparison=True,ones=ones)
+    ########### Replacing with zero: above; replacing with ones: below
+    ones=True
+    mainExperiments(graphWise, nodeWise, model12, randomMask, topologyOnly, featureNames, removeNan, plot=False, MI=False,runIndividualFeatures=False,step='genserial',error_based=error_based,ones=ones)
+    #mainExperiments(graphWise, nodeWise, model12, randomMask, topologyOnly, featureNames, removeNan, plot=False, MI=True, runIndividualFeatures=False,step='load',error_based=error_based,modelComparison=True,ones=ones)
+    model12=False
+    mainExperiments(graphWise, nodeWise, model12, randomMask, topologyOnly, featureNames, removeNan, plot=False, MI=False,runIndividualFeatures=False,step='genserial',error_based=error_based,ones=ones)
+    #mainExperiments(graphWise, nodeWise, model12, randomMask, topologyOnly, featureNames, removeNan, plot=False, MI=True,runIndividualFeatures=False,step='load',error_based=error_based,modelComparison=True,ones=ones)
+
+
+def runModelComparison(model12 = False):
+    randomMask= False
+    removeNan = False
+    graphWise = True
+    nodeWise = False
+    topologyOnly=False
+    featureNames = ['PQ-VoltageMagnitude','PQ-VoltageAngle','PV-ReactivePowerGenerated','PV-VoltageAngle','REF-ActivePowerGenerated','REF-ReactivePowerGenerated']
+    #mainExperiments(graphWise, nodeWise, model12, randomMask, topologyOnly, featureNames, removeNan, plot=False, MI=True,runIndividualFeatures=False,step='genserial',error_based=False)
+    mainExperiments(graphWise, nodeWise, model12, randomMask, topologyOnly, featureNames, removeNan, plot=False, MI=True,runIndividualFeatures=False,step='load',error_based=False,modelComparison=True)
+    #topologyOnly=True
+    #graphWise = False
+    #mainExperiments(graphWise, nodeWise, model12, randomMask, topologyOnly, featureNames, removeNan, plot=False, MI=True,runIndividualFeatures=False,step='genserial',error_based=False)
+    #mainExperiments(graphWise, nodeWise, model12, randomMask, topologyOnly, featureNames, removeNan, plot=False, MI=True,runIndividualFeatures=False,step='load',error_based=False,modelComparison=True)
+
+def runAllExperiments(leaveOneOut=False,modelComparison=False, ones=True,model12 = True):
     randomMask= False
     removeNan = False
     featureNames = ['PQ-VoltageMagnitude','PQ-VoltageAngle','PV-ReactivePowerGenerated','PV-VoltageAngle','REF-ActivePowerGenerated','REF-ReactivePowerGenerated']
@@ -130,13 +313,15 @@ def runAllExperiments():
         featureNames = featureNames+['PQ-ActivePowerDemand','PQ-ReactivePowerDemand','PQ-ActivePowerGenerated','PQ-ReactivePowerGenerated', 'PV-ActivePowerDemand','PV-ReactivePowerDemand','PV-ReactivePowerGenerated', 'PV-VoltageMagnitude','REF-ActivePowerDemand','REF-ReactivePowerDemand', 'REF-VoltageMagnitude','REF-VoltageAngle']
     ### run once with batch wise, once with graphwise, once with node wise.
     for config in [[False, False],[True, False],[False, True]]:
+        model12 = True
         topologyOnly=True
         ### first is graphwise, second is nodewise
-        #mainExperiments(config[0], config[1], model12, randomMask, topologyOnly, featureNames, removeNan, plot=False, MI=True,runIndividualFeatures=False,step='genserial')
-        mainExperiments(config[0], config[1], model12, randomMask, topologyOnly, featureNames, removeNan, plot=False, MI=True,runIndividualFeatures=False,step='load')
-        topologyOnly=False
-        #mainExperiments(config[0], config[1], model12, randomMask, topologyOnly, featureNames, removeNan, plot=False, MI=True,runIndividualFeatures=False,step='genserial')
-        mainExperiments(config[0], config[1], model12, randomMask, topologyOnly, featureNames, removeNan, plot=False, MI=True,runIndividualFeatures=False,step='load')
+        mainExperiments(config[0], config[1], model12, randomMask, topologyOnly, featureNames, removeNan, plot=False, MI=False,runIndividualFeatures=False,step='genserial', ones=ones)
+        #mainExperiments(config[0], config[1], model12, randomMask, topologyOnly, featureNames, removeNan, plot=False, MI=True,runIndividualFeatures=False,step='load',leaveOneOut=leaveOneOut,modelComparison=modelComparison, ones=ones)
+        #topologyOnly=False
+        model12 = False
+        mainExperiments(config[0], config[1], model12, randomMask, topologyOnly, featureNames, removeNan, plot=False, MI=False,runIndividualFeatures=False,step='genserial', ones=ones)
+        #mainExperiments(config[0], config[1], model12, randomMask, topologyOnly, featureNames, removeNan, plot=False, MI=True,runIndividualFeatures=False,step='load',leaveOneOut=leaveOneOut,modelComparison=modelComparison, ones=ones)
 
 def runAblation(model12 = False):
     #take the best performing setting
@@ -148,9 +333,17 @@ def runAblation(model12 = False):
     featureNames = ['PQ-VoltageMagnitude','PQ-VoltageAngle','PV-ReactivePowerGenerated','PV-VoltageAngle','REF-ActivePowerGenerated','REF-ReactivePowerGenerated']
     if randomMask:
         featureNames = featureNames+['PQ-ActivePowerDemand','PQ-ReactivePowerDemand','PQ-ActivePowerGenerated','PQ-ReactivePowerGenerated', 'PV-ActivePowerDemand','PV-ReactivePowerDemand','PV-ReactivePowerGenerated', 'PV-VoltageMagnitude','REF-ActivePowerDemand','REF-ReactivePowerDemand', 'REF-VoltageMagnitude','REF-VoltageAngle']
-    mainExperiments(graphWise, nodeWise, model12, randomMask, topologyOnly, featureNames, removeNan, plot=False, MI=False,MIAblation=True, runIndividualFeatures=False,step='load')
+    mainExperiments(graphWise, nodeWise, model12, randomMask, topologyOnly, featureNames, removeNan, plot=False, MI=False,MIAblation=True, runIndividualFeatures=False,step='load',error_based=False)
     graphWise = True
-    mainExperiments(graphWise, nodeWise, model12, randomMask, topologyOnly, featureNames, removeNan, plot=False, MI=False,MIAblation=True, runIndividualFeatures=False,step='load')
+    mainExperiments(graphWise, nodeWise, model12, randomMask, topologyOnly, featureNames, removeNan, plot=False, MI=False,MIAblation=True, runIndividualFeatures=False,step='load',error_based=False)
+    graphWise=False
+    mainExperiments(graphWise, nodeWise, model12, randomMask, topologyOnly, featureNames, removeNan, plot=False, MI=False,MIAblation=True, runIndividualFeatures=False,step='load',error_based=True)
+    graphWise = True
+    mainExperiments(graphWise, nodeWise, model12, randomMask, topologyOnly, featureNames, removeNan, plot=False, MI=False,MIAblation=True, runIndividualFeatures=False,step='load',error_based=True)
+    graphWise=False
+    mainExperiments(graphWise, nodeWise, model12, randomMask, True, featureNames, removeNan, plot=False, MI=False,MIAblation=True, runIndividualFeatures=False,step='load',error_based=False)
+    graphWise = True
+    mainExperiments(graphWise, nodeWise, model12, randomMask, True, featureNames, removeNan, plot=False, MI=False,MIAblation=True, runIndividualFeatures=False,step='load',error_based=False)
 
 def debugData():
     model = loadModel("models/GridFM_v0_1.pth")
@@ -213,13 +406,26 @@ def debugDataII():
 
 
 
-if __name__ == "__main__":    
+if __name__ == "__main__":
+    sec635()
+    #sec633()  
+    #sec634()  
+    #sec635()
+    #sec657()
+    #sec6310()
+    #pass
     #featureNames = ['Active Power Demand','Reactive Power Demand','Active Power Generated','Reactive Power Generated', 'Voltage Magnitude','Voltage Angle','PQ','PV','REF']
     #runAblation()
+    #genCasesCrossEvalStatTest()
+    #runAblation(False)
     #runAblation(True)
-    runAllExperiments()
-    #debugDataII()
+    #runModelComparison()
+    #runNonErrorBased()
+    #runNodeWise(True, False)
+    #genCasesCrossEvalStatTest()
     #runAllExperiments()
+    #debugDataII()
+    #runAllExperiments(False, True)
     #####LEGACY
     #debugData()
     #debugPlots(graphWise, model12, randomMask, topologyOnly, featureNames)
@@ -229,7 +435,9 @@ if __name__ == "__main__":
     #evalMI(['a','b','c','d','e','f','g'], ['1','2','3','4','5','6','7'],featureNames, 'Testuffix')
     #runMissing()
     #runExperiments(case=1)
+    #featureNames = ['PQ-VoltageMagnitude','PQ-VoltageAngle','PV-ReactivePowerGenerated','PV-VoltageAngle','REF-ActivePowerGenerated','REF-ReactivePowerGenerated']
     #genCasesSVMCrossEval(featureList=featureNames)
+    #genCasesSVMCrossEval('var',featureList=featureNames)
     #runExperimentsSingleFeature()
     #runExperimentsNodeWise()
     #runDist(False,False, False)
