@@ -1,39 +1,67 @@
 # syntax=docker/dockerfile:1
-FROM nvidia/cuda:12.8.1-cudnn9-devel-ubuntu22.04
+FROM docker.io/nvidia/cuda:12.8.1-cudnn-devel-ubuntu22.04
 
 LABEL org.opencontainers.image.source="https://github.com/gridfm/gridfm-graphkit" \
       org.opencontainers.image.description="gridfm-graphkit" \
       org.opencontainers.image.version="0.0.6"
 
-ENV DEBIAN_FRONTEND=noninteractive
+ENV DEBIAN_FRONTEND=noninteractive \
+    PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/app \
+    CUDA_HOME=/usr/local/cuda \
+    PATH="/usr/local/cuda/bin:${PATH}" \
+    LD_LIBRARY_PATH="/usr/local/cuda/lib64:${LD_LIBRARY_PATH}" \
+    HOME=/app
+
 RUN apt-get update && apt-get install -y --no-install-recommends \
+        software-properties-common \
+        git \
+        zip \
+        unzip \
+    && add-apt-repository ppa:deadsnakes/ppa \
+    && apt-get update && apt-get install -y --no-install-recommends \
         python3.12 \
         python3.12-dev \
         python3.12-venv \
-        python3-pip \
-        git \
     && rm -rf /var/lib/apt/lists/*
 
-RUN update-alternatives --install /usr/bin/python  python  /usr/bin/python3.12 1 \
+RUN update-alternatives --install /usr/bin/python python /usr/bin/python3.12 1 \
  && update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.12 1 \
- && python -m pip install --upgrade pip setuptools wheel
-
-ENV CUDA_HOME=/usr/local/cuda
-ENV PATH="${CUDA_HOME}/bin:${PATH}"
-ENV LD_LIBRARY_PATH="${CUDA_HOME}/lib64:${LD_LIBRARY_PATH}"
+ && python3 -m ensurepip --upgrade \
+ && python3 -m pip install --no-cache-dir --upgrade pip setuptools wheel
 
 WORKDIR /app
-COPY . /app
 
-# Install torch with the matching CUDA index before the package so pip
-# does not fall back to a CPU-only wheel.
+# 1. Install Torch and PyG binaries
 RUN pip install --no-cache-dir \
-        torch \
+        "torch>=2.7.1,<2.9" \
         torchvision \
         torchaudio \
-        --index-url https://download.pytorch.org/whl/cu128
+        --index-url https://download.pytorch.org/whl/cu128 \
+ && pip install --no-cache-dir \
+        torch-scatter \
+        torch-sparse \
+        torch-cluster \
+        torch-spline-conv \
+        -f https://data.pyg.org/whl/torch-2.8.0+cu128.html
 
-RUN pip install --no-cache-dir /app
+# 2. Install 'claimed' and the local app
+# We install claimed separately to keep it in the cache layer
+RUN pip install --no-cache-dir claimed
 
-ENTRYPOINT ["gridfm_graphkit"]
-CMD ["--help"]
+COPY . /app
+
+# 3. Final app install
+RUN pip install --no-cache-dir --ignore-installed \
+    --extra-index-url https://download.pytorch.org/whl/cu128 /app
+
+# 4. OPENSHIFT COMPATIBILITY: Set up permissions
+# We ensure GID 0 (root group) owns the files and has write access.
+# This allows OpenShift's random high-UIDs to run and write to the /app folder.
+RUN chgrp -R 0 /app && \
+    chmod -R g=u /app && \
+    chmod -R 775 /app
+
+# Use a non-privileged user (1001 is standard, but OpenShift will use a higher one)
+USER 1001
+
