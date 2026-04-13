@@ -2,7 +2,42 @@ from lightning.pytorch.callbacks import Callback
 from pytorch_lightning.utilities.rank_zero import rank_zero_only
 from lightning.pytorch.loggers import MLFlowLogger
 import os
+import time
 import torch
+
+
+class EpochTimerCallback(Callback):
+    """Records wall-clock duration and iteration rate of every training epoch."""
+
+    def __init__(self):
+        self.epoch_times: list[float] = []
+        self._epoch_start: float | None = None
+        self._batch_count: int = 0
+        self._last_batch_count: int = 0
+
+    def on_train_epoch_start(self, trainer, pl_module):
+        self._epoch_start = time.perf_counter()
+        self._batch_count = 0
+
+    def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx):
+        self._batch_count += 1
+
+    def on_train_epoch_end(self, trainer, pl_module):
+        if self._epoch_start is not None:
+            self.epoch_times.append(time.perf_counter() - self._epoch_start)
+            self._last_batch_count = self._batch_count
+            self._epoch_start = None
+
+    @property
+    def last_epoch_time(self) -> float | None:
+        return self.epoch_times[-1] if self.epoch_times else None
+
+    @property
+    def last_epoch_iters_per_sec(self) -> float | None:
+        t = self.last_epoch_time
+        if t is None or t == 0 or self._last_batch_count == 0:
+            return None
+        return self._last_batch_count / t
 
 
 class SaveBestModelStateDict(Callback):

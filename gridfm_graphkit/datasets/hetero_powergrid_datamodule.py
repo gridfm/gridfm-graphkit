@@ -369,6 +369,19 @@ class LitGridHeteroDataModule(L.LightningDataModule):
             pin_memory=torch.cuda.is_available(),
             persistent_workers=num_workers > 0,
         )
+        # On Linux some HPC environments restrict passing open file descriptors
+        # via Unix socket ancillary data (SCM_RIGHTS), which causes
+        # "received 0 items of ancdata" with the default 'fork' start method.
+        # 'forkserver' avoids fd-passing by having a dedicated server process
+        # that re-opens shared memory objects by name instead.
+        if (
+            num_workers > 0
+            and torch.multiprocessing.get_start_method(allow_none=True) != "spawn"
+        ):
+            import platform
+
+            if platform.system() == "Linux":
+                kwargs["multiprocessing_context"] = "forkserver"
         return kwargs
 
     def train_dataloader(self):

@@ -1,3 +1,5 @@
+*venv*
+data_out
 *venv
 data_out
 logs
@@ -14,4 +16,8 @@ gridfm_graphkit.egg-info
 mlruns
 *.pt
 .DS_Store
+.julia
+*logs*
+*data_out*
+site*
 .venv

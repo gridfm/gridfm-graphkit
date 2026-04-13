@@ -30,19 +30,27 @@ def plot_residuals_histograms(outputs, dataset_name, plot_dir):
 
     for stat_key, title in stats:
         # Gather all data first to compute common bin edges
-        all_data = torch.cat(
-            [
-                torch.cat([d[f"{stat_key}_{bus_type}"] for d in outputs])
-                for bus_type in bus_types
-            ],
-        ).numpy()
+        all_data = (
+            torch.cat(
+                [
+                    torch.cat([d[f"{stat_key}_{bus_type}"] for d in outputs])
+                    for bus_type in bus_types
+                ],
+            )
+            .float()
+            .numpy()
+        )
 
         # Define bins across the entire data range
         bins = np.linspace(all_data.min(), all_data.max(), 61)  # 30 bins of equal width
 
         plt.figure(figsize=(10, 6))
         for bus_type, color in zip(bus_types, colors):
-            data = torch.cat([d[f"{stat_key}_{bus_type}"] for d in outputs]).numpy()
+            data = (
+                torch.cat([d[f"{stat_key}_{bus_type}"] for d in outputs])
+                .float()
+                .numpy()
+            )
             plt.hist(data, bins=bins, alpha=0.6, label=bus_type, color=color)
 
         plt.title(f"{title} per Bus Type in {dataset_name}")

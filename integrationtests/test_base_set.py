@@ -70,7 +70,7 @@ def cleanup_test_artifacts():
     """
     Backup modified files and remove generated artifacts after the test.
     """
-    training_config = " "
+    training_config = "examples/config/HGNS_PF_datakit_case14.yaml"
     backup_config = training_config + ".bak"
 
     if os.path.exists(training_config):
