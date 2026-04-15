@@ -19,6 +19,7 @@ from gridfm_graphkit.tasks.compute_ac_dc_metrics import compute_ac_dc_metrics
 from lightning.pytorch.callbacks.early_stopping import EarlyStopping
 from lightning.pytorch.callbacks.model_checkpoint import ModelCheckpoint
 from lightning.pytorch.loggers import MLFlowLogger
+from lightning.pytorch.strategies import DDPStrategy
 import lightning as L
 
 
@@ -197,11 +198,15 @@ def main_cli(args):
     if epoch_timer is not None:
         training_callbacks = training_callbacks + [epoch_timer]
 
+    _strategy = config_args.training.strategy
+    if isinstance(_strategy, str) and _strategy in ("auto", "ddp", "ddp_find_unused_parameters_true"):
+        _strategy = DDPStrategy(find_unused_parameters=True)
+
     trainer = L.Trainer(
         logger=logger,
         accelerator=config_args.training.accelerator,
         devices=config_args.training.devices,
-        strategy=config_args.training.strategy,
+        strategy=_strategy,
         log_every_n_steps=1000,
         default_root_dir=args.log_dir,
         max_epochs=config_args.training.epochs,
