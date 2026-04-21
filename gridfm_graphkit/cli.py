@@ -257,6 +257,13 @@ def main_cli(args):
                 print(
                     f"[performance] last epoch it/s : {epoch_timer.last_epoch_iters_per_sec:.2f}",
                 )
+            val_loss = trainer.callback_metrics.get("Validation loss")
+            if val_loss is not None:
+                try:
+                    val_loss = val_loss.item()
+                except AttributeError:
+                    pass
+                print(f"[performance] Validation loss : {val_loss}")
 
     if args.command != "predict":
         # Reuse the fit trainer when coming from train/finetune so that
@@ -276,19 +283,6 @@ def main_cli(args):
                 profiler=profiler,
             )
         test_results = test_trainer.test(model=model, datamodule=litGrid)
-        if report_performance:
-            # test_results[0] may be empty when metrics are routed to the logger
-            # only; fall back to trainer.callback_metrics which always has them.
-            metrics = (
-                test_results[0]
-                if test_results and test_results[0]
-                else dict(test_trainer.callback_metrics)
-            )
-            if metrics:
-                first_metric, first_value = next(iter(metrics.items()))
-                print(f"[performance] {first_metric} : {first_value}")
-            else:
-                print("[performance] no test metrics available")
 
     artifacts_dir = None
     is_rank0 = (
