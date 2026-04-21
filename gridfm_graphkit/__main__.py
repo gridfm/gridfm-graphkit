@@ -1,4 +1,5 @@
 import argparse
+import logging
 from datetime import datetime
 from gridfm_graphkit.cli import main_cli, benchmark_cli
 
@@ -64,6 +65,17 @@ def main():
     parser = argparse.ArgumentParser(
         prog="gridfm_graphkit",
         description="gridfm-graphkit CLI",
+    )
+    parser.add_argument(
+        "--log_level",
+        type=str,
+        default="WARNING",
+        choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+        help=(
+            "Python logging level for the gridfm_graphkit package. "
+            "Use DEBUG to see performance trace messages (dataset init, "
+            "split, normalizer fit, wrapper cache timings)."
+        ),
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
     exp_name = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
@@ -340,6 +352,14 @@ def main():
     )
 
     args = parser.parse_args()
+
+    logging.basicConfig(
+        level=getattr(logging, args.log_level),
+        format="%(asctime)s %(name)s %(levelname)s %(message)s",
+    )
+    # Ensure the gridfm_graphkit package logger respects the chosen level even
+    # if third-party libraries have already configured the root logger.
+    logging.getLogger("gridfm_graphkit").setLevel(getattr(logging, args.log_level))
 
     if args.command == "benchmark":
         benchmark_cli(args)
