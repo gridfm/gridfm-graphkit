@@ -19,28 +19,24 @@ def execute_and_live_output(cmd) -> None:
 #     ...
 
 
-def download_dataset(data_dir: str = "data_out") -> None:
-    """
-    Download the pre-built case14_ieee dataset from Google Drive and unzip it
-    into *data_dir*.
-    """
+def download_dataset() -> None:
+    """Download the pre-built dataset from Google Drive and extract it to the repo root."""
     gdrive_file_id = "1NnNKOPqZU8yL6H-V3hnLFLkDyooH7B5D"
     zip_path = "integrationtests/case14_ieee_dataset.zip"
 
     print(f"Downloading dataset (file id={gdrive_file_id}) from Google Drive...")
     gdown.download(id=gdrive_file_id, output=zip_path, quiet=False)
 
-    print(f"Extracting {zip_path} → {data_dir}/...")
-    os.makedirs(data_dir, exist_ok=True)
+    print(f"Extracting {zip_path}...")
     with zipfile.ZipFile(zip_path, "r") as zf:
-        zf.extractall(data_dir)
+        zf.extractall(".")
 
     print("Dataset ready.")
 
 
 def prepare_training_config():
     """
-    Modify the training config to set epochs to 2 for testing.
+    Modify the training config to set epochs to 2 for a quick integration test run.
     """
     config_path = "examples/config/HGNS_PF_datakit_case14.yaml"
 
@@ -55,7 +51,7 @@ def prepare_training_config():
     with open(config_path, "w") as f:
         yaml.dump(config, f, default_flow_style=False, sort_keys=False)
 
-    print(f"Training config updated: epochs set to {config['training']['epochs']}")
+    print(f"Training config updated: epochs={config['training']['epochs']}")
 
     return config_path
 
@@ -102,7 +98,7 @@ def test_train(cleanup_test_artifacts):
 
     if not os.path.exists(data_dir) or not os.listdir(data_dir):
         print("Data directory not found or empty, downloading pre-built dataset...")
-        download_dataset(data_dir)
+        download_dataset()
     else:
         print(f"Data directory '{data_dir}' already exists, skipping download.")
 

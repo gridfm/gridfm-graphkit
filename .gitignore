@@ -21,3 +21,4 @@ mlruns
 *data_out*
 site*
 .venv
+*.zip
