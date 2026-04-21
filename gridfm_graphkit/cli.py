@@ -180,6 +180,10 @@ def main_cli(args):
     if num_workers_override is not None:
         config_args.data.workers = num_workers_override
 
+    batch_size_override = getattr(args, "batch_size", None)
+    if batch_size_override is not None:
+        config_args.training.batch_size = batch_size_override
+
     _load_plugins(getattr(args, "plugins", []))
     _validate_dataset_wrapper(dataset_wrapper)
 
