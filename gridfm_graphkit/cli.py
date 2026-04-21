@@ -282,7 +282,7 @@ def main_cli(args):
                 **trainer_kwargs,
                 profiler=profiler,
             )
-        test_results = test_trainer.test(model=model, datamodule=litGrid)
+        test_trainer.test(model=model, datamodule=litGrid)
 
     artifacts_dir = None
     is_rank0 = (
