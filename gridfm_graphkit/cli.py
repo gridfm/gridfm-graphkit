@@ -155,6 +155,9 @@ def main_cli(args):
     if getattr(args, "tf32", False):
         torch.set_float32_matmul_precision("high")  # enables TF32 on Ampere+ GPUs
 
+    # MLflow file-store requires the directory to exist before DDP workers start.
+    os.makedirs(args.log_dir, exist_ok=True)
+
     logger = MLFlowLogger(
         save_dir=args.log_dir,
         experiment_name=args.exp_name,
