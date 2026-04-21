@@ -1,4 +1,7 @@
+import csv
 import json
+import logging
+import time
 import torch
 import os
 from torch_geometric.loader import DataLoader
@@ -24,6 +27,8 @@ import lightning as L
 from pathlib import Path
 from typing import List
 from gridfm_graphkit.utils.mlflow_artifact_utils import artifact_context
+
+logger = logging.getLogger(__name__)
 
 
 class LitGridHeteroDataModule(L.LightningDataModule):
@@ -134,15 +139,22 @@ class LitGridHeteroDataModule(L.LightningDataModule):
             print(f"Setup already done for stage={stage}, skipping...")
             return
 
+        # Timing telemetry: list of dicts, one row per network / phase.
+        # Uploaded as a CSV artifact and emitted as MLflow metrics at the end.
+        _timing_rows: list[dict] = []
+
         # Load pre-fitted normalizer stats if provided (e.g. from a training run)
         saved_stats = None
         if self.normalizer_stats_path is not None:
+            _t0 = time.perf_counter()
             saved_stats = torch.load(
                 self.normalizer_stats_path,
                 map_location="cpu",
                 weights_only=True,
             )
             print(f"Loaded normalizer stats from {self.normalizer_stats_path}")
+            _timing_rows.append({"network": "_global", "phase": "load_normalizer_stats_s",
+                                  "value": time.perf_counter() - _t0})
 
         for i, network in enumerate(self.args.data.networks):
             data_normalizer = load_normalizer(args=self.args)
@@ -153,6 +165,7 @@ class LitGridHeteroDataModule(L.LightningDataModule):
 
             is_distributed = dist.is_available() and dist.is_initialized()
 
+            _t0 = time.perf_counter()
             if not is_distributed or dist.get_rank() == 0:
                 dataset = HeteroGridDatasetDisk(
                     root=data_path_network,
@@ -170,6 +183,9 @@ class LitGridHeteroDataModule(L.LightningDataModule):
                     data_normalizer=data_normalizer,
                     transform=get_task_transforms(args=self.args),
                 )
+            _timing_rows.append({"network": network, "phase": "dataset_init_s",
+                                  "value": time.perf_counter() - _t0})
+            logger.debug("[perf] %s dataset_init_s: %.3f", network, _timing_rows[-1]["value"])
 
             self.datasets.append(dataset)
 
@@ -231,13 +247,13 @@ class LitGridHeteroDataModule(L.LightningDataModule):
 
 
                 dataset = Subset(dataset, subset_indices)
-                
+
                 if self.dataset_wrapper is not None:
                     wrapper_cls = DATASET_WRAPPER_REGISTRY.get(self.dataset_wrapper)
                     dataset = wrapper_cls(dataset, cache_dir=self.dataset_wrapper_cache_dir)
 
-
                 # Random seed set before every split, same as above
+                _t0 = time.perf_counter()
                 np.random.seed(self.args.seed)
                 if self.split_by_load_scenario_idx:
                     train_dataset, val_dataset, test_dataset = (
@@ -256,6 +272,9 @@ class LitGridHeteroDataModule(L.LightningDataModule):
                         self.args.data.val_ratio,
                         self.args.data.test_ratio,
                     )
+                _timing_rows.append({"network": network, "phase": "dataset_split_s",
+                                      "value": time.perf_counter() - _t0})
+                logger.debug("[perf] %s dataset_split_s: %.3f", network, _timing_rows[-1]["value"])
 
                 # Extract scenario IDs for each split
                 train_scenario_ids = self._extract_scenario_ids(
@@ -280,6 +299,7 @@ class LitGridHeteroDataModule(L.LightningDataModule):
                 and network in saved_stats
                 and data_normalizer.fit_strategy == "fit_on_train"
             )
+            _t0 = time.perf_counter()
             if use_saved:
                 print(f"Restoring normalizer for {network} from saved stats")
                 data_normalizer.fit_from_dict(saved_stats[network])
@@ -294,11 +314,18 @@ class LitGridHeteroDataModule(L.LightningDataModule):
                     num_scenarios,
                     saved_stats,
                 )
+            _timing_rows.append({"network": network, "phase": "normalizer_fit_s",
+                                  "value": time.perf_counter() - _t0})
+            logger.debug("[perf] %s normalizer_fit_s: %.3f", network, _timing_rows[-1]["value"])
 
             # Populate the wrapper cache now that the normalizer is fitted,
             # so transform() has BaseMVA set when __getitem__ is called.
             if self.dataset_wrapper is not None and hasattr(dataset, "_setup_cache"):
+                _t0 = time.perf_counter()
                 dataset._setup_cache()
+                _timing_rows.append({"network": network, "phase": "wrapper_cache_s",
+                                      "value": time.perf_counter() - _t0})
+                logger.debug("[perf] %s wrapper_cache_s: %.3f", network, _timing_rows[-1]["value"])
 
             self.train_datasets.append(train_dataset)
             self.val_datasets.append(val_dataset)
@@ -311,18 +338,34 @@ class LitGridHeteroDataModule(L.LightningDataModule):
         self.val_dataset_multi = ConcatDataset(self.val_datasets)
         self._is_setup_done = True
 
-        # Save scenario splits (rank 0 only in DDP)
+        # Emit setup timings to Logger (MLflow) and save as a CSV artifact.
+        # Only rank-0 writes; trainer / logger may not be attached in unit tests.
         is_rank0 = (
             not dist.is_available() or not dist.is_initialized() or dist.get_rank() == 0
         )
-        if (
-            is_rank0
-            and self.trainer is not None
-            and getattr(self.trainer, "logger", None) is not None
-        ):
-            logger = self.trainer.logger
-            with artifact_context(logger, "stats") as log_dir:
-                self.save_scenario_splits(log_dir)
+        if is_rank0 and self.trainer is not None:
+            _logger = getattr(self.trainer, "logger", None)
+            if _logger is not None:
+                if _timing_rows:
+                    # Emit each timing as an MLflow metric (step=0 → setup phase)
+                    mlflow_metrics = {
+                        f"perf/setup/{r['network']}/{r['phase']}": r["value"]
+                        for r in _timing_rows
+                    }
+                    try:
+                        _logger.log_metrics(mlflow_metrics, step=0)
+                    except Exception:
+                        pass  # non-MLflow loggers may not support log_metrics directly
+
+                    # Save timing CSV as an artifact
+                    with artifact_context(_logger, "stats") as _art_dir:
+                        csv_path = os.path.join(_art_dir, "setup_timings.csv")
+                        with open(csv_path, "w", newline="") as _fh:
+                            writer = csv.DictWriter(_fh, fieldnames=["network", "phase", "value"])
+                            writer.writeheader()
+                            writer.writerows(_timing_rows)
+
+                # Save scenario splits (always, independent of timing)
 
     @staticmethod
     def _fit_normalizer(

@@ -62,6 +62,12 @@ class ReconstructionTask(BaseTask):
         return output, loss_dict
 
     def training_step(self, batch):
+        import time
+
+        # Measure step execution time (forward + loss).  _batch_start_time is
+        # set by BaseTask.on_train_batch_start just before this call.
+        step_start = getattr(self, "_batch_start_time", None)
+
         _, loss_dict = self.shared_step(batch)
         current_lr = self.optimizer.param_groups[0]["lr"]
         metrics = {}
@@ -78,6 +84,32 @@ class ReconstructionTask(BaseTask):
                 logger=True,
                 on_step=True,
             )
+
+        # Per-step throughput metrics – logged every step for fine-grained
+        # profiling; appear as time-series curves in MLflow.
+        if step_start is not None:
+            step_elapsed = time.perf_counter() - step_start
+            if step_elapsed > 0:
+                self.log(
+                    "perf/step_time_ms",
+                    step_elapsed * 1000.0,
+                    batch_size=batch.num_graphs,
+                    sync_dist=False,
+                    on_epoch=False,
+                    on_step=True,
+                    prog_bar=False,
+                    logger=True,
+                )
+                self.log(
+                    "perf/step_it_s",
+                    1.0 / step_elapsed,
+                    batch_size=batch.num_graphs,
+                    sync_dist=False,
+                    on_epoch=False,
+                    on_step=True,
+                    prog_bar=False,
+                    logger=True,
+                )
 
         return loss_dict["loss"]
 

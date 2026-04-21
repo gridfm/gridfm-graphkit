@@ -7,13 +7,22 @@ from gridfm_graphkit.utils.mlflow_artifact_utils import artifact_context
 
 
 class EpochTimerCallback(Callback):
-    """Records wall-clock duration and iteration rate of every training epoch."""
+    """Records wall-clock duration and iteration rate of every training epoch.
+
+    Logs the following metrics to the Lightning logger (e.g. MLflow) so that
+    throughput and timing are tracked as time-series over the full training run:
+
+    * ``perf/train_epoch_time_s``  – wall-clock seconds for the epoch
+    * ``perf/train_it_s``          – training batches per second
+    * ``perf/val_epoch_time_s``    – wall-clock seconds for the validation loop
+    """
 
     def __init__(self):
         self.epoch_times: list[float] = []
         self._epoch_start: float | None = None
         self._batch_count: int = 0
         self._last_batch_count: int = 0
+        self._val_start: float | None = None
 
     def on_train_epoch_start(self, trainer, pl_module):
         self._epoch_start = time.perf_counter()
@@ -24,9 +33,48 @@ class EpochTimerCallback(Callback):
 
     def on_train_epoch_end(self, trainer, pl_module):
         if self._epoch_start is not None:
-            self.epoch_times.append(time.perf_counter() - self._epoch_start)
+            elapsed = time.perf_counter() - self._epoch_start
+            self.epoch_times.append(elapsed)
             self._last_batch_count = self._batch_count
             self._epoch_start = None
+
+            # Log epoch timing + throughput to MLflow (one point per epoch)
+            pl_module.log(
+                "perf/train_epoch_time_s",
+                elapsed,
+                on_epoch=True,
+                on_step=False,
+                logger=True,
+                prog_bar=False,
+                sync_dist=False,
+            )
+            if elapsed > 0 and self._batch_count > 0:
+                pl_module.log(
+                    "perf/train_it_s",
+                    self._batch_count / elapsed,
+                    on_epoch=True,
+                    on_step=False,
+                    logger=True,
+                    prog_bar=False,
+                    sync_dist=False,
+                )
+
+    def on_validation_epoch_start(self, trainer, pl_module):
+        self._val_start = time.perf_counter()
+
+    def on_validation_epoch_end(self, trainer, pl_module):
+        if self._val_start is not None:
+            val_elapsed = time.perf_counter() - self._val_start
+            self._val_start = None
+            pl_module.log(
+                "perf/val_epoch_time_s",
+                val_elapsed,
+                on_epoch=True,
+                on_step=False,
+                logger=True,
+                prog_bar=False,
+                sync_dist=False,
+            )
 
     @property
     def last_epoch_time(self) -> float | None:
