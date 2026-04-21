@@ -153,8 +153,13 @@ class LitGridHeteroDataModule(L.LightningDataModule):
                 weights_only=True,
             )
             print(f"Loaded normalizer stats from {self.normalizer_stats_path}")
-            _timing_rows.append({"network": "_global", "phase": "load_normalizer_stats_s",
-                                  "value": time.perf_counter() - _t0})
+            _timing_rows.append(
+                {
+                    "network": "_global",
+                    "phase": "load_normalizer_stats_s",
+                    "value": time.perf_counter() - _t0,
+                },
+            )
 
         for i, network in enumerate(self.args.data.networks):
             data_normalizer = load_normalizer(args=self.args)
@@ -183,9 +188,18 @@ class LitGridHeteroDataModule(L.LightningDataModule):
                     data_normalizer=data_normalizer,
                     transform=get_task_transforms(args=self.args),
                 )
-            _timing_rows.append({"network": network, "phase": "dataset_init_s",
-                                  "value": time.perf_counter() - _t0})
-            logger.debug("[perf] %s dataset_init_s: %.3f", network, _timing_rows[-1]["value"])
+            _timing_rows.append(
+                {
+                    "network": network,
+                    "phase": "dataset_init_s",
+                    "value": time.perf_counter() - _t0,
+                },
+            )
+            logger.debug(
+                "[perf] %s dataset_init_s: %.3f",
+                network,
+                _timing_rows[-1]["value"],
+            )
 
             self.datasets.append(dataset)
 
@@ -272,9 +286,18 @@ class LitGridHeteroDataModule(L.LightningDataModule):
                         self.args.data.val_ratio,
                         self.args.data.test_ratio,
                     )
-                _timing_rows.append({"network": network, "phase": "dataset_split_s",
-                                      "value": time.perf_counter() - _t0})
-                logger.debug("[perf] %s dataset_split_s: %.3f", network, _timing_rows[-1]["value"])
+                _timing_rows.append(
+                    {
+                        "network": network,
+                        "phase": "dataset_split_s",
+                        "value": time.perf_counter() - _t0,
+                    },
+                )
+                logger.debug(
+                    "[perf] %s dataset_split_s: %.3f",
+                    network,
+                    _timing_rows[-1]["value"],
+                )
 
                 # Extract scenario IDs for each split
                 train_scenario_ids = self._extract_scenario_ids(
@@ -314,18 +337,36 @@ class LitGridHeteroDataModule(L.LightningDataModule):
                     num_scenarios,
                     saved_stats,
                 )
-            _timing_rows.append({"network": network, "phase": "normalizer_fit_s",
-                                  "value": time.perf_counter() - _t0})
-            logger.debug("[perf] %s normalizer_fit_s: %.3f", network, _timing_rows[-1]["value"])
+            _timing_rows.append(
+                {
+                    "network": network,
+                    "phase": "normalizer_fit_s",
+                    "value": time.perf_counter() - _t0,
+                },
+            )
+            logger.debug(
+                "[perf] %s normalizer_fit_s: %.3f",
+                network,
+                _timing_rows[-1]["value"],
+            )
 
             # Populate the wrapper cache now that the normalizer is fitted,
             # so transform() has BaseMVA set when __getitem__ is called.
             if self.dataset_wrapper is not None and hasattr(dataset, "_setup_cache"):
                 _t0 = time.perf_counter()
                 dataset._setup_cache()
-                _timing_rows.append({"network": network, "phase": "wrapper_cache_s",
-                                      "value": time.perf_counter() - _t0})
-                logger.debug("[perf] %s wrapper_cache_s: %.3f", network, _timing_rows[-1]["value"])
+                _timing_rows.append(
+                    {
+                        "network": network,
+                        "phase": "wrapper_cache_s",
+                        "value": time.perf_counter() - _t0,
+                    },
+                )
+                logger.debug(
+                    "[perf] %s wrapper_cache_s: %.3f",
+                    network,
+                    _timing_rows[-1]["value"],
+                )
 
             self.train_datasets.append(train_dataset)
             self.val_datasets.append(val_dataset)
@@ -361,7 +402,10 @@ class LitGridHeteroDataModule(L.LightningDataModule):
                     with artifact_context(_logger, "stats") as _art_dir:
                         csv_path = os.path.join(_art_dir, "setup_timings.csv")
                         with open(csv_path, "w", newline="") as _fh:
-                            writer = csv.DictWriter(_fh, fieldnames=["network", "phase", "value"])
+                            writer = csv.DictWriter(
+                                _fh,
+                                fieldnames=["network", "phase", "value"],
+                            )
                             writer.writeheader()
                             writer.writerows(_timing_rows)
 
