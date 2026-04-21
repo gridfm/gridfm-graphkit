@@ -3,8 +3,8 @@ import time
 from abc import ABC, abstractmethod
 import lightning as L
 from pytorch_lightning.utilities import rank_zero_only
-from lightning.pytorch.loggers import MLFlowLogger
 import torch
+from gridfm_graphkit.utils.mlflow_artifact_utils import artifact_context
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 
@@ -83,33 +83,23 @@ class BaseTask(L.LightningModule, ABC):
 
     @rank_zero_only
     def on_fit_start(self):
-        # Save normalization statistics
-        if isinstance(self.logger, MLFlowLogger):
-            log_dir = os.path.join(
-                self.logger.save_dir,
-                self.logger.experiment_id,
-                self.logger.run_id,
-                "artifacts",
-                "stats",
-            )
-        else:
-            log_dir = os.path.join(self.logger.save_dir, "stats")
+        # Save normalization statistics.
+        # artifact_context writes to a temp dir and uploads via the MLflow
+        # client API, supporting both local and remote tracking servers.
+        with artifact_context(self.logger, "stats") as log_dir:
+            # Human-readable log
+            log_stats_path = os.path.join(log_dir, "normalization_stats.txt")
+            with open(log_stats_path, "w") as log_file:
+                for i, normalizer in enumerate(self.data_normalizers):
+                    log_file.write(
+                        f"Data Normalizer {self.args.data.networks[i]} stats:\n{normalizer.get_stats()}\n\n",
+                    )
 
-        os.makedirs(log_dir, exist_ok=True)
-
-        # Human-readable log
-        log_stats_path = os.path.join(log_dir, "normalization_stats.txt")
-        with open(log_stats_path, "w") as log_file:
+            # Machine-loadable stats (one file per network, keyed by network name)
+            stats_dict = {}
             for i, normalizer in enumerate(self.data_normalizers):
-                log_file.write(
-                    f"Data Normalizer {self.args.data.networks[i]} stats:\n{normalizer.get_stats()}\n\n",
-                )
-
-        # Machine-loadable stats (one file per network, keyed by network name)
-        stats_dict = {}
-        for i, normalizer in enumerate(self.data_normalizers):
-            stats_dict[self.args.data.networks[i]] = normalizer.get_stats()
-        torch.save(stats_dict, os.path.join(log_dir, "normalizer_stats.pt"))
+                stats_dict[self.args.data.networks[i]] = normalizer.get_stats()
+            torch.save(stats_dict, os.path.join(log_dir, "normalizer_stats.pt"))
 
     def configure_optimizers(self):
         self.optimizer = torch.optim.AdamW(

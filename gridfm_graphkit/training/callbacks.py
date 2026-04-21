@@ -1,9 +1,9 @@
 from lightning.pytorch.callbacks import Callback
 from pytorch_lightning.utilities.rank_zero import rank_zero_only
-from lightning.pytorch.loggers import MLFlowLogger
 import os
 import time
 import torch
+from gridfm_graphkit.utils.mlflow_artifact_utils import artifact_context
 
 
 class EpochTimerCallback(Callback):
@@ -74,21 +74,9 @@ class SaveBestModelStateDict(Callback):
         ):
             self.best_score = current
 
-            # Determine artifact directory
+            # Save the model's state_dict.
+            # artifact_context handles both local and remote MLflow servers.
             logger = trainer.logger
-            if isinstance(logger, MLFlowLogger):
-                model_dir = os.path.join(
-                    logger.save_dir,
-                    logger.experiment_id,
-                    logger.run_id,
-                    "artifacts",
-                    "model",
-                )
-            else:
-                model_dir = os.path.join(logger.save_dir, "model")
-
-            os.makedirs(model_dir, exist_ok=True)
-
-            # Save the model's state_dict
-            model_path = os.path.join(model_dir, self.filename)
-            torch.save(self._canonical_state_dict(pl_module), model_path)
+            with artifact_context(logger, "model") as model_dir:
+                model_path = os.path.join(model_dir, self.filename)
+                torch.save(self._canonical_state_dict(pl_module), model_path)

@@ -29,7 +29,7 @@ from gridfm_graphkit.models.utils import (
     ComputeNodeInjection,
     ComputeNodeResiduals,
 )
-from lightning.pytorch.loggers import MLFlowLogger
+from gridfm_graphkit.utils.mlflow_artifact_utils import artifact_write_ctx
 import os
 import pandas as pd
 
@@ -244,15 +244,7 @@ class PowerFlowTask(ReconstructionTask):
             self.test_outputs.clear() # clear the test outputs for other ranks
             return
 
-        if isinstance(self.logger, MLFlowLogger):
-            artifact_dir = os.path.join(
-                self.logger.save_dir,
-                self.logger.experiment_id,
-                self.logger.run_id,
-                "artifacts",
-            )
-        else:
-            artifact_dir = self.logger.save_dir
+        artifact_dir, _upload = artifact_write_ctx(self.logger)
 
         final_metrics = self.trainer.callback_metrics
         grouped_metrics = {}
@@ -349,6 +341,7 @@ class PowerFlowTask(ReconstructionTask):
                     prefix=dataset_name,
                 )
 
+        _upload()
         self.test_outputs.clear()
 
     def predict_step(self, batch, batch_idx, dataloader_idx=0):

@@ -23,7 +23,7 @@ import warnings
 import lightning as L
 from pathlib import Path
 from typing import List
-from lightning.pytorch.loggers import MLFlowLogger
+from gridfm_graphkit.utils.mlflow_artifact_utils import artifact_context
 
 
 class LitGridHeteroDataModule(L.LightningDataModule):
@@ -321,17 +321,8 @@ class LitGridHeteroDataModule(L.LightningDataModule):
             and getattr(self.trainer, "logger", None) is not None
         ):
             logger = self.trainer.logger
-            if isinstance(logger, MLFlowLogger):
-                log_dir = os.path.join(
-                    logger.save_dir,
-                    logger.experiment_id,
-                    logger.run_id,
-                    "artifacts",
-                    "stats",
-                )
-            else:
-                log_dir = os.path.join(logger.save_dir, "stats")
-            self.save_scenario_splits(log_dir)
+            with artifact_context(logger, "stats") as log_dir:
+                self.save_scenario_splits(log_dir)
 
     @staticmethod
     def _fit_normalizer(
