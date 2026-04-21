@@ -228,7 +228,9 @@ def main_cli(args):
         "ddp",
         "ddp_find_unused_parameters_true",
     ):
-        _strategy = DDPStrategy(find_unused_parameters=True)
+        _strategy = DDPStrategy(
+            find_unused_parameters=(_strategy == "ddp_find_unused_parameters_true"),
+        )
 
     trainer = L.Trainer(
         logger=logger,
