@@ -2,45 +2,40 @@ import pytest
 import subprocess
 import os
 import glob
+import zipfile
 import pandas as pd
 import yaml
-import urllib.request
 import shutil
+import gdown
 
 
 def execute_and_live_output(cmd) -> None:
     subprocess.run(cmd, text=True, shell=True, check=True)
 
 
-def prepare_config():
+# Data generation via gridfm-datakit is replaced by a pre-built dataset
+# hosted on Google Drive (case14_ieee, 10 000 scenarios, 2 topology variants).
+# def prepare_config():
+#     ...
+
+
+def download_dataset(data_dir: str = "data_out") -> None:
     """
-    Download default.yaml from gridfm-datakit repo and modify it with test parameters.
+    Download the pre-built case14_ieee dataset from Google Drive and unzip it
+    into *data_dir*.
     """
-    config_url = "https://raw.githubusercontent.com/gridfm/gridfm-datakit/refs/heads/main/scripts/config/default.yaml"
-    config_path = "integrationtests/default.yaml"
+    gdrive_file_id = "1NnNKOPqZU8yL6H-V3hnLFLkDyooH7B5D"
+    zip_path = "integrationtests/case14_ieee_dataset.zip"
 
-    print(f"Downloading config from {config_url}...")
-    with urllib.request.urlopen(config_url) as response:
-        config_content = response.read().decode("utf-8")
+    print(f"Downloading dataset (file id={gdrive_file_id}) from Google Drive...")
+    gdown.download(id=gdrive_file_id, output=zip_path, quiet=False)
 
-    config = yaml.safe_load(config_content)
+    print(f"Extracting {zip_path} → {data_dir}/...")
+    os.makedirs(data_dir, exist_ok=True)
+    with zipfile.ZipFile(zip_path, "r") as zf:
+        zf.extractall(data_dir)
 
-    config["network"]["name"] = "case14_ieee"
-    config["load"]["scenarios"] = 10000
-    config["topology_perturbation"]["n_topology_variants"] = 2
-
-    with open(config_path, "w") as f:
-        yaml.dump(config, f, default_flow_style=False, sort_keys=False)
-
-    print(f"Config prepared at {config_path} with:")
-    print(f"  - network.name: {config['network']['name']}")
-    print(f"  - load.scenarios: {config['load']['scenarios']}")
-    print(
-        f"  - topology_perturbation.n_topology_variants: "
-        f"{config['topology_perturbation']['n_topology_variants']}",
-    )
-
-    return config_path
+    print("Dataset ready.")
 
 
 def prepare_training_config():
@@ -82,10 +77,10 @@ def cleanup_test_artifacts():
     if os.path.exists(backup_config):
         shutil.move(backup_config, training_config)
 
-    # Remove downloaded config
-    config_file = "integrationtests/default.yaml"
-    if os.path.exists(config_file):
-        os.remove(config_file)
+    # Remove downloaded zip
+    zip_file = "integrationtests/case14_ieee_dataset.zip"
+    if os.path.exists(zip_file):
+        os.remove(zip_file)
 
     # Remove generated directories
     for d in ["data_out", "logs"]:
@@ -106,13 +101,10 @@ def test_train(cleanup_test_artifacts):
     data_dir = "data_out"
 
     if not os.path.exists(data_dir) or not os.listdir(data_dir):
-        print("Data directory not found or empty, generating data...")
-
-        config_path = prepare_config()
-
-        execute_and_live_output(f"gridfm_datakit generate {config_path}")
+        print("Data directory not found or empty, downloading pre-built dataset...")
+        download_dataset(data_dir)
     else:
-        print(f"Data directory '{data_dir}' already exists, skipping generation.")
+        print(f"Data directory '{data_dir}' already exists, skipping download.")
 
     training_config_path = prepare_training_config()
 

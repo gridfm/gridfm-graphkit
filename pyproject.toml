@@ -68,7 +68,8 @@ dev = [
 
 test = [
   "pytest",
-  "pytest-cov"
+  "pytest-cov",
+  "gdown>=5.2.0"
 ]
 
 [project.scripts]
