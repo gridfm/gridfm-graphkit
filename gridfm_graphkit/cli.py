@@ -253,19 +253,23 @@ def main_cli(args):
     )
     if args.command == "train" or args.command == "finetune":
         trainer.fit(model=model, datamodule=litGrid)
-        if (
-            report_performance
-            and epoch_timer is not None
-            and epoch_timer.last_epoch_time is not None
-        ):
-            print(f"[performance] last epoch time : {epoch_timer.last_epoch_time:.3f}s")
-            if (
-                epoch_timer.last_epoch_iters_per_sec is not None
-                and epoch_timer._last_batch_count > 0
-            ):
-                print(
-                    f"[performance] last epoch it/s : {epoch_timer.last_epoch_iters_per_sec:.2f}",
-                )
+        if report_performance:
+            # Validation loss
+            val_loss = trainer.callback_metrics.get("Validation loss")
+            if val_loss is not None:
+                print(f"[performance] Validation loss : {float(val_loss):.6f}")
+            else:
+                print("[performance] Validation loss : not available")
+            # Epoch timing
+            if epoch_timer is not None and epoch_timer.last_epoch_time is not None:
+                print(f"[performance] last epoch time : {epoch_timer.last_epoch_time:.3f}s")
+                if (
+                    epoch_timer.last_epoch_iters_per_sec is not None
+                    and epoch_timer._last_batch_count > 0
+                ):
+                    print(
+                        f"[performance] last epoch it/s : {epoch_timer.last_epoch_iters_per_sec:.2f}",
+                    )
 
     if args.command != "predict":
         # Reuse the fit trainer when coming from train/finetune so that
@@ -284,20 +288,7 @@ def main_cli(args):
                 **trainer_kwargs,
                 profiler=profiler,
             )
-        test_results = test_trainer.test(model=model, datamodule=litGrid)
-        if report_performance:
-            # test_results[0] may be empty when metrics are routed to the logger
-            # only; fall back to trainer.callback_metrics which always has them.
-            metrics = (
-                test_results[0]
-                if test_results and test_results[0]
-                else dict(test_trainer.callback_metrics)
-            )
-            if metrics:
-                first_metric, first_value = next(iter(metrics.items()))
-                print(f"[performance] {first_metric} : {first_value}")
-            else:
-                print("[performance] no test metrics available")
+        test_trainer.test(model=model, datamodule=litGrid)
 
     artifacts_dir = None
     is_rank0 = (
