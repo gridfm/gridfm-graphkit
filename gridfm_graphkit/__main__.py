@@ -121,6 +121,12 @@ def main():
         help="Override data.workers from the YAML config. Use 0 to debug worker crashes.",
     )
     train_parser.add_argument(
+        "--batch_size",
+        type=int,
+        default=None,
+        help="Override training.batch_size from the YAML config.",
+    )
+    train_parser.add_argument(
         "--dataset_wrapper_cache_dir",
         type=str,
         default=None,
@@ -172,6 +178,12 @@ def main():
         type=int,
         default=None,
         help="Override data.workers from the YAML config. Use 0 to debug worker crashes.",
+    )
+    finetune_parser.add_argument(
+        "--batch_size",
+        type=int,
+        default=None,
+        help="Override training.batch_size from the YAML config.",
     )
     finetune_parser.add_argument(
         "--dataset_wrapper_cache_dir",
@@ -236,6 +248,12 @@ def main():
         help="Override data.workers from the YAML config. Use 0 to debug worker crashes.",
     )
     evaluate_parser.add_argument(
+        "--batch_size",
+        type=int,
+        default=None,
+        help="Override training.batch_size from the YAML config.",
+    )
+    evaluate_parser.add_argument(
         "--dataset_wrapper_cache_dir",
         type=str,
         default=None,
@@ -285,6 +303,12 @@ def main():
         help="Override data.workers from the YAML config. Use 0 to debug worker crashes.",
     )
     predict_parser.add_argument(
+        "--batch_size",
+        type=int,
+        default=None,
+        help="Override training.batch_size from the YAML config.",
+    )
+    predict_parser.add_argument(
         "--dataset_wrapper_cache_dir",
         type=str,
         default=None,
@@ -331,6 +355,12 @@ def main():
         type=int,
         default=None,
         help="Override data.workers from the YAML config.",
+    )
+    benchmark_parser.add_argument(
+        "--batch_size",
+        type=int,
+        default=None,
+        help="Override training.batch_size from the YAML config.",
     )
     benchmark_parser.add_argument(
         "--plugins",
