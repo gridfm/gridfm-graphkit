@@ -21,7 +21,7 @@ def execute_and_live_output(cmd) -> None:
 
 def download_dataset() -> None:
     """Download the pre-built dataset from Google Drive and extract it to the repo root."""
-    gdrive_file_id = "1NnNKOPqZU8yL6H-V3hnLFLkDyooH7B5D"
+    gdrive_file_id = "1in6tbkV4VTy3zQ5HJFvG40EOXAUg7UL9"
     zip_path = "integrationtests/case14_ieee_dataset.zip"
 
     print(f"Downloading dataset (file id={gdrive_file_id}) from Google Drive...")
@@ -79,9 +79,9 @@ def cleanup_test_artifacts():
         os.remove(zip_file)
 
     # Remove generated directories
-    for d in ["data_out", "logs"]:
-        if os.path.exists(d):
-            shutil.rmtree(d, ignore_errors=True)
+    #for d in ["data_out", "logs"]:
+    #    if os.path.exists(d):
+    #        shutil.rmtree(d, ignore_errors=True)
 
 
 def test_train(cleanup_test_artifacts):
