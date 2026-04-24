@@ -237,7 +237,10 @@ def main_cli(args):
         "ddp",
         "ddp_find_unused_parameters_true",
     ):
-        _strategy = DDPStrategy(find_unused_parameters=True)
+        _num_devices = config_args.training.devices
+        _single_device = _num_devices == 1 or _num_devices == "1"
+        _pg_backend = "gloo" if _single_device else "nccl"
+        _strategy = DDPStrategy(find_unused_parameters=True, process_group_backend=_pg_backend)
 
     trainer = L.Trainer(
         logger=logger,
