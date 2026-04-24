@@ -8,6 +8,7 @@ from gridfm_graphkit.training.callbacks import (
 import importlib
 import numpy as np
 import os
+import socket
 import time
 import yaml
 import torch
@@ -245,8 +246,15 @@ def main_cli(args):
             # No need for DDP with a single device; use auto to avoid NCCL init
             _strategy = "auto"
         else:
-            # For multi-device, prefer gloo to avoid NCCL socket interface issues;
-            # set NCCL_SOCKET_IFNAME=lo in env if nccl is needed instead.
+            # Ensure MASTER_PORT is set to a free port to avoid EADDRINUSE
+            if not os.environ.get("MASTER_PORT"):
+                with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as _s:
+                    _s.bind(("", 0))
+                    _s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                    os.environ["MASTER_PORT"] = str(_s.getsockname()[1])
+            if not os.environ.get("MASTER_ADDR"):
+                os.environ["MASTER_ADDR"] = "127.0.0.1"
+            # Use gloo backend to avoid NCCL socket interface issues
             _strategy = DDPStrategy(find_unused_parameters=True, process_group_backend="gloo")
 
     trainer = L.Trainer(
