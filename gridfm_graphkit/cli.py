@@ -238,9 +238,16 @@ def main_cli(args):
         "ddp_find_unused_parameters_true",
     ):
         _num_devices = config_args.training.devices
-        _single_device = _num_devices == 1 or _num_devices == "1"
-        _pg_backend = "gloo" if _single_device else "nccl"
-        _strategy = DDPStrategy(find_unused_parameters=True, process_group_backend=_pg_backend)
+        _single_device = _num_devices in (1, "1", [1]) or (
+            isinstance(_num_devices, list) and len(_num_devices) == 1
+        )
+        if _single_device:
+            # No need for DDP with a single device; use auto to avoid NCCL init
+            _strategy = "auto"
+        else:
+            # For multi-device, prefer gloo to avoid NCCL socket interface issues;
+            # set NCCL_SOCKET_IFNAME=lo in env if nccl is needed instead.
+            _strategy = DDPStrategy(find_unused_parameters=True, process_group_backend="gloo")
 
     trainer = L.Trainer(
         logger=logger,
