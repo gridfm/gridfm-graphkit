@@ -5,6 +5,7 @@ from gridfm_graphkit.cli import main_cli, benchmark_cli
 
 import subprocess
 import os
+import socket
 
 def is_lsf():
     return (
@@ -46,7 +47,18 @@ def set_env():
     os.environ["MASTER_ADDR"] = HOST_LIST[
         0
     ]  # Sets the MasterNode to thefirst node on the list of hosts
-    os.environ["MASTER_PORT"] = "5" + LSB_JOBID[-5:-1]
+    # Derive a candidate port from job ID, but verify it's free; fall back to
+    # a dynamically allocated free port to avoid EADDRINUSE when multiple jobs
+    # share overlapping job ID suffixes.
+    candidate_port = int("5" + LSB_JOBID[-5:-1])
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as _s:
+        try:
+            _s.bind(("", candidate_port))
+            free_port = candidate_port
+        except OSError:
+            _s.bind(("", 0))
+            free_port = _s.getsockname()[1]
+    os.environ["MASTER_PORT"] = str(free_port)
     os.environ["NODE_RANK"] = str(
         HOST_LIST.index(os.environ["HOSTNAME"]),
     )  # Uses the list index for node rank, master node rank must be 0
