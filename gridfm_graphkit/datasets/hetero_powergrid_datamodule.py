@@ -425,20 +425,12 @@ class LitGridHeteroDataModule(L.LightningDataModule):
             pin_memory=torch.cuda.is_available(),
             persistent_workers=num_workers > 0,
         )
-        # Use 'fork' on Linux. It avoids the forkserver intermediary pipe which
-        # is fragile when the process has many threads (e.g. OpenBLAS). In
-        # container environments (Kubernetes) fork works correctly. On
-        # traditional HPC systems with strict fd-passing restrictions the
-        # original 'forkserver' may be needed, but the pipe truncation it
-        # produces under thread pressure is worse than the ancdata warning.
-        if (
-            num_workers > 0
-            and torch.multiprocessing.get_start_method(allow_none=True) != "spawn"
-        ):
-            import platform
-
-            if platform.system() == "Linux":
-                kwargs["multiprocessing_context"] = "fork"
+        # Use 'spawn' for DataLoader workers: CUDA is already initialized by
+        # Lightning before DataLoaders are created, and forking a process that
+        # has an active CUDA context corrupts the child's GPU state. 'spawn'
+        # starts a clean interpreter without inheriting the CUDA context.
+        if num_workers > 0:
+            kwargs["multiprocessing_context"] = "spawn"
         return kwargs
 
     def train_dataloader(self):
