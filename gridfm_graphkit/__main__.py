@@ -47,18 +47,12 @@ def set_env():
     os.environ["MASTER_ADDR"] = HOST_LIST[
         0
     ]  # Sets the MasterNode to thefirst node on the list of hosts
-    # Derive a candidate port from job ID, but verify it's free; fall back to
-    # a dynamically allocated free port to avoid EADDRINUSE when multiple jobs
-    # share overlapping job ID suffixes.
-    candidate_port = int("5" + LSB_JOBID[-5:-1])
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as _s:
-        try:
-            _s.bind(("", candidate_port))
-            free_port = candidate_port
-        except OSError:
-            _s.bind(("", 0))
-            free_port = _s.getsockname()[1]
-    os.environ["MASTER_PORT"] = str(free_port)
+    # Derive port deterministically from job ID so all ranks agree on the same
+    # value. Use a wider hash (CRC32 of the full job ID) mapped into the
+    # ephemeral range [49152, 65535] to minimise collisions with other jobs.
+    import binascii
+    crc = binascii.crc32(LSB_JOBID.encode()) & 0xFFFFFFFF
+    os.environ["MASTER_PORT"] = str(49152 + (crc % 16383))
     os.environ["NODE_RANK"] = str(
         HOST_LIST.index(os.environ["HOSTNAME"]),
     )  # Uses the list index for node rank, master node rank must be 0
