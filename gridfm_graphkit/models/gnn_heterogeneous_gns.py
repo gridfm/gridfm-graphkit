@@ -19,6 +19,9 @@ from gridfm_graphkit.datasets.globals import (
     # Output feature indices
     VM_OUT,
     PG_OUT_GEN,
+    ##############
+    BUS_STATUS_LOGIT_OUT,
+    ##############
     # Generator feature indices
     PG_H,
     MIN_PG,
@@ -49,6 +52,9 @@ class GNS_heterogeneous(nn.Module):
         self.heads = args.model.attention_head
         self.task = args.task.task_name
         self.dropout = getattr(args.model, "dropout", 0.0)
+        ####################
+        self.is_vld_task = self.task == "VoltageLossDetection"
+        ####################
 
         # projections for each node type
         self.input_proj_bus = nn.Sequential(
@@ -129,6 +135,15 @@ class GNS_heterogeneous(nn.Module):
             nn.Linear(self.hidden_dim, self.output_bus_dim),
         )
 
+        #############################
+        self.bus_status_head = nn.Sequential(
+            nn.Linear(self.hidden_dim * self.heads, self.hidden_dim),
+            nn.LayerNorm(self.hidden_dim),
+            nn.LeakyReLU(),
+            nn.Linear(self.hidden_dim, 1),
+        )
+        ############################
+
         self.mlp_gen = nn.Sequential(
             nn.Linear(self.hidden_dim * self.heads, self.hidden_dim),
             nn.LayerNorm(self.hidden_dim),
@@ -156,6 +171,9 @@ class GNS_heterogeneous(nn.Module):
         """
 
         self.layer_residuals = {}
+        #####################
+        self.latest_x_dict = x_dict
+        ####################
 
         # 1) initial projections
         h_bus = self.input_proj_bus(x_dict["bus"])  # [num_bus, hidden_dim]
@@ -198,6 +216,10 @@ class GNS_heterogeneous(nn.Module):
             # Decode bus and generator predictions
             bus_temp = self.mlp_bus(h_bus)  # [Nb, 2]  -> Vm, Va
             gen_temp = self.mlp_gen(h_gen)  # [Ng, 1]  -> Pg
+
+            #######################
+            status_logit = self.bus_status_head(h_bus)
+            #######################
 
             if self.task == "StateEstimation":
                 if i == self.num_layers - 1:
@@ -278,4 +300,15 @@ class GNS_heterogeneous(nn.Module):
                 ).mean()
                 h_bus = h_bus + self.physics_mlp(bus_residuals)
 
-        return {"bus": output_temp, "gen": gen_temp}
+        #######################
+        #return {"bus": output_temp, "gen": gen_temp}
+        if self.is_vld_task:
+            output_bus = torch.cat([output_temp, status_logit], dim=1)
+        else:
+            output_bus = output_temp
+
+        return {"bus": output_bus, "gen": gen_temp}
+        #####################
+
+
+

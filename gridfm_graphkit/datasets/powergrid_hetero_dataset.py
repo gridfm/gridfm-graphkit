@@ -10,6 +10,19 @@ from typing import Optional, Callable
 from torch_geometric.data import HeteroData
 from gridfm_graphkit.datasets.globals import VA_H, PG_H
 
+#####################
+def _optional_cols(df, cols, default_value):
+    """
+    Return a list of columns guaranteed to exist in df.
+    Missing columns are created and filled with the corresponding default value.
+    """
+    if len(default_value) < len(cols):
+        raise ValueError(f"default_value has length {len(default_value)} but cols has length {len(cols)}")
+    for i, col in enumerate(cols):
+        if col not in df.columns:
+            df[col] = default_value[i]
+    return cols
+#####################
 
 class HeteroGridDatasetDisk(Dataset):
     """
@@ -55,6 +68,7 @@ class HeteroGridDatasetDisk(Dataset):
     @property
     def processed_file_names(self):
         return [
+            "load_scenarios.pt",
             self.processed_done_file,
         ]
 
@@ -71,11 +85,11 @@ class HeteroGridDatasetDisk(Dataset):
             bus_data["scenario"].min() == 0
             and bus_data["scenario"].max() == len(bus_data["scenario"].unique()) - 1
         )
-        if "load_scenario_idx" in bus_data.columns:
-            load_scenarios = torch.tensor(
-                bus_data.groupby("scenario", sort=True)["load_scenario_idx"].first().values,
-            )
-            torch.save(load_scenarios, osp.join(self.processed_dir, "load_scenarios.pt"))
+
+        load_scenarios = torch.tensor(
+            bus_data.groupby("scenario", sort=True)["load_scenario_idx"].first().values,
+        )
+        torch.save(load_scenarios, osp.join(self.processed_dir, "load_scenarios.pt"))
 
         agg_gen = (
             gen_data.groupby(["scenario", "bus"])[["min_q_mvar", "max_q_mvar"]]
@@ -107,6 +121,12 @@ class HeteroGridDatasetDisk(Dataset):
             "vn_kv",
         ]
 
+        #####################
+        # Optional VLD bus input columns
+        vld_bus_input_features = _optional_cols(bus_data,["bus_base_status", "bus_contingency"],default_value=[1.0, 0.0])
+        bus_features = bus_features + vld_bus_input_features
+        #####################
+
         gen_features = [
             "p_mw",
             "min_p_mw",
@@ -118,6 +138,13 @@ class HeteroGridDatasetDisk(Dataset):
         ]
 
         common_branch_features = ["tap", "ang_min", "ang_max", "rate_a", "br_status"]
+
+        #####################
+        # Optional VLD branch topology columns
+        vld_branch_features = _optional_cols(branch_data,["branch_base_status", "branch_contingency"], default_value=[1.0, 0.0])
+        common_branch_features = common_branch_features + vld_branch_features
+        #####################
+
         forward_branch_features = [
             "pf",
             "qf",
@@ -135,9 +162,13 @@ class HeteroGridDatasetDisk(Dataset):
             "Ytf_i",
         ] + common_branch_features
 
+        #####################
+        # Optional VLD target column on bus.y
+        vld_bus_target_features = _optional_cols(bus_data,["bus_status_target"],default_value=[1.0])
+        #####################
+
         # Group by scenario
-        bus_groups = bus_data.groupby("scenario") # Groupby preserves the order of rows within each group. 
-        # https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.groupby.html
+        bus_groups = bus_data.groupby("scenario")
         gen_groups = gen_data.groupby("scenario")
         branch_groups = branch_data.groupby("scenario")
 
@@ -158,19 +189,27 @@ class HeteroGridDatasetDisk(Dataset):
 
             # Bus nodes
             bus_df = bus_groups.get_group(scenario)
-            # assert that the buses are in increasing order
-            assert (bus_df["bus"].values == torch.arange(len(bus_df))).all(), "Buses are not in increasing order"
-            #todo: we should remove this assert and store the bus idx in the tensors
-            # right now we need the increasing order for e.g. the predict step that uses torch.arange(n_nodes) to index the buses.
             data["bus"].x = torch.tensor(bus_df[bus_features].values, dtype=torch.float)
 
             # Generator nodes
             gen_df = gen_groups.get_group(scenario).reset_index()
             data["gen"].x = torch.tensor(gen_df[gen_features].values, dtype=torch.float)
             gen_df["gen_index"] = gen_df.index  # Use actual index as generator ID
-            # todo: change this to instead use the generator id as the index
 
-            data["bus"].y = data["bus"].x[:, : (VA_H + 1)].clone()
+            #####################
+            #data["bus"].y = data["bus"].x[:, : (VA_H + 1)].clone()
+            # Append the optional VLD target column.
+            bus_y_base = torch.tensor(
+                bus_df[["Pd", "Qd", "Qg", "Vm", "Va"]].values,
+                dtype=torch.float,
+            )
+            bus_y_vld = torch.tensor(
+                bus_df[vld_bus_target_features].values,
+                dtype=torch.float,
+            )
+            data["bus"].y = torch.cat([bus_y_base, bus_y_vld], dim=1)
+            #####################
+
             data["gen"].y = data["gen"].x[:, : (PG_H + 1)].clone()
 
             # Bus-Bus edges

@@ -157,7 +157,6 @@ class AddOPFHeteroMask(BaseTransform):
 
 
 class BusToGenBroadcaster(MessagePassing):
-    """Broadcast per-bus values to connected generators via graph propagation."""
     def __init__(self, aggr="add"):
         super().__init__(aggr=aggr)
 
@@ -175,7 +174,6 @@ class BusToGenBroadcaster(MessagePassing):
 
 
 class SimulateMeasurements(BaseTransform):
-    """Add configurable noise/outliers and masks to simulate measured quantities."""
     def __init__(self, args):
         super().__init__()
         self.measurements = args.task.measurements
@@ -323,3 +321,74 @@ class SimulateMeasurements(BaseTransform):
         }
 
         return data
+
+#######################
+class AddVLDHeteroMask(BaseTransform):
+    """
+    PF-like masking for VLD:
+    - keeps PF bus-type masks required by the physics decoder
+    - masks only physical reconstruction channels
+    - leaves appended topology/status metadata unmasked
+    """
+
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, data):
+        bus_x = data.x_dict["bus"]
+        gen_x = data.x_dict["gen"]
+
+        mask_PQ = bus_x[:, PQ_H] == 1
+        mask_PV = bus_x[:, PV_H] == 1
+        mask_REF = bus_x[:, REF_H] == 1
+
+        mask_bus = torch.zeros_like(bus_x, dtype=torch.bool)
+        mask_gen = torch.zeros_like(gen_x, dtype=torch.bool)
+
+        # Keep same physical masking pattern as PF
+        mask_bus[:, MIN_VM_H] = True
+        mask_bus[:, MAX_VM_H] = True
+        mask_bus[:, MIN_QG_H] = True
+        mask_bus[:, MAX_QG_H] = True
+        mask_bus[:, VN_KV] = True
+
+        mask_gen[:, MIN_PG] = True
+        mask_gen[:, MAX_PG] = True
+        mask_gen[:, C0_H] = True
+        mask_gen[:, C1_H] = True
+        mask_gen[:, C2_H] = True
+
+        mask_bus[mask_PQ, VM_H] = True
+        mask_bus[mask_PQ, VA_H] = True
+
+        mask_bus[mask_PV, VA_H] = True
+        mask_bus[mask_PV, QG_H] = True
+
+        mask_bus[mask_REF, VM_H] = True
+        mask_bus[mask_REF, QG_H] = True
+
+        gen_bus_edges = data.edge_index_dict[("gen", "connected_to", "bus")]
+        gen_indices, bus_indices = gen_bus_edges
+        ref_gens = gen_indices[mask_REF[bus_indices]]
+        mask_gen[ref_gens, PG_H] = True
+
+        mask_branch = torch.zeros_like(
+            data.edge_attr_dict[("bus", "connects", "bus")],
+            dtype=torch.bool,
+        )
+        mask_branch[:, P_E] = True
+        mask_branch[:, Q_E] = True
+        mask_branch[:, ANG_MIN] = True
+        mask_branch[:, ANG_MAX] = True
+        mask_branch[:, RATE_A] = True
+
+        data.mask_dict = {
+            "bus": mask_bus,
+            "gen": mask_gen,
+            "branch": mask_branch,
+            "PQ": mask_PQ,
+            "PV": mask_PV,
+            "REF": mask_REF,
+        }
+        return data
+#######################

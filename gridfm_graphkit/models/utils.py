@@ -73,7 +73,6 @@ class ComputeNodeInjection(nn.Module):
 
 
 def compute_shunt_power(bus_data_pred, bus_data_orig):
-    """Compute active/reactive shunt power contributions per bus."""
     p_shunt = -bus_data_orig[:, GS] * bus_data_pred[:, VM_OUT] ** 2
     q_shunt = bus_data_orig[:, BS] * bus_data_pred[:, VM_OUT] ** 2
     return p_shunt, q_shunt
@@ -81,7 +80,6 @@ def compute_shunt_power(bus_data_pred, bus_data_orig):
 
 @PHYSICS_DECODER_REGISTRY.register("OptimalPowerFlow")
 class PhysicsDecoderOPF(nn.Module):
-    """Map network outputs to OPF-consistent bus states using physics constraints."""
     def forward(self, P_in, Q_in, bus_data_pred, bus_data_orig, agg_bus, mask_dict):
         mask_pv = mask_dict["PV"]
         mask_ref = mask_dict["REF"]
@@ -116,7 +114,6 @@ class PhysicsDecoderOPF(nn.Module):
 
 @PHYSICS_DECODER_REGISTRY.register("PowerFlow")
 class PhysicsDecoderPF(nn.Module):
-    """Map network outputs to PF-consistent bus states using physics constraints."""
     def forward(self, P_in, Q_in, bus_data_pred, bus_data_orig, agg_bus, mask_dict):
         """
         PF decoder:
@@ -164,7 +161,6 @@ class PhysicsDecoderPF(nn.Module):
 
 @PHYSICS_DECODER_REGISTRY.register("StateEstimation")
 class PhysicsDecoderSE(nn.Module):
-    """Map network outputs to SE targets via bus power-balance relations."""
     def forward(self, P_in, Q_in, bus_data_pred, bus_data_orig, agg_bus, mask_dict):
         p_shunt, q_shunt = compute_shunt_power(bus_data_pred, bus_data_orig)
         Vm_out = bus_data_pred[:, VM_OUT]
@@ -172,6 +168,37 @@ class PhysicsDecoderSE(nn.Module):
         output = torch.stack([Vm_out, Va_out, P_in - p_shunt, Q_in - q_shunt], dim=1)
         return output
 
+#########################
+@PHYSICS_DECODER_REGISTRY.register("VoltageLossDetection")
+class PhysicsDecoderVLD(nn.Module):
+    """
+    VLD decoder:
+    Use the same physical decoding rule as PowerFlow for the bus outputs
+    [Vm, Va, Pg, Qg]. The VLD-specific bus-status logit is produced by a
+    separate model head and concatenated later in the model forward pass.
+    """
+
+    def forward(self, P_in, Q_in, bus_data_pred, bus_data_orig, agg_bus, mask_dict):
+        mask_pv = mask_dict["PV"]
+        mask_ref = mask_dict["REF"]
+        mask_pvref = mask_pv | mask_ref
+
+        p_shunt, q_shunt = compute_shunt_power(bus_data_pred, bus_data_orig)
+
+        Pd = bus_data_orig[:, PD_H]
+        Qd = bus_data_orig[:, QD_H]
+
+        Qg_new = torch.where(mask_pvref, Q_in + Qd - q_shunt, torch.zeros_like(Q_in))
+
+        Pg_ref = torch.where(mask_ref, P_in + Pd - p_shunt, torch.zeros_like(P_in))
+        Pg_new = torch.where(mask_pv, agg_bus, Pg_ref)
+
+        Vm_out = bus_data_pred[:, VM_OUT]
+        Va_out = bus_data_pred[:, VA_OUT]
+
+        output = torch.stack([Vm_out, Va_out, Pg_new, Qg_new], dim=1)
+        return output
+########################
 
 class ComputeNodeResiduals(nn.Module):
     """Compute net residuals per bus combining branch flows, generators, loads, and shunts."""
@@ -188,5 +215,4 @@ class ComputeNodeResiduals(nn.Module):
 
 
 def bound_with_sigmoid(pred, low, high):
-    """Squash unconstrained predictions into [low, high] with a sigmoid map."""
     return low + (high - low) * torch.sigmoid(pred)

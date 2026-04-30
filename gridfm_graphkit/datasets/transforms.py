@@ -96,7 +96,6 @@ class ApplyMasking(BaseTransform):
 
 
 class LoadGridParamsFromPath(BaseTransform):
-    """Inject static grid parameters from a saved grid template into each sample."""
     def __init__(self, args):
         super().__init__()
         self.grid_path = args.task.grid_path
@@ -124,3 +123,48 @@ class LoadGridParamsFromPath(BaseTransform):
         ].edge_attr[:, cols]
         data["gen"].x[:, G_ON] = grid_data["gen"].x[:, G_ON]
         return data
+
+##################
+class RemoveInactiveBranchesKeepTopology(BaseTransform):
+    """
+    Removes inactive branches using B_ON, but preserves all edge_attr columns,
+    including appended VLD topology columns after B_ON.
+    """
+
+    def forward(self, data):
+        et = ("bus", "connects", "bus")
+        active_mask = data[et].edge_attr[:, B_ON] == 1
+
+        data[et].edge_index = data[et].edge_index[:, active_mask]
+        data[et].edge_attr = data[et].edge_attr[active_mask]
+        data[et].y = data[et].y[active_mask]
+        return data
+
+
+class LoadGridParamsFromPathVLD(BaseTransform):
+    def __init__(self, args):
+        super().__init__()
+        self.grid_path = args.task.grid_path
+        self.grid_data = HeteroData.from_dict(
+            torch.load(self.grid_path, weights_only=True)
+        )
+        self.normalizer = HeteroDataMVANormalizer(args)
+        self.normalizer.vn_kv_max = 1
+
+    def forward(self, data):
+        if hasattr(data, "is_normalized"):
+            self.normalizer.baseMVA = data.baseMVA
+            grid_data = deepcopy(self.grid_data)
+            self.normalizer.transform(grid_data)
+        else:
+            grid_data = deepcopy(self.grid_data)
+
+        cols = [YFF_TT_R, YFF_TT_I, YFT_TF_R, YFT_TF_I]
+        data[("bus", "connects", "bus")].edge_attr[:, cols] = grid_data[
+            ("bus", "connects", "bus")
+        ].edge_attr[:, cols]
+
+        data["gen"].x[:, G_ON] = grid_data["gen"].x[:, G_ON]
+        return data
+##################
+

@@ -3,6 +3,9 @@ from gridfm_graphkit.models.utils import (
     PhysicsDecoderOPF,
     PhysicsDecoderPF,
     PhysicsDecoderSE,
+    ###############
+    PhysicsDecoderVLD
+    ##############
 )
 
 __all__ = [
@@ -10,4 +13,7 @@ __all__ = [
     "PhysicsDecoderOPF",
     "PhysicsDecoderPF",
     "PhysicsDecoderSE",
+    ###############
+    "PhysicsDecoderVLD",
+    ##############
 ]

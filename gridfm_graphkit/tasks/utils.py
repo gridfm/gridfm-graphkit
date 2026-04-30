@@ -7,25 +7,10 @@ import os
 
 
 def residual_stats_by_type(residual, mask, bus_batch):
-    """Return per-graph mean and max absolute residuals for a masked bus subset."""
     residual_masked = residual[mask]
     batch_masked = bus_batch[mask]
-    abs_residual = torch.abs(residual_masked)
-
-    # torch_scatter on MPS can dispatch into a CPU-only path for scatter_max.
-    # Compute the grouped stats on CPU and move the results back so verbose
-    # evaluation works without changing the torch/torch_scatter stack.
-    if abs_residual.device.type == "mps":
-        abs_residual_cpu = abs_residual.cpu()
-        batch_masked_cpu = batch_masked.cpu()
-        mean_res = scatter_mean(abs_residual_cpu, batch_masked_cpu, dim=0).to(
-            abs_residual.device,
-        )
-        max_res, _ = scatter_max(abs_residual_cpu, batch_masked_cpu, dim=0)
-        max_res = max_res.to(abs_residual.device)
-    else:
-        mean_res = scatter_mean(abs_residual, batch_masked, dim=0)
-        max_res, _ = scatter_max(abs_residual, batch_masked, dim=0)
+    mean_res = scatter_mean(torch.abs(residual_masked), batch_masked, dim=0)
+    max_res, _ = scatter_max(torch.abs(residual_masked), batch_masked, dim=0)
     return mean_res, max_res
 
 
@@ -45,27 +30,19 @@ def plot_residuals_histograms(outputs, dataset_name, plot_dir):
 
     for stat_key, title in stats:
         # Gather all data first to compute common bin edges
-        all_data = (
-            torch.cat(
-                [
-                    torch.cat([d[f"{stat_key}_{bus_type}"] for d in outputs])
-                    for bus_type in bus_types
-                ],
-            )
-            .float()
-            .numpy()
-        )
+        all_data = torch.cat(
+            [
+                torch.cat([d[f"{stat_key}_{bus_type}"] for d in outputs])
+                for bus_type in bus_types
+            ],
+        ).numpy()
 
         # Define bins across the entire data range
         bins = np.linspace(all_data.min(), all_data.max(), 61)  # 30 bins of equal width
 
         plt.figure(figsize=(10, 6))
         for bus_type, color in zip(bus_types, colors):
-            data = (
-                torch.cat([d[f"{stat_key}_{bus_type}"] for d in outputs])
-                .float()
-                .numpy()
-            )
+            data = torch.cat([d[f"{stat_key}_{bus_type}"] for d in outputs]).numpy()
             plt.hist(data, bins=bins, alpha=0.6, label=bus_type, color=color)
 
         plt.title(f"{title} per Bus Type in {dataset_name}")

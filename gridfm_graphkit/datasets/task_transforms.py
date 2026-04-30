@@ -4,18 +4,23 @@ from gridfm_graphkit.datasets.transforms import (
     RemoveInactiveGenerators,
     ApplyMasking,
     LoadGridParamsFromPath,
+    ###################
+    RemoveInactiveBranchesKeepTopology,
+    ###################
 )
 from gridfm_graphkit.datasets.masking import (
     AddOPFHeteroMask,
     AddPFHeteroMask,
     SimulateMeasurements,
+    ###################
+    AddVLDHeteroMask,
+    ###################
 )
 from gridfm_graphkit.io.registries import TRANSFORM_REGISTRY
 
 
 @TRANSFORM_REGISTRY.register("PowerFlow")
 class PowerFlowTransforms(Compose):
-    """Compose preprocessing and masking transforms for PowerFlow datasets."""
     def __init__(self, args):
         transforms = []
 
@@ -30,7 +35,6 @@ class PowerFlowTransforms(Compose):
 
 @TRANSFORM_REGISTRY.register("OptimalPowerFlow")
 class OptimalPowerFlowTransforms(Compose):
-    """Compose preprocessing and masking transforms for OptimalPowerFlow datasets."""
     def __init__(self, args):
         transforms = []
 
@@ -45,7 +49,6 @@ class OptimalPowerFlowTransforms(Compose):
 
 @TRANSFORM_REGISTRY.register("StateEstimation")
 class StateEstimationTransforms(Compose):
-    """Compose preprocessing and measurement transforms for StateEstimation datasets."""
     def __init__(self, args):
         transforms = []
 
@@ -58,3 +61,20 @@ class StateEstimationTransforms(Compose):
 
         # Pass the list of transforms to Compose
         super().__init__(transforms)
+
+############################
+@TRANSFORM_REGISTRY.register("VoltageLossDetection")
+class VoltageLossDetectionTransforms(Compose):
+    def __init__(self, args):
+        transforms = []
+
+        if hasattr(args.task, "grid_path"):
+            transforms.append(LoadGridParamsFromPathVLD(args))
+
+        transforms.append(RemoveInactiveBranchesKeepTopology())
+        transforms.append(RemoveInactiveGenerators())
+        transforms.append(AddVLDHeteroMask())
+        transforms.append(ApplyMasking(args=args))
+
+        super().__init__(transforms)
+##########################

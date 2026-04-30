@@ -11,7 +11,6 @@ import copy
 
 
 def visualize_error(data_point, output, node_normalizer):
-    """Plot node-wise active power residuals on the grid topology."""
     loss = PBELoss(visualization=True)
 
     loss_dict = loss(

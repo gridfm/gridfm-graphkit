@@ -19,9 +19,16 @@ from gridfm_graphkit.datasets.globals import (
     PG_OUT,
     # Generator feature indices
     PG_H,
-    # Qg Limits
-    MIN_QG_H, 
-    MAX_QG_H,
+    #####################
+    ## Indices of features of the VLD task
+    # Bus feature indices
+    BUS_BASE_STATUS_H,
+    BUS_CONT_H,
+    B_ON,
+    # Branch feature indices
+    BRANCH_BASE_STATUS_E,
+    BRANCH_CONT_E,
+    #####################
 )
 
 
@@ -39,7 +46,6 @@ class BaseLoss(nn.Module, ABC):
         edge_attr=None,
         mask=None,
         model=None,
-        x_dict=None,
     ):
         """
         Compute the loss.
@@ -76,7 +82,6 @@ class MaskedMSELoss(BaseLoss):
         edge_attr=None,
         mask=None,
         model=None,
-        x_dict=None,
     ):
         loss = F.mse_loss(pred[mask], target[mask], reduction=self.reduction)
         return {"loss": loss, "Masked MSE loss": loss.detach()}
@@ -84,7 +89,6 @@ class MaskedMSELoss(BaseLoss):
 
 @LOSS_REGISTRY.register("MaskedGenMSE")
 class MaskedGenMSE(torch.nn.Module):
-    """Compute MSE on generator targets restricted to generator mask entries."""
     def __init__(self, loss_args, args):
         super().__init__()
         self.reduction = "mean"
@@ -97,7 +101,6 @@ class MaskedGenMSE(torch.nn.Module):
         edge_attr,
         mask_dict,
         model=None,
-        x_dict=None,
     ):
         loss = F.mse_loss(
             pred_dict["gen"][mask_dict["gen"][:, : (PG_H + 1)]],
@@ -109,7 +112,6 @@ class MaskedGenMSE(torch.nn.Module):
 
 @LOSS_REGISTRY.register("MaskedBusMSE")
 class MaskedBusMSE(torch.nn.Module):
-    """Compute MSE on selected bus targets, respecting task-specific output columns."""
     def __init__(self, loss_args, args):
         super().__init__()
         self.reduction = "mean"
@@ -123,7 +125,6 @@ class MaskedBusMSE(torch.nn.Module):
         edge_attr,
         mask_dict,
         model=None,
-        x_dict=None,
     ):
         if self.args.task == "OptimalPowerFlow":
             pred_cols = [VM_OUT, VA_OUT, QG_OUT]
@@ -161,7 +162,6 @@ class MSELoss(BaseLoss):
         edge_attr=None,
         mask=None,
         model=None,
-        x_dict=None,
     ):
         loss = F.mse_loss(pred, target, reduction=self.reduction)
         return {"loss": loss, "MSE loss": loss.detach()}
@@ -195,7 +195,6 @@ class MixedLoss(BaseLoss):
         edge_attr=None,
         mask=None,
         model=None,
-        x_dict=None,
     ):
         """
         Compute the weighted sum of all specified losses.
@@ -222,7 +221,6 @@ class MixedLoss(BaseLoss):
                 edge_attr,
                 mask,
                 model,
-                x_dict,
             )
 
             # Assume each loss function returns a dictionary with a "loss" key
@@ -239,9 +237,10 @@ class MixedLoss(BaseLoss):
         return loss_details
 
 
+
+
 @LOSS_REGISTRY.register("LayeredWeightedPhysics")
 class LayeredWeightedPhysicsLoss(BaseLoss):
-    """Combine intermediate physics residuals using normalized geometric weights."""
     def __init__(self, loss_args, args) -> None:
         super().__init__()
         self.base_weight = loss_args.base_weight
@@ -254,7 +253,6 @@ class LayeredWeightedPhysicsLoss(BaseLoss):
         edge_attr=None,
         mask=None,
         model=None,
-        x_dict=None,
     ):
         total_loss = 0.0
         loss_details = {}
@@ -282,7 +280,6 @@ class LayeredWeightedPhysicsLoss(BaseLoss):
 
 @LOSS_REGISTRY.register("LossPerDim")
 class LossPerDim(BaseLoss):
-    """Compute MAE/MSE for one named physical dimension of bus outputs."""
     def __init__(self, loss_args, args):
         super(LossPerDim, self).__init__()
         self.reduction = "mean"
@@ -306,7 +303,6 @@ class LossPerDim(BaseLoss):
         edge_attr,
         mask_dict,
         model=None,
-        x_dict=None,
     ):
         if self.dim == "VM":
             temp_pred = pred_dict["bus"][:, VM_OUT]
@@ -339,56 +335,166 @@ class LossPerDim(BaseLoss):
             f"MAE loss {self.dim}": mae_loss.detach(),
         }
 
+#######################
+@LOSS_REGISTRY.register("VLDTopologyLoss")
+class VLDTopologyLoss(BaseLoss):
+    """
+    Topology-first voltage loss detection objective.
 
-@LOSS_REGISTRY.register("QgViolationPenalty")
-class QgViolationPenaltyLoss(BaseLoss):
-    """Standard Mean Squared Error loss."""
+    Expected bus tensor layouts:
+      pred_dict["bus"]   : [Vm, Va, Pg, Qg, status_logit]
+      target_dict["bus"] : [Pd, Qd, Qg, Vm, Va, bus_status_target]
+      x_dict["bus"]      : standard bus features + [bus_base_status, bus_contingency]
+      edge_attr          : standard edge attrs + [branch_base_status, branch_contingency]
+    """
 
     def __init__(self, loss_args, args):
         super().__init__()
+        self.args = args
+        self.input_state_threshold = getattr(loss_args, "input_state_threshold", 0.5)
+        self.prediction_threshold = getattr(loss_args, "prediction_threshold", 0.5)
+        self.topology_weight = getattr(loss_args, "topology_weight", 1.0)
+        self.target_anchor_weight = getattr(loss_args, "target_anchor_weight", 0.25)
+        self.off_vm_weight = getattr(loss_args, "off_vm_weight", 1.0)
+        self.on_vm_weight = getattr(loss_args, "on_vm_weight", 0.5)
+        self.unreachable_l1_weight = getattr(loss_args, "unreachable_l1_weight", 1.0)
+        self.topology_confidence_gamma = getattr(loss_args, "topology_confidence_gamma", 10.0)
+
+    @staticmethod
+    def _build_graph_reachability(
+        num_bus,
+        edge_index,
+        edge_attr,
+        bus_x,
+        device,
+        threshold=0.5,
+    ):
+        """
+        Build hard reachability labels from base-status and contingency indicators.
+
+        A bus is considered initially available if base_status is on and it is not
+        directly hit by contingency. A branch is traversable if base branch status
+        is on and it is not hit by contingency.
+        """
+        bus_base = (bus_x[:, BUS_BASE_STATUS_H] > threshold)
+        bus_hit = (bus_x[:, BUS_CONT_H] > threshold)
+        bus_available = bus_base & (~bus_hit)
+
+        src, dst = edge_index
+        branch_base = (edge_attr[:, BRANCH_BASE_STATUS_E] > threshold)
+        branch_hit = (edge_attr[:, BRANCH_CONT_E] > threshold)
+        branch_available = branch_base & (~branch_hit)
+
+        reachable = torch.zeros(num_bus, dtype=torch.bool, device=device)
+
+        # Seeds: all buses that remain available after direct contingency.
+        seed_nodes = torch.where(bus_available)[0]
+        if seed_nodes.numel() == 0:
+            return reachable.float(), bus_available.float()
+
+        reachable[seed_nodes] = True
+
+        changed = True
+        while changed:
+            prev = reachable.clone()
+            active_edges = branch_available & reachable[src]
+            reachable[dst[active_edges]] = True
+            changed = not torch.equal(prev, reachable)
+
+        return reachable.float(), bus_available.float()
 
     def forward(
-        self,
-        pred,
-        target,
-        edge_index=None,
-        edge_attr=None,
-        mask=None,
-        model=None,
-        x_dict=None,
+            self,
+            pred_dict,
+            target_dict,
+            edge_index_dict,
+            edge_attr_dict,
+            mask_dict,
+            model=None,
     ):
-        # --- Qg limit violation mask ---
-        Qg_pred = pred["bus"][:, QG_OUT]
-        Qg_max = x_dict["bus"][:, MAX_QG_H]
-        Qg_min = x_dict["bus"][:, MIN_QG_H]
+        bus_pred = pred_dict["bus"]
+        bus_target = target_dict["bus"]
+        bus_x = model.latest_x_dict["bus"] if hasattr(model, "latest_x_dict") else None
 
-        max_penalty_mask = (Qg_pred > Qg_max) 
-        min_penalty_mask = (Qg_pred < Qg_min)
+        if bus_x is None:
+            raise RuntimeError(
+                "VLDTopologyLoss requires model.latest_x_dict['bus']. "
+                "Store x_dict on the model inside the forward pass."
+            )
 
-        mask_PQ = mask["PQ"]  # PQ buses
-        mask_PV = mask["PV"]  # PV buses
-        mask_REF = mask["REF"]  # Reference buses
+        if bus_pred.size(1) <= BUS_STATUS_LOGIT_OUT:
+            raise ValueError(
+                "VLDTopologyLoss expects bus predictions to include a status logit "
+                f"at column {BUS_STATUS_LOGIT_OUT}."
+            )
 
-        loss = 0.0
-        # where there are violations, compute penalty loss
-        Qg_over = F.relu(Qg_pred - Qg_max)  # amount above max limit
-        Qg_under = F.relu(Qg_min - Qg_pred)  # amount below min limit
+        edge_index = edge_index_dict[("bus", "connects", "bus")]
+        edge_attr = edge_attr_dict[("bus", "connects", "bus")]
 
-        Qg_over = Qg_over[max_penalty_mask].mean()
-        Qg_under = Qg_under[min_penalty_mask].mean()
-        
-        if Qg_over!=Qg_over: # replacing nan with 0 
-            Qg_over = 0.0
-        if Qg_under!=Qg_under: # replacing nan with 0 
-            Qg_under = 0.0
+        num_bus = bus_pred.size(0)
+        device = bus_pred.device
 
-        penalty_loss = Qg_over + Qg_under            
-        loss += penalty_loss
+        topo_target, bus_available = self._build_graph_reachability(
+            num_bus=num_bus,
+            edge_index=edge_index,
+            edge_attr=edge_attr,
+            bus_x=bus_x,
+            device=device,
+            threshold=self.input_state_threshold,
+        )
 
-        try:
-            output = {"loss": loss, "Qg Violation Penalty loss": loss.detach()}
-        except:
-            output = {"loss": loss, "Qg Violation Penalty loss": loss}
+        status_logit = bus_pred[:, BUS_STATUS_LOGIT_OUT]
+        status_prob = torch.sigmoid(status_logit)
 
-        return output
+        target_status = bus_target[:, BUS_STATUS_TARGET].float()
+        target_vm = bus_target[:, VM_H].float()
+        pred_vm = bus_pred[:, VM_OUT].float()
 
+        topology_confidence = torch.exp(
+            -self.topology_confidence_gamma * torch.abs(bus_available - topo_target)
+        )
+
+        topology_bce_raw = F.binary_cross_entropy_with_logits(
+            status_logit,
+            topo_target,
+            reduction="none",
+        )
+        topology_bce = (topology_confidence * topology_bce_raw).mean()
+
+        target_anchor_bce = F.binary_cross_entropy_with_logits(
+            status_logit,
+            target_status,
+            reduction="mean",
+        )
+
+        unreachable_mask = (topo_target < 0.5).float()
+        reachable_mask = (topo_target >= 0.5).float()
+
+        off_vm_l2 = ((pred_vm ** 2) * unreachable_mask).sum() / unreachable_mask.sum().clamp_min(1.0)
+        off_vm_l1 = (pred_vm.abs() * unreachable_mask).sum() / unreachable_mask.sum().clamp_min(1.0)
+        off_vm_loss = off_vm_l2 + self.unreachable_l1_weight * off_vm_l1
+
+        on_vm_sq = ((pred_vm - target_vm) ** 2) * reachable_mask * status_prob.detach()
+        on_vm_loss = on_vm_sq.sum() / (reachable_mask * status_prob.detach()).sum().clamp_min(1.0)
+
+        total_loss = (
+            self.topology_weight * topology_bce
+            + self.target_anchor_weight * target_anchor_bce
+            + self.off_vm_weight * off_vm_loss
+            + self.on_vm_weight * on_vm_loss
+        )
+
+        pred_status = (status_prob >= self.prediction_threshold).float()
+        topo_acc = (pred_status == topo_target).float().mean()
+        target_acc = (pred_status == target_status).float().mean()
+
+        return {
+            "loss": total_loss,
+            "VLD Topology BCE": topology_bce.detach(),
+            "VLD Target Anchor BCE": target_anchor_bce.detach(),
+            "VLD Off Vm Loss": off_vm_loss.detach(),
+            "VLD On Vm Loss": on_vm_loss.detach(),
+            "VLD Topology Accuracy": topo_acc.detach(),
+            "VLD Target Accuracy": target_acc.detach(),
+        }
+#######################

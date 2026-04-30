@@ -5,6 +5,10 @@ from gridfm_graphkit.datasets.task_transforms import (
     PowerFlowTransforms,
     OptimalPowerFlowTransforms,
     StateEstimationTransforms,
+    ##############
+    VoltageLossDetectionTransforms
+    #############
+
 )
 
 __all__ = [
@@ -12,4 +16,7 @@ __all__ = [
     "PowerFlowTransforms",
     "OptimalPowerFlowTransforms",
     "StateEstimationTransforms",
+    ###################
+    "VoltageLossDetectionTransforms"
+    ##################
 ]

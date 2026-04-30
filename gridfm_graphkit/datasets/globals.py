@@ -17,6 +17,10 @@ GS = 12  # Shunt conductance (p.u.)
 BS = 13  # Shunt susceptance (p.u.)
 VN_KV = 14  # Nominal voltage
 
+##ADDITIONAL INPUT FEATURES OF BUS STATUS
+BUS_BASE_STATUS_H = 15   # bus ON/OFF status in the pre-contingency(base topology)
+BUS_CONT_H = 16          # bus contingency to be applied
+
 # =========================
 # === OUTPUT FEATURE INDICES ==
 # =========================
@@ -26,6 +30,10 @@ PG_OUT = 2
 QG_OUT = 3
 PG_OUT_GEN = 0
 
+##ADDITIONAL OUTPUT FEATURE OF BUS STATUS
+PHYSICAL_BUS_DIM = 4 # Physical bus outputs predicted by the model for VLD tasks
+BUS_STATUS_TARGET = 5    # post-contingency energized/de-energized target
+BUS_STATUS_LOGIT_OUT = 4 # # Extra model output columns for VLD tasks
 
 # ================================
 # === GENERATOR FEATURE INDICES ==
@@ -52,3 +60,8 @@ ANG_MIN = 7  # Angle min (deg)
 ANG_MAX = 8  # Angle max (deg)
 RATE_A = 9  # Thermal limit
 B_ON = 10  # Branch on/off
+
+##ADDITIONAL INPUT FEATURES OF BUS STATUS
+BRANCH_BASE_STATUS_E = 11   # branch ON/OFF status in the pre-contingency(base topology)
+BRANCH_CONT_E = 12          # branch contingency to be applied
+
