@@ -7,10 +7,25 @@ import os
 
 
 def residual_stats_by_type(residual, mask, bus_batch):
+    """Return per-graph mean and max absolute residuals for a masked bus subset."""
     residual_masked = residual[mask]
     batch_masked = bus_batch[mask]
-    mean_res = scatter_mean(torch.abs(residual_masked), batch_masked, dim=0)
-    max_res, _ = scatter_max(torch.abs(residual_masked), batch_masked, dim=0)
+    abs_residual = torch.abs(residual_masked)
+
+    # torch_scatter on MPS can dispatch into a CPU-only path for scatter_max.
+    # Compute the grouped stats on CPU and move the results back so verbose
+    # evaluation works without changing the torch/torch_scatter stack.
+    if abs_residual.device.type == "mps":
+        abs_residual_cpu = abs_residual.cpu()
+        batch_masked_cpu = batch_masked.cpu()
+        mean_res = scatter_mean(abs_residual_cpu, batch_masked_cpu, dim=0).to(
+            abs_residual.device,
+        )
+        max_res, _ = scatter_max(abs_residual_cpu, batch_masked_cpu, dim=0)
+        max_res = max_res.to(abs_residual.device)
+    else:
+        mean_res = scatter_mean(abs_residual, batch_masked, dim=0)
+        max_res, _ = scatter_max(abs_residual, batch_masked, dim=0)
     return mean_res, max_res
 
 

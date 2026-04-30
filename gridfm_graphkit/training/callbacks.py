@@ -41,6 +41,7 @@ class EpochTimerCallback(Callback):
 
 
 class SaveBestModelStateDict(Callback):
+    """Persist the best model state_dict according to a monitored validation metric."""
     def __init__(
         self,
         monitor: str,
@@ -51,6 +52,15 @@ class SaveBestModelStateDict(Callback):
         self.mode = mode
         self.filename = filename
         self.best_score = float("inf") if mode == "min" else -float("inf")
+
+    @staticmethod
+    def _canonical_state_dict(pl_module):
+        """Return a state dict with compile wrappers removed from key names."""
+        state_dict = pl_module.state_dict()
+        return {
+            key.replace("model._orig_mod.", "model."): value
+            for key, value in state_dict.items()
+        }
 
     @rank_zero_only
     def on_validation_end(self, trainer, pl_module):
@@ -81,4 +91,4 @@ class SaveBestModelStateDict(Callback):
 
             # Save the model's state_dict
             model_path = os.path.join(model_dir, self.filename)
-            torch.save(pl_module.state_dict(), model_path)
+            torch.save(self._canonical_state_dict(pl_module), model_path)

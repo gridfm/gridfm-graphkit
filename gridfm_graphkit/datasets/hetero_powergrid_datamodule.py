@@ -14,12 +14,14 @@ from gridfm_graphkit.io.param_handler import (
 from gridfm_graphkit.datasets.utils import (
     split_dataset,
     split_dataset_by_load_scenario_idx,
+    split_from_existing_files,
 )
 from gridfm_graphkit.datasets.powergrid_hetero_dataset import HeteroGridDatasetDisk
 import numpy as np
 import random
 import warnings
 import lightning as L
+from pathlib import Path
 from typing import List
 from lightning.pytorch.loggers import MLFlowLogger
 
@@ -101,6 +103,11 @@ class LitGridHeteroDataModule(L.LightningDataModule):
             "split_by_load_scenario_idx",
             False,
         )
+        self.split_from_existing_files = getattr(
+            args.data,
+            "split_from_existing_files",
+            None,
+        )
         self.args = args
         self.normalizer_stats_path = normalizer_stats_path
         self.data_normalizers = []
@@ -112,6 +119,15 @@ class LitGridHeteroDataModule(L.LightningDataModule):
         self.val_scenario_ids: List[List[int]] = []
         self.test_scenario_ids: List[List[int]] = []
         self._is_setup_done = False
+
+        if self.split_by_load_scenario_idx:
+            assert self.split_from_existing_files is None, " either `split_by_load_scenario_idx` or `split_from_existing_files` may be used, not both"
+
+        if self.split_from_existing_files is not None:
+            assert isinstance(self.split_from_existing_files, str), "`split_from_existing_files` must be an existing folder in string format"
+            self.split_from_existing_files = Path(self.split_from_existing_files)
+            assert self.split_from_existing_files.is_dir(), "`split_from_existing_files` must be an existing folder in string format"
+
 
     def setup(self, stage: str):
         if self._is_setup_done:
@@ -167,53 +183,93 @@ class LitGridHeteroDataModule(L.LightningDataModule):
 
             # Create a subset
             all_indices = list(range(len(dataset)))
-            # Random seed set before every shuffle for reproducibility in case the power grid datasets are analyzed in a different order
-            random.seed(self.args.seed)
-            random.shuffle(all_indices)
-            subset_indices = all_indices[:num_scenarios]
 
-            # load_scenario for each scenario in the subset
-            load_scenarios = dataset.load_scenarios[subset_indices]
 
-            dataset = Subset(dataset, subset_indices)
+            if self.split_from_existing_files is not None:
+                warnings.warn(
+                    "`data.scenarios` is ignored when `split_from_existing_files` is set; "
+                    "train/val/test scenario ids are loaded from the provided split files.",
+                )
 
-            if self.dataset_wrapper is not None:
-                wrapper_cls = DATASET_WRAPPER_REGISTRY.get(self.dataset_wrapper)
-                dataset = wrapper_cls(dataset, cache_dir=self.dataset_wrapper_cache_dir)
+                if self.dataset_wrapper is not None:
+                    wrapper_cls = DATASET_WRAPPER_REGISTRY.get(self.dataset_wrapper)
+                    dataset = wrapper_cls(
+                        dataset,
+                        cache_dir=self.dataset_wrapper_cache_dir,
+                    )
 
-            # Random seed set before every split, same as above
-            np.random.seed(self.args.seed)
-            if self.split_by_load_scenario_idx:
-                train_dataset, val_dataset, test_dataset = (
-                    split_dataset_by_load_scenario_idx(
+                (train_dataset, val_dataset, test_dataset), subset_indices = (
+                    split_from_existing_files(
+                        dataset,
+                        self.split_from_existing_files,
+                    )
+                )
+                train_scenario_ids = subset_indices["train"]
+                val_scenario_ids = subset_indices["val"]
+                test_scenario_ids = subset_indices["test"]
+                num_scenarios = int(
+                    np.unique(
+                        train_scenario_ids + val_scenario_ids + test_scenario_ids,
+                    ).shape[0],
+                )
+            else:
+                # Random seed set before every shuffle for reproducibility in case the power grid datasets are analyzed in a different order
+                random.seed(self.args.seed)
+                random.shuffle(all_indices)
+                subset_indices = all_indices[:num_scenarios]
+
+                load_scenarios = None
+                if self.split_by_load_scenario_idx:
+                    if not hasattr(dataset, "load_scenarios"):
+                        raise ValueError(
+                            "`data.split_by_load_scenario_idx=true` requires "
+                            "`load_scenario_idx` in raw bus data so "
+                            "`processed/load_scenarios.pt` can be created.",
+                        )
+                    # load_scenario for each scenario in the subset
+                    load_scenarios = dataset.load_scenarios[subset_indices]
+
+
+                dataset = Subset(dataset, subset_indices)
+                
+                if self.dataset_wrapper is not None:
+                    wrapper_cls = DATASET_WRAPPER_REGISTRY.get(self.dataset_wrapper)
+                    dataset = wrapper_cls(dataset, cache_dir=self.dataset_wrapper_cache_dir)
+
+
+                # Random seed set before every split, same as above
+                np.random.seed(self.args.seed)
+                if self.split_by_load_scenario_idx:
+                    train_dataset, val_dataset, test_dataset = (
+                        split_dataset_by_load_scenario_idx(
+                            dataset,
+                            self.data_dir,
+                            load_scenarios,
+                            self.args.data.val_ratio,
+                            self.args.data.test_ratio,
+                        )
+                    )
+                else:
+                    train_dataset, val_dataset, test_dataset = split_dataset(
                         dataset,
                         self.data_dir,
-                        load_scenarios,
                         self.args.data.val_ratio,
                         self.args.data.test_ratio,
                     )
-                )
-            else:
-                train_dataset, val_dataset, test_dataset = split_dataset(
-                    dataset,
-                    self.data_dir,
-                    self.args.data.val_ratio,
-                    self.args.data.test_ratio,
-                )
 
-            # Extract scenario IDs for each split
-            train_scenario_ids = self._extract_scenario_ids(
-                train_dataset,
-                subset_indices,
-            )
-            val_scenario_ids = self._extract_scenario_ids(
-                val_dataset,
-                subset_indices,
-            )
-            test_scenario_ids = self._extract_scenario_ids(
-                test_dataset,
-                subset_indices,
-            )
+                # Extract scenario IDs for each split
+                train_scenario_ids = self._extract_scenario_ids(
+                    train_dataset,
+                    subset_indices,
+                )
+                val_scenario_ids = self._extract_scenario_ids(
+                    val_dataset,
+                    subset_indices,
+                )
+                test_scenario_ids = self._extract_scenario_ids(
+                    test_dataset,
+                    subset_indices,
+                )
 
             # Fit normalizer: restore from saved stats only for fit_on_train
             # normalizers (global baseMVA must match the model's training run).
@@ -369,11 +425,12 @@ class LitGridHeteroDataModule(L.LightningDataModule):
             pin_memory=torch.cuda.is_available(),
             persistent_workers=num_workers > 0,
         )
-        # On Linux some HPC environments restrict passing open file descriptors
-        # via Unix socket ancillary data (SCM_RIGHTS), which causes
-        # "received 0 items of ancdata" with the default 'fork' start method.
-        # 'forkserver' avoids fd-passing by having a dedicated server process
-        # that re-opens shared memory objects by name instead.
+        # Use 'fork' on Linux. It avoids the forkserver intermediary pipe which
+        # is fragile when the process has many threads (e.g. OpenBLAS). In
+        # container environments (Kubernetes) fork works correctly. On
+        # traditional HPC systems with strict fd-passing restrictions the
+        # original 'forkserver' may be needed, but the pipe truncation it
+        # produces under thread pressure is worse than the ancdata warning.
         if (
             num_workers > 0
             and torch.multiprocessing.get_start_method(allow_none=True) != "spawn"
@@ -381,10 +438,11 @@ class LitGridHeteroDataModule(L.LightningDataModule):
             import platform
 
             if platform.system() == "Linux":
-                kwargs["multiprocessing_context"] = "forkserver"
+                kwargs["multiprocessing_context"] = "fork"
         return kwargs
 
     def train_dataloader(self):
+        print("creating train dataloader for rank ", dist.get_rank() if dist.is_available() and dist.is_initialized() else "not distributed")
         return DataLoader(
             self.train_dataset_multi,
             batch_size=self.batch_size,

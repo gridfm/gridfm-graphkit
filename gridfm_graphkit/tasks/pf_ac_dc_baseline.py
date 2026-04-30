@@ -14,6 +14,7 @@ NUM_PROCESSES = 64
 
 
 def _load_test_data(data_dir: str, test_scenario_ids: list[int]):
+    """Load PF test-split bus/branch/runtime tables from partitioned parquet."""
     partitions = sorted(set(s // N_SCENARIO_PER_PARTITION for s in test_scenario_ids))
     test_set = set(test_scenario_ids)
     partition_filter = [("scenario_partition", "in", partitions)]
@@ -45,6 +46,7 @@ def _load_test_data(data_dir: str, test_scenario_ids: list[int]):
 
 
 def _compute_residual_stats(balance_df: pd.DataFrame, dc: bool) -> dict:
+    """Aggregate AC or DC residual statistics from per-bus balance outputs."""
     grouped = balance_df.groupby("scenario")
 
     if dc:
@@ -75,6 +77,7 @@ def _compute_residual_stats(balance_df: pd.DataFrame, dc: bool) -> dict:
 
 
 def _compute_runtime_stats(runtime_df: pd.DataFrame) -> dict:
+    """Compute summary statistics for AC/DC runtime columns (milliseconds)."""
     results = {}
     for mode in ["ac", "dc"]:
         if mode not in runtime_df.columns:
@@ -99,7 +102,7 @@ def _compute_runtime_stats(runtime_df: pd.DataFrame) -> dict:
     return results
 
 
-def compute_ac_dc_metrics(
+def compute_pf_ac_dc_metrics(
     artifacts_dir: str,
     data_dir: str,
     grid_name: str,

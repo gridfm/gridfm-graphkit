@@ -3,6 +3,7 @@ from torch.utils.data import Subset
 from typing import Tuple
 from torch import Tensor
 import torch
+from pathlib import Path
 
 
 def split_dataset(
@@ -58,6 +59,7 @@ def split_dataset_by_load_scenario_idx(
     val_ratio: float = 0.1,
     test_ratio: float = 0.1,
 ) -> Tuple[Subset, Subset, Subset]:
+    """Split dataset by unique load-scenario IDs to avoid scenario leakage."""
     if val_ratio + test_ratio >= 1:
         raise ValueError("The sum of val_ratio and test_ratio must be less than 1.")
 
@@ -90,3 +92,30 @@ def split_dataset_by_load_scenario_idx(
     test_dataset = Subset(dataset, test_indices)
 
     return train_dataset, val_dataset, test_dataset
+
+
+def split_from_existing_files(
+    dataset,
+    splits_folder: Path,
+) -> Tuple[Subset, Subset, Subset]:
+    """Build train/val/test subsets from split index files.
+
+    Expects `train.pt`, `val.pt`, and `test.pt` inside `splits_folder`.
+    Returns both the dataset subsets and the raw scenario ids per split.
+    """
+    output = []
+
+    indices = {}
+
+    for split in ["train", "val", "test"]:
+        split_file = splits_folder / f"{split}.pt"
+        assert split_file.is_file(), f"{str(split_file)} does not exist"
+        split_indices = torch.load(str(split_file), weights_only=True)
+        split_dataset = Subset(dataset, split_indices)
+        output.append(split_dataset)
+        split_indices = list(split_indices)
+        print(f'{split=} {len(split_indices)=}')
+        indices[split]=[int(t.item()) for t in split_indices]
+
+    output = tuple(output)
+    return output, indices

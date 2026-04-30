@@ -73,6 +73,7 @@ class ComputeNodeInjection(nn.Module):
 
 
 def compute_shunt_power(bus_data_pred, bus_data_orig):
+    """Compute active/reactive shunt power contributions per bus."""
     p_shunt = -bus_data_orig[:, GS] * bus_data_pred[:, VM_OUT] ** 2
     q_shunt = bus_data_orig[:, BS] * bus_data_pred[:, VM_OUT] ** 2
     return p_shunt, q_shunt
@@ -80,6 +81,7 @@ def compute_shunt_power(bus_data_pred, bus_data_orig):
 
 @PHYSICS_DECODER_REGISTRY.register("OptimalPowerFlow")
 class PhysicsDecoderOPF(nn.Module):
+    """Map network outputs to OPF-consistent bus states using physics constraints."""
     def forward(self, P_in, Q_in, bus_data_pred, bus_data_orig, agg_bus, mask_dict):
         mask_pv = mask_dict["PV"]
         mask_ref = mask_dict["REF"]
@@ -114,6 +116,7 @@ class PhysicsDecoderOPF(nn.Module):
 
 @PHYSICS_DECODER_REGISTRY.register("PowerFlow")
 class PhysicsDecoderPF(nn.Module):
+    """Map network outputs to PF-consistent bus states using physics constraints."""
     def forward(self, P_in, Q_in, bus_data_pred, bus_data_orig, agg_bus, mask_dict):
         """
         PF decoder:
@@ -161,6 +164,7 @@ class PhysicsDecoderPF(nn.Module):
 
 @PHYSICS_DECODER_REGISTRY.register("StateEstimation")
 class PhysicsDecoderSE(nn.Module):
+    """Map network outputs to SE targets via bus power-balance relations."""
     def forward(self, P_in, Q_in, bus_data_pred, bus_data_orig, agg_bus, mask_dict):
         p_shunt, q_shunt = compute_shunt_power(bus_data_pred, bus_data_orig)
         Vm_out = bus_data_pred[:, VM_OUT]
@@ -184,4 +188,5 @@ class ComputeNodeResiduals(nn.Module):
 
 
 def bound_with_sigmoid(pred, low, high):
+    """Squash unconstrained predictions into [low, high] with a sigmoid map."""
     return low + (high - low) * torch.sigmoid(pred)

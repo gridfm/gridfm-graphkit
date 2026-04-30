@@ -19,6 +19,9 @@ from gridfm_graphkit.datasets.globals import (
     PG_OUT,
     # Generator feature indices
     PG_H,
+    # Qg Limits
+    MIN_QG_H, 
+    MAX_QG_H,
 )
 
 
@@ -36,6 +39,7 @@ class BaseLoss(nn.Module, ABC):
         edge_attr=None,
         mask=None,
         model=None,
+        x_dict=None,
     ):
         """
         Compute the loss.
@@ -72,6 +76,7 @@ class MaskedMSELoss(BaseLoss):
         edge_attr=None,
         mask=None,
         model=None,
+        x_dict=None,
     ):
         loss = F.mse_loss(pred[mask], target[mask], reduction=self.reduction)
         return {"loss": loss, "Masked MSE loss": loss.detach()}
@@ -79,6 +84,7 @@ class MaskedMSELoss(BaseLoss):
 
 @LOSS_REGISTRY.register("MaskedGenMSE")
 class MaskedGenMSE(torch.nn.Module):
+    """Compute MSE on generator targets restricted to generator mask entries."""
     def __init__(self, loss_args, args):
         super().__init__()
         self.reduction = "mean"
@@ -91,6 +97,7 @@ class MaskedGenMSE(torch.nn.Module):
         edge_attr,
         mask_dict,
         model=None,
+        x_dict=None,
     ):
         loss = F.mse_loss(
             pred_dict["gen"][mask_dict["gen"][:, : (PG_H + 1)]],
@@ -102,6 +109,7 @@ class MaskedGenMSE(torch.nn.Module):
 
 @LOSS_REGISTRY.register("MaskedBusMSE")
 class MaskedBusMSE(torch.nn.Module):
+    """Compute MSE on selected bus targets, respecting task-specific output columns."""
     def __init__(self, loss_args, args):
         super().__init__()
         self.reduction = "mean"
@@ -115,6 +123,7 @@ class MaskedBusMSE(torch.nn.Module):
         edge_attr,
         mask_dict,
         model=None,
+        x_dict=None,
     ):
         if self.args.task == "OptimalPowerFlow":
             pred_cols = [VM_OUT, VA_OUT, QG_OUT]
@@ -152,6 +161,7 @@ class MSELoss(BaseLoss):
         edge_attr=None,
         mask=None,
         model=None,
+        x_dict=None,
     ):
         loss = F.mse_loss(pred, target, reduction=self.reduction)
         return {"loss": loss, "MSE loss": loss.detach()}
@@ -185,6 +195,7 @@ class MixedLoss(BaseLoss):
         edge_attr=None,
         mask=None,
         model=None,
+        x_dict=None,
     ):
         """
         Compute the weighted sum of all specified losses.
@@ -211,6 +222,7 @@ class MixedLoss(BaseLoss):
                 edge_attr,
                 mask,
                 model,
+                x_dict,
             )
 
             # Assume each loss function returns a dictionary with a "loss" key
@@ -229,6 +241,7 @@ class MixedLoss(BaseLoss):
 
 @LOSS_REGISTRY.register("LayeredWeightedPhysics")
 class LayeredWeightedPhysicsLoss(BaseLoss):
+    """Combine intermediate physics residuals using normalized geometric weights."""
     def __init__(self, loss_args, args) -> None:
         super().__init__()
         self.base_weight = loss_args.base_weight
@@ -241,6 +254,7 @@ class LayeredWeightedPhysicsLoss(BaseLoss):
         edge_attr=None,
         mask=None,
         model=None,
+        x_dict=None,
     ):
         total_loss = 0.0
         loss_details = {}
@@ -268,6 +282,7 @@ class LayeredWeightedPhysicsLoss(BaseLoss):
 
 @LOSS_REGISTRY.register("LossPerDim")
 class LossPerDim(BaseLoss):
+    """Compute MAE/MSE for one named physical dimension of bus outputs."""
     def __init__(self, loss_args, args):
         super(LossPerDim, self).__init__()
         self.reduction = "mean"
@@ -291,6 +306,7 @@ class LossPerDim(BaseLoss):
         edge_attr,
         mask_dict,
         model=None,
+        x_dict=None,
     ):
         if self.dim == "VM":
             temp_pred = pred_dict["bus"][:, VM_OUT]
@@ -322,3 +338,57 @@ class LossPerDim(BaseLoss):
             f"MSE loss {self.dim}": mse_loss.detach(),
             f"MAE loss {self.dim}": mae_loss.detach(),
         }
+
+
+@LOSS_REGISTRY.register("QgViolationPenalty")
+class QgViolationPenaltyLoss(BaseLoss):
+    """Standard Mean Squared Error loss."""
+
+    def __init__(self, loss_args, args):
+        super().__init__()
+
+    def forward(
+        self,
+        pred,
+        target,
+        edge_index=None,
+        edge_attr=None,
+        mask=None,
+        model=None,
+        x_dict=None,
+    ):
+        # --- Qg limit violation mask ---
+        Qg_pred = pred["bus"][:, QG_OUT]
+        Qg_max = x_dict["bus"][:, MAX_QG_H]
+        Qg_min = x_dict["bus"][:, MIN_QG_H]
+
+        max_penalty_mask = (Qg_pred > Qg_max) 
+        min_penalty_mask = (Qg_pred < Qg_min)
+
+        mask_PQ = mask["PQ"]  # PQ buses
+        mask_PV = mask["PV"]  # PV buses
+        mask_REF = mask["REF"]  # Reference buses
+
+        loss = 0.0
+        # where there are violations, compute penalty loss
+        Qg_over = F.relu(Qg_pred - Qg_max)  # amount above max limit
+        Qg_under = F.relu(Qg_min - Qg_pred)  # amount below min limit
+
+        Qg_over = Qg_over[max_penalty_mask].mean()
+        Qg_under = Qg_under[min_penalty_mask].mean()
+        
+        if Qg_over!=Qg_over: # replacing nan with 0 
+            Qg_over = 0.0
+        if Qg_under!=Qg_under: # replacing nan with 0 
+            Qg_under = 0.0
+
+        penalty_loss = Qg_over + Qg_under            
+        loss += penalty_loss
+
+        try:
+            output = {"loss": loss, "Qg Violation Penalty loss": loss.detach()}
+        except:
+            output = {"loss": loss, "Qg Violation Penalty loss": loss}
+
+        return output
+

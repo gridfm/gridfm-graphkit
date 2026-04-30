@@ -1,6 +1,3 @@
-callbacks:
-  patience: 100
-  tol: 0
 task:
   task_name: OptimalPowerFlow
 data:
@@ -8,12 +5,12 @@ data:
   mask_value: 0.0
   normalization: HeteroDataMVANormalizer
   networks:
-  - case500_goc
+  - case14_ieee
   scenarios:
   - 300000
-  test_ratio: 0.1
-  val_ratio: 0.1
-  workers: 16
+  workers: 32
+  split_by_load_scenario_idx: false
+  split_from_existing_files: "/dccstor/gridfm/march_opf_exp/opfdata_olay_splits/"
 model:
   attention_head: 8
   edge_dim: 10
@@ -30,23 +27,30 @@ optimizer:
   learning_rate: 0.0005
   lr_decay: 0.7
   lr_patience: 5
-seed: 0
 training:
-  batch_size: 16
+  batch_size: 64
   epochs: 200
   loss_weights:
   - 0.1
   - 0.1
-  - 0.8
+  - 0.75
+  - 0.001
   losses:
   - LayeredWeightedPhysics
   - MaskedGenMSE
   - MaskedBusMSE
+  - QgViolationPenalty
+
   loss_args:
   - base_weight: 0.5
+  - {}
   - {}
   - {}
   accelerator: auto
   devices: auto
   strategy: auto
+seed: 0
 verbose: true
+callbacks:
+  patience: 100
+  tol: 0

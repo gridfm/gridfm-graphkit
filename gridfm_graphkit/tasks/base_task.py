@@ -20,6 +20,20 @@ class BaseTask(L.LightningModule, ABC):
         self.data_normalizers = data_normalizers
         self.save_hyperparameters()
 
+    def transfer_batch_to_device(self, batch, device, dataloader_idx):
+        """Pre-cast float64 tensors before moving batches onto MPS.
+
+        PyTorch MPS does not support float64 tensors. Some PyG metadata fields can
+        get collated as float64 even when model inputs are float32, so coerce them
+        first and then delegate to Lightning's standard device transfer.
+        """
+        if getattr(device, "type", None) == "mps" and hasattr(batch, "stores"):
+            for store in batch.stores:
+                for key, val in store.items():
+                    if isinstance(val, torch.Tensor) and val.dtype == torch.float64:
+                        store[key] = val.to(torch.float32)
+        return super().transfer_batch_to_device(batch, device, dataloader_idx)
+
     def on_after_batch_transfer(self, batch, dataloader_idx: int):
         """Cast float tensors in HeteroData batches to the model's parameter dtype.
 
