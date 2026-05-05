@@ -87,14 +87,18 @@ class OptimalPowerFlowTask(ReconstructionTask):
         c2 = batch.x_dict["gen"][:, C2_H]
         target_pg = batch.y_dict["gen"].squeeze()
         pred_pg = output["gen"].squeeze()
-        gen_cost_gt = (c0 + c1 * target_pg + c2 * target_pg**2) # assumes all branches are on!
-        gen_cost_pred = (c0 + c1 * pred_pg + c2 * pred_pg**2) # assumes all branches are on!
+        gen_cost_gt = (
+            c0 + c1 * target_pg + c2 * target_pg**2
+        )  # assumes all branches are on!
+        gen_cost_pred = (
+            c0 + c1 * pred_pg + c2 * pred_pg**2
+        )  # assumes all branches are on!
 
         gen_batch = batch.batch_dict["gen"]  # shape: [N_gen_total]
 
         cost_gt = scatter_add(gen_cost_gt, gen_batch, dim=0)
         cost_pred = scatter_add(gen_cost_pred, gen_batch, dim=0)
-        
+
         optimality_gap = torch.mean(torch.abs((cost_pred - cost_gt) / cost_gt * 100))
 
         agg_gen_on_bus = scatter_add(
@@ -138,14 +142,16 @@ class OptimalPowerFlowTask(ReconstructionTask):
         bus_angles = output["bus"][:, VA_OUT]  # in degrees
         from_bus = bus_edge_index[0]
         to_bus = bus_edge_index[1]
-        angle_diff = bus_angles[from_bus] - bus_angles[to_bus] # keep sign
-        angle_diff = (angle_diff + torch.pi) % (2 * torch.pi) - torch.pi # wrap to [-pi, pi]
+        angle_diff = bus_angles[from_bus] - bus_angles[to_bus]  # keep sign
+        angle_diff = (angle_diff + torch.pi) % (
+            2 * torch.pi
+        ) - torch.pi  # wrap to [-pi, pi]
         angle_excess_low = F.relu(angle_min - angle_diff)
         angle_excess_high = F.relu(angle_diff - angle_max)
 
         branch_angle_violation_mean = torch.mean(
-            angle_excess_low + angle_excess_high
-        ) # mean of the abs violation
+            angle_excess_low + angle_excess_high,
+        )  # mean of the abs violation
 
         P_in, Q_in = node_injection_layer(Pft, Qft, bus_edge_index, num_bus)
         residual_P, residual_Q = node_residuals_layer(
@@ -174,8 +180,8 @@ class OptimalPowerFlowTask(ReconstructionTask):
 
         mean_Qg_violation_PV = Qg_violation_amount[mask_PV].mean()
         mean_Qg_violation_REF = Qg_violation_amount[mask_REF].mean()
-        mask_PV_REF = mask_PV | mask_REF # PV or REF buses
-        mean_Qg_violation = Qg_violation_amount[mask_PV_REF].mean() #
+        mask_PV_REF = mask_PV | mask_REF  # PV or REF buses
+        mean_Qg_violation = Qg_violation_amount[mask_PV_REF].mean()  #
 
         if self.args.verbose:
             mean_res_P_PQ, max_res_P_PQ = residual_stats_by_type(
@@ -270,7 +276,9 @@ class OptimalPowerFlowTask(ReconstructionTask):
         loss_dict["Branch voltage angle difference violations"] = (
             branch_angle_violation_mean
         )
-        loss_dict["Mean Qg violation PV buses"] = mean_Qg_violation_PV # mean of the abs violation over the entire batch (all oines in the batch). 
+        loss_dict["Mean Qg violation PV buses"] = (
+            mean_Qg_violation_PV  # mean of the abs violation over the entire batch (all oines in the batch).
+        )
         # this is then overaged over all the batches and gives same weight to all batches despite them possibly having varying number of branches
         loss_dict["Mean Qg violation REF buses"] = mean_Qg_violation_REF
         loss_dict["Mean Qg violation"] = mean_Qg_violation
@@ -372,7 +380,9 @@ class OptimalPowerFlowTask(ReconstructionTask):
                 "Branch thermal violation from",
                 " ",
             )
-            branch_thermal_violation_to = metrics.get("Branch thermal violation to", " ")
+            branch_thermal_violation_to = metrics.get(
+                "Branch thermal violation to", " ",
+            )
             branch_angle_violation = metrics.get(
                 "Branch voltage angle difference violations",
                 " ",
@@ -543,9 +553,9 @@ class OptimalPowerFlowTask(ReconstructionTask):
         local_bus_idx = torch.cat(
             [
                 torch.arange(c, device=bus_batch.device)
-                for c in torch.bincount(bus_batch) 
+                for c in torch.bincount(bus_batch)
             ],
-        ) # this works because the order of the buses is preserved by the groupby in the dataset wrapper and datakit data has buses in increasing order.
+        )  # this works because the order of the buses is preserved by the groupby in the dataset wrapper and datakit data has buses in increasing order.
 
         bus_x = batch.x_dict["bus"]
         bus_y = batch.y_dict["bus"]

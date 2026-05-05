@@ -158,6 +158,7 @@ class AddOPFHeteroMask(BaseTransform):
 
 class BusToGenBroadcaster(MessagePassing):
     """Broadcast per-bus values to connected generators via graph propagation."""
+
     def __init__(self, aggr="add"):
         super().__init__(aggr=aggr)
 
@@ -176,6 +177,7 @@ class BusToGenBroadcaster(MessagePassing):
 
 class SimulateMeasurements(BaseTransform):
     """Add configurable noise/outliers and masks to simulate measured quantities."""
+
     def __init__(self, args):
         super().__init__()
         self.measurements = args.task.measurements

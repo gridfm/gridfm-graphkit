@@ -245,7 +245,7 @@ class PowerFlowTask(ReconstructionTask):
 
         # Only rank 0 proceeds with logging, CSV writing, and plotting
         if dist.is_available() and dist.is_initialized() and dist.get_rank() != 0:
-            self.test_outputs.clear() # clear the test outputs for other ranks
+            self.test_outputs.clear()  # clear the test outputs for other ranks
             return
 
         if isinstance(self.logger, MLFlowLogger):
@@ -356,22 +356,38 @@ class PowerFlowTask(ReconstructionTask):
         self.test_outputs.clear()
 
     def predict_step(self, batch, batch_idx, dataloader_idx=0):
-        output, _ = self.shared_step(batch) # get the predicted output from the model
+        output, _ = self.shared_step(batch)  # get the predicted output from the model
 
-        self.data_normalizers[dataloader_idx].inverse_transform(batch) # normalize the batch data back to the original scale
-        self.data_normalizers[dataloader_idx].inverse_output(output, batch) # inverse transform the predicted output back to the original scale
+        self.data_normalizers[dataloader_idx].inverse_transform(
+            batch,
+        )  # normalize the batch data back to the original scale
+        self.data_normalizers[dataloader_idx].inverse_output(
+            output, batch,
+        )  # inverse transform the predicted output back to the original scale
 
-        branch_flow_layer = ComputeBranchFlow() # layer to compute the branch flows
-        node_injection_layer = ComputeNodeInjection() # layer to compute the node injections
-        node_residuals_layer = ComputeNodeResiduals() # layer to compute the node residuals
+        branch_flow_layer = ComputeBranchFlow()  # layer to compute the branch flows
+        node_injection_layer = (
+            ComputeNodeInjection()
+        )  # layer to compute the node injections
+        node_residuals_layer = (
+            ComputeNodeResiduals()
+        )  # layer to compute the node residuals
 
-        num_bus = batch.x_dict["bus"].size(0) # number of buses in the batch
-        bus_edge_index = batch.edge_index_dict[("bus", "connects", "bus")] # from and to buses
-        bus_edge_attr = batch.edge_attr_dict[("bus", "connects", "bus")] # edge attributes (admittance) of the bus connections
+        num_bus = batch.x_dict["bus"].size(0)  # number of buses in the batch
+        bus_edge_index = batch.edge_index_dict[
+            ("bus", "connects", "bus")
+        ]  # from and to buses
+        bus_edge_attr = batch.edge_attr_dict[
+            ("bus", "connects", "bus")
+        ]  # edge attributes (admittance) of the bus connections
 
-        Pft, Qft = branch_flow_layer(output["bus"], bus_edge_index, bus_edge_attr) # compute the branch flows
-        P_in, Q_in = node_injection_layer(Pft, Qft, bus_edge_index, num_bus) # compute the node injections
-        residual_P, residual_Q = node_residuals_layer( # compute the node residuals
+        Pft, Qft = branch_flow_layer(
+            output["bus"], bus_edge_index, bus_edge_attr,
+        )  # compute the branch flows
+        P_in, Q_in = node_injection_layer(
+            Pft, Qft, bus_edge_index, num_bus,
+        )  # compute the node injections
+        residual_P, residual_Q = node_residuals_layer(  # compute the node residuals
             P_in,
             Q_in,
             output["bus"],
@@ -388,7 +404,7 @@ class PowerFlowTask(ReconstructionTask):
                 torch.arange(c, device=bus_batch.device)
                 for c in torch.bincount(bus_batch)
             ],
-        ) # this is based on the assumptions that the buses within a graph are ordered and indexed as 0 ... n_nodes-1.
+        )  # this is based on the assumptions that the buses within a graph are ordered and indexed as 0 ... n_nodes-1.
         # todo: we should remove this assert and store the bus idx in the tensors
         # right now we need the increasing order and we have an assert in the dataset to check it.
         bus_x = batch.x_dict["bus"]

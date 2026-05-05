@@ -65,7 +65,9 @@ def _load_test_data(data_dir: str, test_scenario_ids: list[int]):
     bus_df = bus_df[bus_df["scenario"].isin(test_set)].reset_index(drop=True)
     gen_df = gen_df[gen_df["scenario"].isin(test_set)].reset_index(drop=True)
     branch_df = branch_df[branch_df["scenario"].isin(test_set)].reset_index(drop=True)
-    runtime_df = runtime_df[runtime_df["scenario"].isin(test_set)].reset_index(drop=True)
+    runtime_df = runtime_df[runtime_df["scenario"].isin(test_set)].reset_index(
+        drop=True,
+    )
 
     print(
         f"  Loaded {len(bus_df)} bus rows, {len(gen_df)} gen rows, "
@@ -85,8 +87,12 @@ def _compute_optimality_gap(gen_df: pd.DataFrame) -> dict:
     pg_ac = gen_df["p_mw"].to_numpy(dtype=float)
     pg_dc = gen_df["p_mw_dc"].to_numpy(dtype=float)
     g = gen_df.copy()
-    g["cost_ac"] = (c0 + c1 * pg_ac + c2 * pg_ac * pg_ac) * g["in_service"] # all is already in MW
-    g["cost_dc"] = (c0 + c1 * pg_dc + c2 * pg_dc * pg_dc) * g["in_service"] # all is already in MW
+    g["cost_ac"] = (c0 + c1 * pg_ac + c2 * pg_ac * pg_ac) * g[
+        "in_service"
+    ]  # all is already in MW
+    g["cost_dc"] = (c0 + c1 * pg_dc + c2 * pg_dc * pg_dc) * g[
+        "in_service"
+    ]  # all is already in MW
     per_scenario = g.groupby("scenario")[["cost_ac", "cost_dc"]].sum()
     cost_ac = per_scenario["cost_ac"].to_numpy(dtype=float)
     cost_dc = per_scenario["cost_dc"].to_numpy(dtype=float)
@@ -113,28 +119,47 @@ def _compute_pg_violations(gen_df: pd.DataFrame) -> dict:
 
 def _compute_qg_violations_ac(bus_df: pd.DataFrame, gen_df: pd.DataFrame) -> dict:
     """Compute AC reactive-power limit violations for PV/REF buses."""
-    # opf_task style on bus Qg; AC only 
+    # opf_task style on bus Qg; AC only
     bus = bus_df.copy()
     qg = bus["Qg"].to_numpy(dtype=float)
     # complain if max_q_mvar == min_q_mvar for some gens of gen_df
-    assert (gen_df["max_q_mvar"] == gen_df["min_q_mvar"]).any() == False, "max_q_mvar == min_q_mvar for some gens of gen_df"
+    assert (gen_df["max_q_mvar"] == gen_df["min_q_mvar"]).any() == False, (
+        "max_q_mvar == min_q_mvar for some gens of gen_df"
+    )
     agg_gen = (
-    gen_df.groupby(["scenario", "bus"])[["min_q_mvar", "max_q_mvar"]]
-    .sum()
-    .reset_index())
+        gen_df.groupby(["scenario", "bus"])[["min_q_mvar", "max_q_mvar"]]
+        .sum()
+        .reset_index()
+    )
     bus = bus.merge(agg_gen, on=["scenario", "bus"], how="left")
-    assert bus[bus["PV"]==1]["min_q_mvar"].isna().sum() == 0, "PV buses have no min_q_mvar"
-    assert bus[bus["PV"]==1]["max_q_mvar"].isna().sum() == 0, "PV buses have no max_q_mvar"
-    assert bus[bus["REF"]==1]["min_q_mvar"].isna().sum() == 0, "REF buses have no min_q_mvar"
-    assert bus[bus["REF"]==1]["max_q_mvar"].isna().sum() == 0, "REF buses have no max_q_mvar"
-    bus["qg_violation_amount"] = np.maximum(qg - bus["max_q_mvar"], 0.0) + np.maximum(bus["min_q_mvar"] - qg, 0.0)
+    assert bus[bus["PV"] == 1]["min_q_mvar"].isna().sum() == 0, (
+        "PV buses have no min_q_mvar"
+    )
+    assert bus[bus["PV"] == 1]["max_q_mvar"].isna().sum() == 0, (
+        "PV buses have no max_q_mvar"
+    )
+    assert bus[bus["REF"] == 1]["min_q_mvar"].isna().sum() == 0, (
+        "REF buses have no min_q_mvar"
+    )
+    assert bus[bus["REF"] == 1]["max_q_mvar"].isna().sum() == 0, (
+        "REF buses have no max_q_mvar"
+    )
+    bus["qg_violation_amount"] = np.maximum(qg - bus["max_q_mvar"], 0.0) + np.maximum(
+        bus["min_q_mvar"] - qg, 0.0,
+    )
     pv = bus[bus["PV"] == 1]
     ref = bus[bus["REF"] == 1]
     pv_ref = bus[(bus["PV"] == 1) | (bus["REF"] == 1)]
     return {
-        "AC Mean Qg violation PV buses": float(np.nanmean(pv["qg_violation_amount"].to_numpy(dtype=float))),
-        "AC Mean Qg violation REF buses": float(np.nanmean(ref["qg_violation_amount"].to_numpy(dtype=float))),
-        "AC Mean Qg violation": float(np.nanmean(pv_ref["qg_violation_amount"].to_numpy(dtype=float))),
+        "AC Mean Qg violation PV buses": float(
+            np.nanmean(pv["qg_violation_amount"].to_numpy(dtype=float)),
+        ),
+        "AC Mean Qg violation REF buses": float(
+            np.nanmean(ref["qg_violation_amount"].to_numpy(dtype=float)),
+        ),
+        "AC Mean Qg violation": float(
+            np.nanmean(pv_ref["qg_violation_amount"].to_numpy(dtype=float)),
+        ),
     }
 
 
@@ -142,13 +167,21 @@ def _compute_branch_violations(branch_df: pd.DataFrame, bus_df: pd.DataFrame) ->
     """Compute AC/DC branch thermal and angle-limit violation statistics."""
     rate = branch_df["rate_a"].to_numpy(dtype=float)
     ac_from = np.sqrt(
-        branch_df["pf"].to_numpy(dtype=float) ** 2 + branch_df["qf"].to_numpy(dtype=float) ** 2,
+        branch_df["pf"].to_numpy(dtype=float) ** 2
+        + branch_df["qf"].to_numpy(dtype=float) ** 2,
     )
     ac_to = np.sqrt(
-        branch_df["pt"].to_numpy(dtype=float) ** 2 + branch_df["qt"].to_numpy(dtype=float) ** 2,
+        branch_df["pt"].to_numpy(dtype=float) ** 2
+        + branch_df["qt"].to_numpy(dtype=float) ** 2,
     )
-    dc_from = np.sqrt(branch_df["pf_dc_computed"].to_numpy(dtype=float) ** 2 + branch_df["qf_dc_computed"].to_numpy(dtype=float) ** 2) # reactive part is needed here
-    dc_to = np.sqrt(branch_df["pt_dc_computed"].to_numpy(dtype=float) ** 2 + branch_df["qt_dc_computed"].to_numpy(dtype=float) ** 2)
+    dc_from = np.sqrt(
+        branch_df["pf_dc_computed"].to_numpy(dtype=float) ** 2
+        + branch_df["qf_dc_computed"].to_numpy(dtype=float) ** 2,
+    )  # reactive part is needed here
+    dc_to = np.sqrt(
+        branch_df["pt_dc_computed"].to_numpy(dtype=float) ** 2
+        + branch_df["qt_dc_computed"].to_numpy(dtype=float) ** 2,
+    )
 
     ac_thermal_from = np.maximum(ac_from - rate, 0.0)
     ac_thermal_to = np.maximum(ac_to - rate, 0.0)
@@ -157,7 +190,7 @@ def _compute_branch_violations(branch_df: pd.DataFrame, bus_df: pd.DataFrame) ->
 
     bus_angles = bus_df[["scenario", "bus", "Va", "Va_dc"]]
     # convert to radians
-    bus_angles.loc[:, "Va"] = bus_angles["Va"] * np.pi / 180.0 
+    bus_angles.loc[:, "Va"] = bus_angles["Va"] * np.pi / 180.0
     bus_angles.loc[:, "Va_dc"] = bus_angles["Va_dc"] * np.pi / 180.0
     from_angles = bus_angles.rename(
         columns={"bus": "from_bus", "Va": "Va_from", "Va_dc": "Va_dc_from"},
@@ -167,10 +200,12 @@ def _compute_branch_violations(branch_df: pd.DataFrame, bus_df: pd.DataFrame) ->
     )
     br = branch_df.merge(from_angles, on=["scenario", "from_bus"], how="left")
     br = br.merge(to_angles, on=["scenario", "to_bus"], how="left")
-    
+
     # AC angle
     ac_angle_diff = br["Va_from"] - br["Va_to"]
-    ac_angle_diff = (ac_angle_diff + np.pi) % (2 * np.pi) - np.pi # wrap    to [-pi, pi]
+    ac_angle_diff = (ac_angle_diff + np.pi) % (
+        2 * np.pi
+    ) - np.pi  # wrap    to [-pi, pi]
     ac_angle_excess_low = np.maximum(br["ang_min"] - ac_angle_diff, 0.0)
     ac_angle_excess_high = np.maximum(ac_angle_diff - br["ang_max"], 0.0)
     mean_ac_angle_violation = np.mean(ac_angle_excess_low + ac_angle_excess_high)
@@ -182,12 +217,20 @@ def _compute_branch_violations(branch_df: pd.DataFrame, bus_df: pd.DataFrame) ->
     mean_dc_angle_violation = np.mean(dc_angle_excess_low + dc_angle_excess_high)
 
     return {
-        "AC Mean branch thermal violation from (MVA)": float(np.nanmean(ac_thermal_from)),
+        "AC Mean branch thermal violation from (MVA)": float(
+            np.nanmean(ac_thermal_from),
+        ),
         "AC Mean branch thermal violation to (MVA)": float(np.nanmean(ac_thermal_to)),
-        "AC Mean branch angle difference violation (radians)": float(mean_ac_angle_violation),
-        "DC Mean branch thermal violation from (MVA)": float(np.nanmean(dc_thermal_from)),
+        "AC Mean branch angle difference violation (radians)": float(
+            mean_ac_angle_violation,
+        ),
+        "DC Mean branch thermal violation from (MVA)": float(
+            np.nanmean(dc_thermal_from),
+        ),
         "DC Mean branch thermal violation to (MVA)": float(np.nanmean(dc_thermal_to)),
-        "DC Mean branch angle difference violation (radians)": float(mean_dc_angle_violation),
+        "DC Mean branch angle difference violation (radians)": float(
+            mean_dc_angle_violation,
+        ),
     }
 
 
@@ -258,7 +301,6 @@ def compute_opf_ac_dc_metrics(
     branch_df["pt_dc_computed"] = pt_dc
     branch_df["qf_dc_computed"] = qf_dc
     branch_df["qt_dc_computed"] = qt_dc
-    
 
     opf_extra = {}
     opf_extra.update(_compute_optimality_gap(gen_df))

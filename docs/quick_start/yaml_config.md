@@ -85,12 +85,12 @@ Task name registered in the framework:
 
 ### `data.networks`
 
-List of dataset folders under your data root.  
+List of dataset folders under your data root.
 Examples: `case14_ieee`, `case118_ieee`, `case2000_goc`, `Texas2k_case1_2016summerpeak`.
 
 ### `data.scenarios`
 
-List of scenario counts, one value per network in `data.networks`.  
+List of scenario counts, one value per network in `data.networks`.
 Example: with two networks, use two scenario entries in matching order.
 
 ### `data.normalization`

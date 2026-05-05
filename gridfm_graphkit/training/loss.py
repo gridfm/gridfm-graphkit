@@ -20,7 +20,7 @@ from gridfm_graphkit.datasets.globals import (
     # Generator feature indices
     PG_H,
     # Qg Limits
-    MIN_QG_H, 
+    MIN_QG_H,
     MAX_QG_H,
 )
 
@@ -85,6 +85,7 @@ class MaskedMSELoss(BaseLoss):
 @LOSS_REGISTRY.register("MaskedGenMSE")
 class MaskedGenMSE(torch.nn.Module):
     """Compute MSE on generator targets restricted to generator mask entries."""
+
     def __init__(self, loss_args, args):
         super().__init__()
         self.reduction = "mean"
@@ -110,6 +111,7 @@ class MaskedGenMSE(torch.nn.Module):
 @LOSS_REGISTRY.register("MaskedBusMSE")
 class MaskedBusMSE(torch.nn.Module):
     """Compute MSE on selected bus targets, respecting task-specific output columns."""
+
     def __init__(self, loss_args, args):
         super().__init__()
         self.reduction = "mean"
@@ -242,6 +244,7 @@ class MixedLoss(BaseLoss):
 @LOSS_REGISTRY.register("LayeredWeightedPhysics")
 class LayeredWeightedPhysicsLoss(BaseLoss):
     """Combine intermediate physics residuals using normalized geometric weights."""
+
     def __init__(self, loss_args, args) -> None:
         super().__init__()
         self.base_weight = loss_args.base_weight
@@ -283,6 +286,7 @@ class LayeredWeightedPhysicsLoss(BaseLoss):
 @LOSS_REGISTRY.register("LossPerDim")
 class LossPerDim(BaseLoss):
     """Compute MAE/MSE for one named physical dimension of bus outputs."""
+
     def __init__(self, loss_args, args):
         super(LossPerDim, self).__init__()
         self.reduction = "mean"
@@ -362,8 +366,8 @@ class QgViolationPenaltyLoss(BaseLoss):
         Qg_max = x_dict["bus"][:, MAX_QG_H]
         Qg_min = x_dict["bus"][:, MIN_QG_H]
 
-        max_penalty_mask = (Qg_pred > Qg_max) 
-        min_penalty_mask = (Qg_pred < Qg_min)
+        max_penalty_mask = Qg_pred > Qg_max
+        min_penalty_mask = Qg_pred < Qg_min
 
         mask_PQ = mask["PQ"]  # PQ buses
         mask_PV = mask["PV"]  # PV buses
@@ -376,13 +380,13 @@ class QgViolationPenaltyLoss(BaseLoss):
 
         Qg_over = Qg_over[max_penalty_mask].mean()
         Qg_under = Qg_under[min_penalty_mask].mean()
-        
-        if Qg_over!=Qg_over: # replacing nan with 0 
+
+        if Qg_over != Qg_over:  # replacing nan with 0
             Qg_over = 0.0
-        if Qg_under!=Qg_under: # replacing nan with 0 
+        if Qg_under != Qg_under:  # replacing nan with 0
             Qg_under = 0.0
 
-        penalty_loss = Qg_over + Qg_under            
+        penalty_loss = Qg_over + Qg_under
         loss += penalty_loss
 
         try:
@@ -391,4 +395,3 @@ class QgViolationPenaltyLoss(BaseLoss):
             output = {"loss": loss, "Qg Violation Penalty loss": loss}
 
         return output
-

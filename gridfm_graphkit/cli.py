@@ -25,7 +25,9 @@ from lightning.pytorch.strategies import DDPStrategy
 import lightning as L
 
 
-def _normalize_loaded_state_dict_keys(state_dict: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:
+def _normalize_loaded_state_dict_keys(
+    state_dict: dict[str, torch.Tensor],
+) -> dict[str, torch.Tensor]:
     """Map legacy torch.compile checkpoint keys to the canonical model namespace."""
     has_compiled_prefix = any(key.startswith("model._orig_mod.") for key in state_dict)
     if not has_compiled_prefix:
@@ -235,12 +237,17 @@ def main_cli(args):
     _accelerator = config_args.training.accelerator
     _strategy = config_args.training.strategy
     # if mps is available and accelerator is auto, explicitely set accelerator to mps to select the right strategy in the next block
-    if _accelerator == "auto" and torch.backends.mps.is_available(): 
+    if _accelerator == "auto" and torch.backends.mps.is_available():
         _accelerator = "mps"
-    if _accelerator not in ("mps", "cpu") and isinstance(_strategy, str) and _strategy in (
-        "auto",
-        "ddp",
-        "ddp_find_unused_parameters_true",
+    if (
+        _accelerator not in ("mps", "cpu")
+        and isinstance(_strategy, str)
+        and _strategy
+        in (
+            "auto",
+            "ddp",
+            "ddp_find_unused_parameters_true",
+        )
     ):
         _num_devices = config_args.training.devices
         _single_device = _num_devices in (1, "1", [1]) or (
@@ -259,7 +266,9 @@ def main_cli(args):
             if not os.environ.get("MASTER_ADDR"):
                 os.environ["MASTER_ADDR"] = "127.0.0.1"
             # Use gloo backend to avoid NCCL socket interface issues
-            _strategy = DDPStrategy(find_unused_parameters=True, process_group_backend="gloo")
+            _strategy = DDPStrategy(
+                find_unused_parameters=True, process_group_backend="gloo",
+            )
 
     trainer = L.Trainer(
         logger=logger,
@@ -284,7 +293,9 @@ def main_cli(args):
                 print("[performance] Validation loss : not available")
             # Epoch timing
             if epoch_timer is not None and epoch_timer.last_epoch_time is not None:
-                print(f"[performance] last epoch time : {epoch_timer.last_epoch_time:.3f}s")
+                print(
+                    f"[performance] last epoch time : {epoch_timer.last_epoch_time:.3f}s",
+                )
                 if (
                     epoch_timer.last_epoch_iters_per_sec is not None
                     and epoch_timer._last_batch_count > 0

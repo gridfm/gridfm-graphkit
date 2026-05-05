@@ -8,12 +8,14 @@ import subprocess
 import os
 import socket
 
+
 def is_lsf():
     return (
         os.environ.get("LSB_JOBID") is not None
         and os.environ.get("LSB_MCPU_HOSTS") is not None
         and "LSF_ENVDIR" in os.environ  # strong LSF indicator
     )
+
 
 def fix_infiniband():
     """Configure NCCL to skip Ethernet-only IB ports on this host."""
@@ -52,6 +54,7 @@ def set_env():
     # value. Use a wider hash (CRC32 of the full job ID) mapped into the
     # ephemeral range [49152, 65535] to minimise collisions with other jobs.
     import binascii
+
     crc = binascii.crc32(LSB_JOBID.encode()) & 0xFFFFFFFF
     os.environ["MASTER_PORT"] = str(49152 + (crc % 16383))
     os.environ["NODE_RANK"] = str(
@@ -61,6 +64,7 @@ def set_env():
         "ib,bond"  # avoids using docker of loopback interface
     )
     os.environ["NCCL_IB_CUDA_SUPPORT"] = "1"  # Force use of infiniband
+
 
 def main():
     """Parse CLI arguments and dispatch to the selected GridFM subcommand."""
@@ -162,7 +166,9 @@ def main():
         action="store_true",
         help="Print the last training epoch time and a single test metric to stdout.",
     )
-    train_parser.add_argument("--start-method", dest="start_method", **_start_method_kwargs)
+    train_parser.add_argument(
+        "--start-method", dest="start_method", **_start_method_kwargs,
+    )
 
     # ---- FINETUNE SUBCOMMAND ----
     finetune_parser = subparsers.add_parser("finetune", help="Run fine-tuning")
@@ -222,7 +228,9 @@ def main():
         action="store_true",
         help="Print the last training epoch time and a single test metric to stdout.",
     )
-    finetune_parser.add_argument("--start-method", dest="start_method", **_start_method_kwargs)
+    finetune_parser.add_argument(
+        "--start-method", dest="start_method", **_start_method_kwargs,
+    )
 
     # ---- EVALUATE SUBCOMMAND ----
     evaluate_parser = subparsers.add_parser(
@@ -289,7 +297,9 @@ def main():
         "--save_output",
         action="store_true",
     )
-    evaluate_parser.add_argument("--start-method", dest="start_method", **_start_method_kwargs)
+    evaluate_parser.add_argument(
+        "--start-method", dest="start_method", **_start_method_kwargs,
+    )
 
     # ---- PREDICT SUBCOMMAND ----
     predict_parser = subparsers.add_parser("predict", help="Run prediction")
@@ -340,7 +350,9 @@ def main():
         default=None,
         choices=["simple", "advanced", "pytorch"],
     )
-    predict_parser.add_argument("--start-method", dest="start_method", **_start_method_kwargs)
+    predict_parser.add_argument(
+        "--start-method", dest="start_method", **_start_method_kwargs,
+    )
 
     # ---- BENCHMARK SUBCOMMAND ----
     benchmark_parser = subparsers.add_parser(

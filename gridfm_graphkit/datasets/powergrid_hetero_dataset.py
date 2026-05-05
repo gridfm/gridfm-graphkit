@@ -73,9 +73,13 @@ class HeteroGridDatasetDisk(Dataset):
         )
         if "load_scenario_idx" in bus_data.columns:
             load_scenarios = torch.tensor(
-                bus_data.groupby("scenario", sort=True)["load_scenario_idx"].first().values,
+                bus_data.groupby("scenario", sort=True)["load_scenario_idx"]
+                .first()
+                .values,
             )
-            torch.save(load_scenarios, osp.join(self.processed_dir, "load_scenarios.pt"))
+            torch.save(
+                load_scenarios, osp.join(self.processed_dir, "load_scenarios.pt"),
+            )
 
         agg_gen = (
             gen_data.groupby(["scenario", "bus"])[["min_q_mvar", "max_q_mvar"]]
@@ -136,7 +140,9 @@ class HeteroGridDatasetDisk(Dataset):
         ] + common_branch_features
 
         # Group by scenario
-        bus_groups = bus_data.groupby("scenario") # Groupby preserves the order of rows within each group. 
+        bus_groups = bus_data.groupby(
+            "scenario",
+        )  # Groupby preserves the order of rows within each group.
         # https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.groupby.html
         gen_groups = gen_data.groupby("scenario")
         branch_groups = branch_data.groupby("scenario")
@@ -159,8 +165,10 @@ class HeteroGridDatasetDisk(Dataset):
             # Bus nodes
             bus_df = bus_groups.get_group(scenario)
             # assert that the buses are in increasing order
-            assert (bus_df["bus"].values == torch.arange(len(bus_df))).all(), "Buses are not in increasing order"
-            #todo: we should remove this assert and store the bus idx in the tensors
+            assert (bus_df["bus"].values == torch.arange(len(bus_df))).all(), (
+                "Buses are not in increasing order"
+            )
+            # todo: we should remove this assert and store the bus idx in the tensors
             # right now we need the increasing order for e.g. the predict step that uses torch.arange(n_nodes) to index the buses.
             data["bus"].x = torch.tensor(bus_df[bus_features].values, dtype=torch.float)
 

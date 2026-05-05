@@ -27,6 +27,7 @@ import os
 @TASK_REGISTRY.register("StateEstimation")
 class StateEstimationTask(ReconstructionTask):
     """State-estimation task with evaluation plots for masked and noisy measurements."""
+
     def __init__(self, args, data_normalizers):
         super().__init__(args, data_normalizers)
 

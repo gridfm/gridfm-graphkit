@@ -121,13 +121,18 @@ class LitGridHeteroDataModule(L.LightningDataModule):
         self._is_setup_done = False
 
         if self.split_by_load_scenario_idx:
-            assert self.split_from_existing_files is None, " either `split_by_load_scenario_idx` or `split_from_existing_files` may be used, not both"
+            assert self.split_from_existing_files is None, (
+                " either `split_by_load_scenario_idx` or `split_from_existing_files` may be used, not both"
+            )
 
         if self.split_from_existing_files is not None:
-            assert isinstance(self.split_from_existing_files, str), "`split_from_existing_files` must be an existing folder in string format"
+            assert isinstance(self.split_from_existing_files, str), (
+                "`split_from_existing_files` must be an existing folder in string format"
+            )
             self.split_from_existing_files = Path(self.split_from_existing_files)
-            assert self.split_from_existing_files.is_dir(), "`split_from_existing_files` must be an existing folder in string format"
-
+            assert self.split_from_existing_files.is_dir(), (
+                "`split_from_existing_files` must be an existing folder in string format"
+            )
 
     def setup(self, stage: str):
         if self._is_setup_done:
@@ -184,7 +189,6 @@ class LitGridHeteroDataModule(L.LightningDataModule):
             # Create a subset
             all_indices = list(range(len(dataset)))
 
-
             if self.split_from_existing_files is not None:
                 warnings.warn(
                     "`data.scenarios` is ignored when `split_from_existing_files` is set; "
@@ -229,13 +233,13 @@ class LitGridHeteroDataModule(L.LightningDataModule):
                     # load_scenario for each scenario in the subset
                     load_scenarios = dataset.load_scenarios[subset_indices]
 
-
                 dataset = Subset(dataset, subset_indices)
-                
+
                 if self.dataset_wrapper is not None:
                     wrapper_cls = DATASET_WRAPPER_REGISTRY.get(self.dataset_wrapper)
-                    dataset = wrapper_cls(dataset, cache_dir=self.dataset_wrapper_cache_dir)
-
+                    dataset = wrapper_cls(
+                        dataset, cache_dir=self.dataset_wrapper_cache_dir,
+                    )
 
                 # Random seed set before every split, same as above
                 np.random.seed(self.args.seed)
@@ -434,7 +438,12 @@ class LitGridHeteroDataModule(L.LightningDataModule):
         return kwargs
 
     def train_dataloader(self):
-        print("creating train dataloader for rank ", dist.get_rank() if dist.is_available() and dist.is_initialized() else "not distributed")
+        print(
+            "creating train dataloader for rank ",
+            dist.get_rank()
+            if dist.is_available() and dist.is_initialized()
+            else "not distributed",
+        )
         return DataLoader(
             self.train_dataset_multi,
             batch_size=self.batch_size,

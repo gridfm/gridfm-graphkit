@@ -42,6 +42,7 @@ class EpochTimerCallback(Callback):
 
 class SaveBestModelStateDict(Callback):
     """Persist the best model state_dict according to a monitored validation metric."""
+
     def __init__(
         self,
         monitor: str,

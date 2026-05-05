@@ -114,8 +114,8 @@ def split_from_existing_files(
         split_dataset = Subset(dataset, split_indices)
         output.append(split_dataset)
         split_indices = list(split_indices)
-        print(f'{split=} {len(split_indices)=}')
-        indices[split]=[int(t.item()) for t in split_indices]
+        print(f"{split=} {len(split_indices)=}")
+        indices[split] = [int(t.item()) for t in split_indices]
 
     output = tuple(output)
     return output, indices

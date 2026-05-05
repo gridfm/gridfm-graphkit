@@ -97,6 +97,7 @@ class ApplyMasking(BaseTransform):
 
 class LoadGridParamsFromPath(BaseTransform):
     """Inject static grid parameters from a saved grid template into each sample."""
+
     def __init__(self, args):
         super().__init__()
         self.grid_path = args.task.grid_path
