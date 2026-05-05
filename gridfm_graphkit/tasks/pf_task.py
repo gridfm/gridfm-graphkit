@@ -5,6 +5,10 @@ from gridfm_graphkit.datasets.globals import (
     QG_H,
     VM_H,
     VA_H,
+    MIN_VM_H,
+    MAX_VM_H,
+    MIN_QG_H,
+    MAX_QG_H,
     # Output feature indices
     VM_OUT,
     VA_OUT,
@@ -404,20 +408,24 @@ class PowerFlowTask(ReconstructionTask):
         return {
             "scenario": scenario_ids.cpu().numpy(),
             "bus": local_bus_idx.cpu().numpy(),
-            "pd_mw": bus_x[:, PD_H].cpu().numpy(), # from original input
-            "qd_mvar": bus_x[:, QD_H].cpu().numpy(), # from original input
-            "vm_pu_target": bus_y[:, VM_H].cpu().numpy(), # from original input
-            "va_target": bus_y[:, VA_H].cpu().numpy(), # from original input
-            "pg_mw_target": agg_gen_on_bus.squeeze().cpu().numpy(), # from original input
-            "qg_mvar_target": bus_y[:, QG_H].cpu().numpy(), # from original input
-            "is_pq": mask_PQ.cpu().numpy().astype(int), # from original input
-            "is_pv": mask_PV.cpu().numpy().astype(int), # from original input
-            "is_ref": mask_REF.cpu().numpy().astype(int), # from original input
-            "vm_pu": output["bus"][:, VM_OUT].detach().cpu().numpy(), # predicted output
-            "va": output["bus"][:, VA_OUT].detach().cpu().numpy(), # predicted output
-            "pg_mw": output["bus"][:, PG_OUT].detach().cpu().numpy(), # predicted output
-            "qg_mvar": output["bus"][:, QG_OUT].detach().cpu().numpy(), # predicted output
-            "active res. (MW)": residual_P.detach().cpu().numpy(), # predicted output
-            "reactive res. (MVar)": residual_Q.detach().cpu().numpy(), # predicted output
-            "PBE": residual_mva.detach().cpu().numpy(), # predicted output
+            "Pd": bus_x[:, PD_H].cpu().numpy(),
+            "Qd": bus_x[:, QD_H].cpu().numpy(),
+            "Vm_min": bus_x[:, MIN_VM_H].cpu().numpy(),
+            "Vm_max": bus_x[:, MAX_VM_H].cpu().numpy(),
+            "Qg_min": bus_x[:, MIN_QG_H].cpu().numpy(),
+            "Qg_max": bus_x[:, MAX_QG_H].cpu().numpy(),
+            "Vm_target": bus_y[:, VM_H].cpu().numpy(),
+            "Va_target": bus_y[:, VA_H].cpu().numpy(),
+            "Pg_target": agg_gen_on_bus.squeeze().cpu().numpy(),
+            "Qg_target": bus_y[:, QG_H].cpu().numpy(),
+            "PQ": mask_PQ.cpu().numpy().astype(int),
+            "PV": mask_PV.cpu().numpy().astype(int),
+            "REF": mask_REF.cpu().numpy().astype(int),
+            "Vm_pred": output["bus"][:, VM_OUT].detach().cpu().numpy(),
+            "Va_pred": output["bus"][:, VA_OUT].detach().cpu().numpy(),
+            "Pg_pred": output["bus"][:, PG_OUT].detach().cpu().numpy(),
+            "Qg_pred": output["bus"][:, QG_OUT].detach().cpu().numpy(),
+            "active res. (MW)": residual_P.detach().cpu().numpy(),
+            "reactive res. (MVar)": residual_Q.detach().cpu().numpy(),
+            "PBE": residual_mva.detach().cpu().numpy(),
         }

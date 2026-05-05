@@ -232,6 +232,12 @@ def main():
     evaluate_parser.add_argument("--run_name", type=str, default="run")
     evaluate_parser.add_argument("--log_dir", type=str, default="mlruns")
     evaluate_parser.add_argument("--data_path", type=str, default="data")
+    evaluate_parser.add_argument(
+        "--batch_size",
+        type=int,
+        default=None,
+        help="Override training.batch_size from the YAML config for evaluation.",
+    )
     evaluate_parser.add_argument("--compile", **_compile_kwargs)
     evaluate_parser.add_argument("--bfloat16", **_bfloat16_kwargs)
     evaluate_parser.add_argument("--tf32", **_tf32_kwargs)
@@ -290,6 +296,12 @@ def main():
     predict_parser.add_argument("--run_name", type=str, default="run")
     predict_parser.add_argument("--log_dir", type=str, default="mlruns")
     predict_parser.add_argument("--data_path", type=str, default="data")
+    predict_parser.add_argument(
+        "--batch_size",
+        type=int,
+        default=None,
+        help="Override training.batch_size from the YAML config for prediction.",
+    )
     predict_parser.add_argument(
         "--dataset_wrapper",
         type=str,

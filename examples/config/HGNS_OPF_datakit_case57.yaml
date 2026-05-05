@@ -10,7 +10,7 @@ data:
   - 250000
   test_ratio: 0.1
   val_ratio: 0.1
-  workers: 32
+  workers: 32 # 1 gpu
   split_by_load_scenario_idx: true
 model:
   attention_head: 8
@@ -29,18 +29,21 @@ optimizer:
   lr_decay: 0.7
   lr_patience: 5
 training:
-  batch_size: 64
+  batch_size: 64 # 1 gpu
   epochs: 200
   loss_weights:
   - 0.1
   - 0.1
-  - 0.8
+  - 0.75
+  - 0.001
   losses:
   - LayeredWeightedPhysics
   - MaskedGenMSE
   - MaskedBusMSE
+  - QgViolationPenalty
   loss_args:
   - base_weight: 0.5
+  - {}
   - {}
   - {}
   accelerator: auto

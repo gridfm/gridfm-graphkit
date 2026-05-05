@@ -5,6 +5,8 @@ from gridfm_graphkit.datasets.globals import (
     QG_H,
     VM_H,
     VA_H,
+    MIN_VM_H,
+    MAX_VM_H,
     MIN_QG_H,
     MAX_QG_H,
     # Output feature indices
@@ -85,14 +87,14 @@ class OptimalPowerFlowTask(ReconstructionTask):
         c2 = batch.x_dict["gen"][:, C2_H]
         target_pg = batch.y_dict["gen"].squeeze()
         pred_pg = output["gen"].squeeze()
-        gen_cost_gt = c0 + c1 * target_pg + c2 * target_pg**2
-        gen_cost_pred = c0 + c1 * pred_pg + c2 * pred_pg**2
+        gen_cost_gt = (c0 + c1 * target_pg + c2 * target_pg**2) # assumes all branches are on!
+        gen_cost_pred = (c0 + c1 * pred_pg + c2 * pred_pg**2) # assumes all branches are on!
 
         gen_batch = batch.batch_dict["gen"]  # shape: [N_gen_total]
 
         cost_gt = scatter_add(gen_cost_gt, gen_batch, dim=0)
         cost_pred = scatter_add(gen_cost_pred, gen_batch, dim=0)
-
+        
         optimality_gap = torch.mean(torch.abs((cost_pred - cost_gt) / cost_gt * 100))
 
         agg_gen_on_bus = scatter_add(
@@ -574,30 +576,37 @@ class OptimalPowerFlowTask(ReconstructionTask):
             "bus": {
                 "scenario": scenario_ids.cpu().numpy(),
                 "bus": local_bus_idx.cpu().numpy(),
-                "pd_mw": bus_x[:, PD_H].cpu().numpy(),
-                "qd_mvar": bus_x[:, QD_H].cpu().numpy(),
-                "vm_pu_target": bus_y[:, VM_H].cpu().numpy(),
-                "va_target": bus_y[:, VA_H].cpu().numpy(),
-                "pg_mw_target": agg_gen_on_bus.squeeze().cpu().numpy(),
-                "qg_mvar_target": bus_y[:, QG_H].cpu().numpy(),
-                "is_pq": mask_PQ.cpu().numpy().astype(int),
-                "is_pv": mask_PV.cpu().numpy().astype(int),
-                "is_ref": mask_REF.cpu().numpy().astype(int),
-                "vm_pu": output["bus"][:, VM_OUT].detach().cpu().numpy(),
-                "va": output["bus"][:, VA_OUT].detach().cpu().numpy(),
-                "pg_mw": output["bus"][:, PG_OUT].detach().cpu().numpy(),
-                "qg_mvar": output["bus"][:, QG_OUT].detach().cpu().numpy(),
+                "Pd": bus_x[:, PD_H].cpu().numpy(),
+                "Qd": bus_x[:, QD_H].cpu().numpy(),
+                "Vm_min": bus_x[:, MIN_VM_H].cpu().numpy(),
+                "Vm_max": bus_x[:, MAX_VM_H].cpu().numpy(),
+                "Qg_min": bus_x[:, MIN_QG_H].cpu().numpy(),
+                "Qg_max": bus_x[:, MAX_QG_H].cpu().numpy(),
+                "Vm_target": bus_y[:, VM_H].cpu().numpy(),
+                "Va_target": bus_y[:, VA_H].cpu().numpy(),
+                "Pg_target": agg_gen_on_bus.squeeze().cpu().numpy(),
+                "Qg_target": bus_y[:, QG_H].cpu().numpy(),
+                "PQ": mask_PQ.cpu().numpy().astype(int),
+                "PV": mask_PV.cpu().numpy().astype(int),
+                "REF": mask_REF.cpu().numpy().astype(int),
+                "Vm_pred": output["bus"][:, VM_OUT].detach().cpu().numpy(),
+                "Va_pred": output["bus"][:, VA_OUT].detach().cpu().numpy(),
+                "Pg_pred": output["bus"][:, PG_OUT].detach().cpu().numpy(),
+                "Qg_pred": output["bus"][:, QG_OUT].detach().cpu().numpy(),
                 "active res. (MW)": residual_P.detach().cpu().numpy(),
                 "reactive res. (MVar)": residual_Q.detach().cpu().numpy(),
                 "PBE": residual_mva.detach().cpu().numpy(),
             },
             "gen": {
                 "scenario": gen_scenario_ids.cpu().numpy(),
-                "gen": local_gen_idx.cpu().numpy(),
-                "connected_bus": local_bus_idx[gen_to_bus_index].cpu().numpy(),
-                "pg_mw_target": gen_target.cpu().numpy(),
-                "pg_mw": gen_pred.detach().cpu().numpy(),
-                "min_pg_mw": gen_x[:, MIN_PG].cpu().numpy(),
-                "max_pg_mw": gen_x[:, MAX_PG].cpu().numpy(),
+                "idx": local_gen_idx.cpu().numpy(),
+                "bus": local_bus_idx[gen_to_bus_index].cpu().numpy(),
+                "p_mw_target": gen_target.cpu().numpy(),
+                "p_mw_pred": gen_pred.detach().cpu().numpy(),
+                "min_p_mw": gen_x[:, MIN_PG].cpu().numpy(),
+                "max_p_mw": gen_x[:, MAX_PG].cpu().numpy(),
+                "cp0_eur": gen_x[:, C0_H].cpu().numpy(),
+                "cp1_eur_per_mw": gen_x[:, C1_H].cpu().numpy(),
+                "cp2_eur_per_mw2": gen_x[:, C2_H].cpu().numpy(),
             },
         }
