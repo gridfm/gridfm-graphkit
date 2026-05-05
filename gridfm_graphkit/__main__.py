@@ -1,6 +1,7 @@
 import argparse
 from datetime import datetime
 from gridfm_graphkit.cli import main_cli, benchmark_cli
+import torch.multiprocessing
 
 
 import subprocess
@@ -97,6 +98,12 @@ def main():
         default=False,
         help="Enable TF32 on Ampere+ GPUs via torch.set_float32_matmul_precision('high').",
     )
+    _start_method_kwargs = dict(
+        type=str,
+        default="spawn",
+        choices=["spawn", "fork", "forkserver"],
+        help="Multiprocessing start method for dataloader workers (default: spawn). Use 'fork' for faster startup on CPU-only machines.",
+    )
 
     # ---- TRAIN SUBCOMMAND ----
     train_parser = subparsers.add_parser("train", help="Run training")
@@ -155,6 +162,7 @@ def main():
         action="store_true",
         help="Print the last training epoch time and a single test metric to stdout.",
     )
+    train_parser.add_argument("--start-method", dest="start_method", **_start_method_kwargs)
 
     # ---- FINETUNE SUBCOMMAND ----
     finetune_parser = subparsers.add_parser("finetune", help="Run fine-tuning")
@@ -214,6 +222,7 @@ def main():
         action="store_true",
         help="Print the last training epoch time and a single test metric to stdout.",
     )
+    finetune_parser.add_argument("--start-method", dest="start_method", **_start_method_kwargs)
 
     # ---- EVALUATE SUBCOMMAND ----
     evaluate_parser = subparsers.add_parser(
@@ -286,6 +295,7 @@ def main():
         "--save_output",
         action="store_true",
     )
+    evaluate_parser.add_argument("--start-method", dest="start_method", **_start_method_kwargs)
 
     # ---- PREDICT SUBCOMMAND ----
     predict_parser = subparsers.add_parser("predict", help="Run prediction")
@@ -342,6 +352,7 @@ def main():
         default=None,
         choices=["simple", "advanced", "pytorch"],
     )
+    predict_parser.add_argument("--start-method", dest="start_method", **_start_method_kwargs)
 
     # ---- BENCHMARK SUBCOMMAND ----
     benchmark_parser = subparsers.add_parser(
@@ -388,6 +399,9 @@ def main():
     )
 
     args = parser.parse_args()
+
+    start_method = getattr(args, "start_method", "spawn")
+    torch.multiprocessing.set_start_method(start_method, force=True)
 
     if args.command == "benchmark":
         benchmark_cli(args)
