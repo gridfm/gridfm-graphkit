@@ -58,6 +58,10 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+cos = [
+  "boto3"
+]
+
 dev = [
   "mkdocs-material",
   "mkdocstrings[python]",

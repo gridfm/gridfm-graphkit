@@ -6,6 +6,8 @@ from torch.utils.data import ConcatDataset
 from torch.utils.data import Subset
 import torch.distributed as dist
 from gridfm_graphkit.io.registries import DATASET_WRAPPER_REGISTRY
+from gridfm_graphkit.datasets.cos_utils import is_cos_url
+from gridfm_graphkit.datasets.cos_dataset import COSHeteroGridDataset
 from gridfm_graphkit.io.param_handler import (
     NestedNamespace,
     load_normalizer,
@@ -149,27 +151,36 @@ class LitGridHeteroDataModule(L.LightningDataModule):
             self.data_normalizers.append(data_normalizer)
 
             # Create torch dataset (normalizer is NOT yet fitted)
-            data_path_network = os.path.join(self.data_dir, network)
-
-            is_distributed = dist.is_available() and dist.is_initialized()
-
-            if not is_distributed or dist.get_rank() == 0:
-                dataset = HeteroGridDatasetDisk(
-                    root=data_path_network,
+            if is_cos_url(self.data_dir):
+                # COS path: append network name to the COS prefix
+                network_url = self.data_dir.rstrip("/") + "/" + network
+                dataset = COSHeteroGridDataset(
+                    cos_url=network_url,
                     data_normalizer=data_normalizer,
                     transform=get_task_transforms(args=self.args),
                 )
+            else:
+                data_path_network = os.path.join(self.data_dir, network)
 
-            # All ranks wait here until rank 0 processing is done
-            if is_distributed:
-                dist.barrier()
+                is_distributed = dist.is_available() and dist.is_initialized()
 
-            if is_distributed and dist.get_rank() != 0:
-                dataset = HeteroGridDatasetDisk(
-                    root=data_path_network,
-                    data_normalizer=data_normalizer,
-                    transform=get_task_transforms(args=self.args),
-                )
+                if not is_distributed or dist.get_rank() == 0:
+                    dataset = HeteroGridDatasetDisk(
+                        root=data_path_network,
+                        data_normalizer=data_normalizer,
+                        transform=get_task_transforms(args=self.args),
+                    )
+
+                # All ranks wait here until rank 0 processing is done
+                if is_distributed:
+                    dist.barrier()
+
+                if is_distributed and dist.get_rank() != 0:
+                    dataset = HeteroGridDatasetDisk(
+                        root=data_path_network,
+                        data_normalizer=data_normalizer,
+                        transform=get_task_transforms(args=self.args),
+                    )
 
             self.datasets.append(dataset)
 
