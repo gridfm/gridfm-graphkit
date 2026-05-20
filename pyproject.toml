@@ -54,6 +54,7 @@ dependencies = [
     "lightning",
     "seaborn",
     "urllib3>=2.6.0",
+    "gdown>=6.0.0",
     "gridfm-datakit>=1.0.2",
 ]
 
