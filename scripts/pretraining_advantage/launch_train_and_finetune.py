@@ -11,8 +11,8 @@ from pathlib import Path
 import yaml
 
 # Scenarios to run
-SCENARIOS = [100, 1000, 10000, 20000, 50000, 100000]
-# SCENARIOS = [250000]
+# SCENARIOS = [100, 1000, 10000, 20000, 50000, 100000]
+SCENARIOS = [150000]
 
 
 # Base directories
@@ -67,7 +67,7 @@ def main():
         with open(tmp_config, "w") as f:
             yaml.dump(config, f)
 
-        exp_name = f"scaling_{case}_a100_3_to_del4"
+        exp_name = f"scaling_{case}_a100_150k"
 
         # ------------------------------------------------------------
         # 1️⃣ TRAIN FROM SCRATCH

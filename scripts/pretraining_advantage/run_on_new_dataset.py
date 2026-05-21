@@ -30,7 +30,7 @@ python /u/apu/gridfm_model_evaluation/scripts/pretraining_advantage/run_on_new_d
 /u/apu/gridfm_model_evaluation/scripts/pretraining_advantage/HGNS_PF_datakit_case118_eval_new_dataset.yaml \
 /dccstor/gridfm/powermodels_data/v4/evaluation_pretraining/pf \
 /dccstor/gridfm/mlflow_alban_pretraining_scaling/652860222610121090 \
-case118_eval_new_dataset_ok # need to relaunch this
+case118_eval_new_dataset_paper # need to relaunch this
 
 # evaluation on k=5
 python /u/apu/gridfm_model_evaluation/scripts/pretraining_advantage/run_on_new_dataset.py \
@@ -122,7 +122,7 @@ def main():
     # Iterate over runs
     # -----------------------------------------------------------------
 
-    for run_dir in run_dirs:
+    for run_dir in run_dirs[1:]:
 
         run_id = run_dir.name
         meta_path = run_dir / "meta.yaml"
@@ -176,7 +176,7 @@ gridfm_graphkit evaluate \
 --log_dir {LOG_DIR} \
 --compute_dc_ac_metrics"
 """
-        submit(eval_cmd)
+        print(eval_cmd)
 
 
 if __name__ == "__main__":
