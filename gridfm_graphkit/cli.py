@@ -160,6 +160,8 @@ def main_cli(args):
         experiment_name=args.exp_name,
         run_name=args.run_name,
     )
+    
+    torch._inductor.config.triton.cudagraph_skip_dynamic_graphs = True
 
     with open(args.config, "r") as f:
         base_config = yaml.safe_load(f)
