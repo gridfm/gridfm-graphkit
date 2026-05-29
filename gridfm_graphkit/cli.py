@@ -161,6 +161,12 @@ def main_cli(args):
         run_name=args.run_name,
     )
 
+    # When using torch.compile with Triton, dynamic graph support can cause 
+    # out-of-memory errors during autotuning on some kernels.
+    # Disabling dynamic graph support allows those kernels
+    # to be skipped gracefully instead of causing errors.
+    torch._inductor.config.triton.cudagraph_skip_dynamic_graphs = True
+
     with open(args.config, "r") as f:
         base_config = yaml.safe_load(f)
 
