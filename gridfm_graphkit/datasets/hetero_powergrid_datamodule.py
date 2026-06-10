@@ -90,11 +90,13 @@ class LitGridHeteroDataModule(L.LightningDataModule):
         normalizer_stats_path: str = None,
         dataset_wrapper: str = None,
         dataset_wrapper_cache_dir: str = None,
+        multiprocessing_context: str = None,
     ):
         super().__init__()
         self.data_dir = data_dir
         self.dataset_wrapper = dataset_wrapper
         self.dataset_wrapper_cache_dir = dataset_wrapper_cache_dir
+        self.multiprocessing_context = multiprocessing_context
         self.batch_size = int(args.training.batch_size)
         self.split_by_load_scenario_idx = getattr(
             args.data,
@@ -382,6 +384,8 @@ class LitGridHeteroDataModule(L.LightningDataModule):
 
             if platform.system() == "Linux":
                 kwargs["multiprocessing_context"] = "forkserver"
+        if num_workers > 0:
+            kwargs["multiprocessing_context"] = self.multiprocessing_context
         return kwargs
 
     def train_dataloader(self):

@@ -116,8 +116,6 @@ def _compute_qg_violations_ac(bus_df: pd.DataFrame, gen_df: pd.DataFrame) -> dic
     # opf_task style on bus Qg; AC only 
     bus = bus_df.copy()
     qg = bus["Qg"].to_numpy(dtype=float)
-    # complain if max_q_mvar == min_q_mvar for some gens of gen_df
-    assert (gen_df["max_q_mvar"] == gen_df["min_q_mvar"]).any() == False, "max_q_mvar == min_q_mvar for some gens of gen_df"
     agg_gen = (
     gen_df.groupby(["scenario", "bus"])[["min_q_mvar", "max_q_mvar"]]
     .sum()

@@ -8,7 +8,7 @@ data:
   - case2000_goc
   scenarios:
   - 300000
-  workers: 32
+  workers: 16 # 4 gpus
   split_by_load_scenario_idx: false
   split_from_existing_files: "/dccstor/gridfm/march_opf_exp/opfdata_olay_splits/"
 model:
@@ -28,7 +28,7 @@ optimizer:
   lr_decay: 0.7
   lr_patience: 5
 training:
-  batch_size: 64
+  batch_size: 4 # 4 gpus
   epochs: 200
   loss_weights:
   - 0.1

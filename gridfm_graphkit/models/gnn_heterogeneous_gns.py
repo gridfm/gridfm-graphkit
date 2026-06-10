@@ -158,6 +158,22 @@ class GNS_heterogeneous(nn.Module):
         self.node_residuals_layer = ComputeNodeResiduals()
         self.physics_decoder = get_physics_decoder(args)
 
+        # In StateEstimation, the gen output head, physics_mlp, and the gen
+        # branch of the final hetero conv layer never contribute to the loss.
+        # Freeze those parameters so DDP doesn't reject them as unused. The
+        # modules stay on the model so existing checkpoints still load.
+        if self.task == "StateEstimation":
+            for p in self.mlp_gen.parameters():
+                p.requires_grad = False
+            for p in self.physics_mlp.parameters():
+                p.requires_grad = False
+            last = self.num_layers - 1
+            for p in self.norms_gen[last].parameters():
+                p.requires_grad = False
+            last_conv = self.layers[last].convs[("bus", "connected_to", "gen")]
+            for p in last_conv.parameters():
+                p.requires_grad = False
+
         # container for monitoring residual norms per layer and type
         self.layer_residuals = {}
 

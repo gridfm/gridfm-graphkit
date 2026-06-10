@@ -1,10 +1,26 @@
 import argparse
+import platform
+import warnings
 from datetime import datetime
 from gridfm_graphkit.cli import main_cli, benchmark_cli
 
 
 import subprocess
 import os
+
+
+def _warn_mp_context_on_linux(mp_context):
+    """On Linux, recommend 'spawn' when mp_context is unset, 'fork', or 'forkserver'."""
+    if platform.system() != "Linux":
+        return
+    if mp_context in (None, "fork", "forkserver"):
+        chosen = mp_context if mp_context is not None else "PyTorch default"
+        warnings.warn(
+            f"--mp_context is '{chosen}' on Linux. 'spawn' is recommended for safety "
+            "(avoids issues with CUDA initialization and forked processes), though "
+            "'fork'/'forkserver' may be faster.",
+            stacklevel=2,
+        )
 
 def is_lsf():
     return (
@@ -91,6 +107,20 @@ def main():
         default=False,
         help="Enable TF32 on Ampere+ GPUs via torch.set_float32_matmul_precision('high').",
     )
+    _mp_context_kwargs = dict(
+        dest="mp_context",
+        type=str,
+        default=None,
+        choices=["spawn", "fork", "forkserver"],
+        help=(
+            "Multiprocessing start method for DataLoader workers. "
+            "Defaults to None so PyTorch picks automatically. "
+            "'spawn' is safest and works everywhere. "
+            "'fork' avoids re-importing modules but is unsafe after CUDA init. "
+            "'forkserver' uses a clean server process but requires file-descriptor passing. "
+            "On Linux, 'spawn' is recommended; other choices emit a warning."
+        ),
+    )
 
     # ---- TRAIN SUBCOMMAND ----
     train_parser = subparsers.add_parser("train", help="Run training")
@@ -143,6 +173,7 @@ def main():
         action="store_true",
         help="Print the last training epoch time and a single test metric to stdout.",
     )
+    train_parser.add_argument("--mp_context", **_mp_context_kwargs)
 
     # ---- FINETUNE SUBCOMMAND ----
     finetune_parser = subparsers.add_parser("finetune", help="Run fine-tuning")
@@ -196,6 +227,7 @@ def main():
         action="store_true",
         help="Print the last training epoch time and a single test metric to stdout.",
     )
+    finetune_parser.add_argument("--mp_context", **_mp_context_kwargs)
 
     # ---- EVALUATE SUBCOMMAND ----
     evaluate_parser = subparsers.add_parser(
@@ -262,6 +294,7 @@ def main():
         "--save_output",
         action="store_true",
     )
+    evaluate_parser.add_argument("--mp_context", **_mp_context_kwargs)
 
     # ---- PREDICT SUBCOMMAND ----
     predict_parser = subparsers.add_parser("predict", help="Run prediction")
@@ -312,6 +345,7 @@ def main():
         default=None,
         choices=["simple", "advanced", "pytorch"],
     )
+    predict_parser.add_argument("--mp_context", **_mp_context_kwargs)
 
     # ---- BENCHMARK SUBCOMMAND ----
     benchmark_parser = subparsers.add_parser(
@@ -350,8 +384,11 @@ def main():
         default=[],
         help="Python packages to import for plugin registration.",
     )
+    benchmark_parser.add_argument("--mp_context", **_mp_context_kwargs)
 
     args = parser.parse_args()
+
+    _warn_mp_context_on_linux(getattr(args, "mp_context", None))
 
     if args.command == "benchmark":
         benchmark_cli(args)

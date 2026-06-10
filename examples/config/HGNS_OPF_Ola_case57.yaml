@@ -8,7 +8,7 @@ data:
   - case57_ieee
   scenarios:
   - 300000
-  workers: 32
+  workers: 32 # 1 gpu
   split_by_load_scenario_idx: false
   split_from_existing_files: "/dccstor/gridfm/march_opf_exp/opfdata_olay_splits/"
 model:
@@ -28,7 +28,7 @@ optimizer:
   lr_decay: 0.7
   lr_patience: 5
 training:
-  batch_size: 64
+  batch_size: 64 # 1 gpu
   epochs: 200
   loss_weights:
   - 0.1

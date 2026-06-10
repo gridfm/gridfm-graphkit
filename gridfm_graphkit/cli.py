@@ -8,6 +8,7 @@ from gridfm_graphkit.training.callbacks import (
 import importlib
 import numpy as np
 import os
+import socket
 import time
 import yaml
 import torch
@@ -93,6 +94,7 @@ def benchmark_cli(args):
         args.data_path,
         dataset_wrapper=dataset_wrapper,
         dataset_wrapper_cache_dir=dataset_wrapper_cache_dir,
+        multiprocessing_context=getattr(args, "mp_context", None),
     )
     dm.setup(stage="fit")
     setup_time = time.perf_counter() - t0
@@ -161,6 +163,12 @@ def main_cli(args):
         run_name=args.run_name,
     )
 
+    # When using torch.compile with Triton, dynamic graph support can cause 
+    # out-of-memory errors during autotuning on some kernels.
+    # Disabling dynamic graph support allows those kernels
+    # to be skipped gracefully instead of causing errors.
+    torch._inductor.config.triton.cudagraph_skip_dynamic_graphs = True
+
     with open(args.config, "r") as f:
         base_config = yaml.safe_load(f)
 
@@ -190,6 +198,7 @@ def main_cli(args):
         normalizer_stats_path=normalizer_stats_path,
         dataset_wrapper=dataset_wrapper,
         dataset_wrapper_cache_dir=dataset_wrapper_cache_dir,
+        multiprocessing_context=getattr(args, "mp_context", None),
     )
     model = get_task(config_args, litGrid.data_normalizers)
     if args.command != "train":
@@ -234,9 +243,8 @@ def main_cli(args):
     if _accelerator not in ("mps", "cpu") and isinstance(_strategy, str) and _strategy in (
         "auto",
         "ddp",
-        "ddp_find_unused_parameters_true",
     ): # when using mps, we don't want to use ddp.
-        _strategy = DDPStrategy(find_unused_parameters=True)
+        _strategy = DDPStrategy(find_unused_parameters=False)
 
     trainer = L.Trainer(
         logger=logger,
@@ -250,6 +258,27 @@ def main_cli(args):
         **trainer_kwargs,
         profiler=profiler,
     )
+
+    # Print device summary so it's visible in job logs
+    print(f"[device] hostname={socket.gethostname()}")
+    if torch.cuda.is_available():
+        n_gpus = torch.cuda.device_count()
+        gpu_names = [torch.cuda.get_device_name(i) for i in range(n_gpus)]
+        print(f"[device] CUDA available: {n_gpus} GPU(s): {gpu_names}")
+        print(f"[device] CUDA_HOME={os.environ.get('CUDA_HOME', 'not set')}")
+        nvcc = os.popen("which nvcc 2>/dev/null").read().strip()
+        if not nvcc:
+            cuda_home = os.environ.get("CUDA_HOME") or os.environ.get("CUDA_PATH")
+            if cuda_home:
+                candidate = os.path.join(cuda_home, "bin", "nvcc")
+                if os.path.isfile(candidate) and os.access(candidate, os.X_OK):
+                    nvcc = f"{candidate} (not on PATH)"
+        print(f"[device] nvcc={'not found' if not nvcc else nvcc}")
+    elif torch.backends.mps.is_available():
+        print("[device] Using Apple MPS (Metal Performance Shaders)")
+    else:
+        print("[device] WARNING: No GPU found, running on CPU only")
+
     if args.command == "train" or args.command == "finetune":
         trainer.fit(model=model, datamodule=litGrid)
         if (

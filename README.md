@@ -11,6 +11,8 @@
 [![DOI](https://zenodo.org/badge/1007159095.svg)](https://doi.org/10.5281/zenodo.17016737)
 [![Docs](https://img.shields.io/badge/docs-available-brightgreen)](https://gridfm.github.io/gridfm-graphkit/)
 ![Coverage](https://img.shields.io/badge/coverage-83%25-yellowgreen)
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/12802/badge)](https://www.bestpractices.dev/projects/12802)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/gridfm/gridfm-graphkit/badge)](https://scorecard.dev/viewer/?uri=github.com/gridfm/gridfm-graphkit)
 ![Python](https://img.shields.io/badge/python-3.10%20%E2%80%93%203.12-blue)
 ![License](https://img.shields.io/badge/license-Apache%202.0-blue)
 
@@ -30,6 +32,8 @@ Install gridfm-graphkit in editable mode
 ```bash
 pip install -e .
 ```
+
+**`torch-scatter` is a required dependency.** It cannot be bundled in `pyproject.toml` because the correct wheel depends on your PyTorch and CUDA versions, so it must be installed separately.
 
 Get PyTorch + CUDA version for torch-scatter
 ```bash
@@ -226,6 +230,66 @@ Use built-in help for full command details:
 ```bash
 gridfm_graphkit --help
 gridfm_graphkit <command> --help
+```
+
+---
+
+## Running Tests
+
+### Unit and Integration Tests
+
+Install the test dependencies first (if not already done):
+
+```bash
+pip install -e .[dev,test]
+```
+
+Run the full unit test suite:
+
+```bash
+pytest ./tests
+```
+
+Run the base set integration tests:
+
+```bash
+pytest ./integrationtests/test_base_set.py
+```
+
+### Running Base Set Tests on an LSF Cluster (GPU)
+
+To submit the base set integration tests as an interactive LSF job with GPU access, use `bsub`. Adjust the paths to match your environment:
+
+```bash
+bsub -gpu "num=1" \
+     -n 16 \
+     -R "rusage[mem=32GB] span[hosts=1]" \
+     -Is \
+     -J gridfm_base_set_tests \
+     /bin/bash -c "
+       cd /path/to/gridfm-graphkit && \
+       export PATH=/path/to/cuda/bin:\$PATH \
+               CUDA_HOME=/path/to/cuda \
+               LD_LIBRARY_PATH=/path/to/cuda/lib64:\$LD_LIBRARY_PATH && \
+       source /path/to/venv/bin/activate && \
+       pytest ./integrationtests/test_base_set.py
+     "
+```
+
+Key `bsub` options used above:
+
+| Option | Description |
+| ------ | ----------- |
+| `-gpu "num=1"` | Request 1 GPU |
+| `-n 16` | Request 16 CPU slots |
+| `-R "rusage[mem=32GB] span[hosts=1]"` | Reserve 32 GB of memory on a single host |
+| `-Is` | Run as an interactive shell session |
+| `-J <job_name>` | Assign a name to the job |
+
+**Concrete example** (adapt paths to your cluster setup):
+
+```bash
+bsub -gpu "num=1" -n 16 -R "rusage[mem=32GB] span[hosts=1]" -Is -J hpo_trial_190 /bin/bash -c "cd /dccstor/terratorch/users/rkie/gitco/gridfm-graphkit && export PATH=/opt/share/cuda-12.8.1/bin:\$PATH CUDA_HOME=/opt/share/cuda-12.8.1 LD_LIBRARY_PATH=/opt/share/cuda-12.8.1/lib64:\$LD_LIBRARY_PATH && source /u/rkie/venvs/venv_gridfm-graphkit/bin/activate && pytest ./integrationtests/test_base_set.py"
 ```
 
 ---
