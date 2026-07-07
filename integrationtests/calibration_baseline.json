@@ -1,0 +1,67 @@
+{
+  "bounds": {
+    "opf": {
+      "Avg. active res. (MW)": [
+        0.28860084593296054,
+        0.29443116605281827
+      ],
+      "Avg. reactive res. (MVar)": [
+        0.10423532545566555,
+        0.10634108960628505
+      ],
+      "Mean Qg violation": [
+        0.10233770482242104,
+        0.10440513320267196
+      ],
+      "Mean Qg violation PV buses": [
+        0.08080399207770823,
+        0.08243639595806597
+      ],
+      "Mean Qg violation REF buses": [
+        0.18470619186758996,
+        0.1884376300871372
+      ],
+      "Mean branch angle difference violation (radians)": [
+        0.0,
+        0.0
+      ],
+      "Mean branch thermal violation from (MVA)": [
+        0.0,
+        0.0
+      ],
+      "Mean branch thermal violation to (MVA)": [
+        0.0,
+        0.0
+      ],
+      "Mean optimality gap (%)": [
+        1.5628815543651582,
+        1.5944549190998076
+      ],
+      "RMSE PG generators (MW)": [
+        2.623800777863545,
+        2.676806854184021
+      ]
+    },
+    "pf": {
+      "PBE Mean": [
+        0.40989933371543885,
+        0.41818012833595275
+      ]
+    }
+  },
+  "fingerprint": {
+    "cpu": "Intel(R) Xeon(R) Platinum 8468",
+    "cuda": "13.0",
+    "cudnn": 92000,
+    "gpus": [
+      "NVIDIA H100 80GB HBM3"
+    ],
+    "gridfm_datakit_version": "1.0.5rc1",
+    "gridfm_graphkit_version": "0.8.0",
+    "hostname": "p4-r19-n2.bluevela.rmf.ibm.com",
+    "numpy_version": "2.4.6",
+    "platform": "Linux-5.14.0-611.30.1.el9_7.x86_64-x86_64-with-glibc2.34",
+    "scipy_version": "1.18.0",
+    "torch_version": "2.12.1"
+  }
+}

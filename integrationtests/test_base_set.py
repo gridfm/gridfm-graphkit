@@ -2,6 +2,10 @@ import pytest
 import subprocess
 import os
 import glob
+import json
+import platform
+import warnings
+import importlib.metadata as importlib_metadata
 import pandas as pd
 import yaml
 import shutil
@@ -10,6 +14,160 @@ import gdown
 import tempfile
 import numpy as np
 from scipy import stats
+
+
+def _cpu_model() -> str:
+    """Best-effort CPU model string (platform.processor() is empty on Linux)."""
+    try:
+        with open("/proc/cpuinfo") as f:
+            for line in f:
+                if line.startswith("model name"):
+                    return line.split(":", 1)[1].strip()
+    except OSError:
+        pass
+    return platform.processor() or platform.machine()
+
+
+def environment_fingerprint() -> dict:
+    """
+    Capture the full hardware + software stack that can shift training numerics.
+
+    Calibrated metric bounds are only valid for the environment they were
+    measured in; this fingerprint lets the assertion run detect (and warn about)
+    a mismatched baseline. See compute_bounds / read_baseline.
+    """
+    fp = {
+        "hostname": platform.node(),
+        "platform": platform.platform(),
+        "cpu": _cpu_model(),
+        "gpus": [],
+        "cuda": None,
+        "cudnn": None,
+    }
+    for pkg in ("torch", "numpy", "scipy", "gridfm_graphkit", "gridfm_datakit"):
+        try:
+            fp[f"{pkg}_version"] = importlib_metadata.version(pkg.replace("_", "-"))
+        except importlib_metadata.PackageNotFoundError:
+            fp[f"{pkg}_version"] = None
+    try:
+        import torch
+
+        fp["cuda"] = torch.version.cuda
+        if torch.backends.cudnn.is_available():
+            fp["cudnn"] = torch.backends.cudnn.version()
+        if torch.cuda.is_available():
+            fp["gpus"] = [
+                torch.cuda.get_device_name(i)
+                for i in range(torch.cuda.device_count())
+            ]
+    except Exception:
+        pass
+    return fp
+
+
+def warn_on_fingerprint_mismatch(saved: dict, current: dict) -> None:
+    """Emit a loud warning listing every field that differs (warn-and-proceed)."""
+    if not saved:
+        warnings.warn(
+            "Calibration baseline has no environment fingerprint; cannot verify "
+            "it was calibrated on this machine.",
+            stacklevel=2,
+        )
+        return
+    diffs = []
+    for key in sorted(set(saved) | set(current)):
+        if saved.get(key) != current.get(key):
+            diffs.append(f"    {key}: baseline={saved.get(key)!r}  current={current.get(key)!r}")
+    if diffs:
+        warnings.warn(
+            "Calibration baseline was measured in a DIFFERENT environment; "
+            "metric bounds may not hold here. Re-run `pytest --calibrate N` to "
+            "recalibrate on this machine. Differing fields:\n" + "\n".join(diffs),
+            stacklevel=2,
+        )
+
+
+# Machine-specific calibrated metric bounds are written/read here. The bounds
+# depend on hardware, CUDA/cuDNN and library versions, so this file is NOT
+# committed -- each machine calibrates its own baseline before asserting.
+# Override the location with the GRIDFM_CALIBRATION_BASELINE env var.
+DEFAULT_BASELINE_PATH = os.path.join(
+    os.path.dirname(__file__), "calibration_baseline.json"
+)
+
+
+def baseline_path() -> str:
+    return os.environ.get("GRIDFM_CALIBRATION_BASELINE", DEFAULT_BASELINE_PATH)
+
+
+def compute_bounds(
+    all_runs: list, metric_keys: list, confidence_interval: float, pad: float
+) -> dict:
+    """
+    Compute per-metric (lo, hi) bounds from calibration runs.
+
+    lo/hi = mean +/- max(student-t margin of error, pad * |mean|)
+
+    The ``pad`` floor keeps the interval from collapsing to zero width when the
+    std across same-machine deterministic runs is (near) zero, while metrics
+    whose mean is exactly 0 (hard physical constraints) stay exactly (0, 0).
+    """
+    n = len(all_runs)
+    alpha_half = (1 + confidence_interval) / 2
+    t_crit = stats.t.ppf(alpha_half, df=max(n - 1, 1))
+    bounds = {}
+    for key in metric_keys:
+        values = [run[key] for run in all_runs if key in run]
+        if not values:
+            continue
+        arr = np.array(values, dtype=float)
+        mean = float(np.mean(arr))
+        std = float(np.std(arr, ddof=1)) if len(arr) > 1 else 0.0
+        me = t_crit * std / np.sqrt(len(arr))  # student-t margin of error
+        half_width = max(me, pad * abs(mean))
+        bounds[key] = (mean - half_width, mean + half_width)
+    return bounds
+
+
+def write_baseline(test_key: str, bounds: dict) -> None:
+    """Merge this test's calibrated bounds into the baseline JSON on disk.
+
+    Also stamps the file with the environment fingerprint it was calibrated in.
+    """
+    path = baseline_path()
+    data = {"bounds": {}}
+    if os.path.exists(path):
+        with open(path, "r") as f:
+            data = json.load(f)
+    data.setdefault("bounds", {})
+    data["fingerprint"] = environment_fingerprint()
+    data["bounds"][test_key] = {k: list(v) for k, v in bounds.items()}
+    with open(path, "w") as f:
+        json.dump(data, f, indent=2, sort_keys=True)
+    print(f"\nCalibrated bounds for '{test_key}' written to {path}")
+
+
+def read_baseline(test_key: str) -> dict:
+    """Load this test's calibrated bounds, or fail with a calibration hint.
+
+    Warns (but proceeds) if the baseline's environment fingerprint differs from
+    the current machine's.
+    """
+    path = baseline_path()
+    assert os.path.exists(path), (
+        f"No calibration baseline at {path}. Bounds are machine-specific -- "
+        f"calibrate on THIS machine first, e.g.:\n"
+        f"    pytest integrationtests --calibrate 5 -s"
+    )
+    with open(path, "r") as f:
+        data = json.load(f)
+    bounds = data.get("bounds", {})
+    assert test_key in bounds, (
+        f"Baseline {path} has no entry for '{test_key}'. Re-run calibration on "
+        f"this machine: pytest integrationtests --calibrate 5 -s"
+    )
+    warn_on_fingerprint_mismatch(data.get("fingerprint", {}), environment_fingerprint())
+    return {k: tuple(v) for k, v in bounds[test_key].items()}
 
 
 def execute_and_live_output(cmd) -> None:
@@ -26,22 +184,13 @@ def collect_metrics_from_log(log_base: str, metric_keys: list) -> dict:
     run_dirs = glob.glob(os.path.join(latest_exp_dir, "*"))
     assert len(run_dirs) > 0, f"No run directories found in {latest_exp_dir}"
     latest_run_dir = max(run_dirs, key=os.path.getmtime)
-    metrics_file = os.path.join(
-        latest_run_dir,
-        "artifacts",
-        "test",
-        "case14_ieee_metrics.csv",
-    )
+    metrics_file = os.path.join(latest_run_dir, "artifacts", "test", "case14_ieee_metrics.csv")
     assert os.path.exists(metrics_file), f"Metrics file not found: {metrics_file}"
     df = pd.read_csv(metrics_file)
     return dict(zip(df["Metric"], df["Value"].astype(float)))
 
 
-def print_calibration_stats(
-    all_runs: list,
-    metric_keys: list,
-    confidence_interval: float = 0.995,
-) -> None:
+def print_calibration_stats(all_runs: list, metric_keys: list, confidence_interval: float = 0.995) -> None:
     """
     Print per-metric stats across calibration runs:
       - std with Bessel's correction (ddof=1)
@@ -60,9 +209,7 @@ def print_calibration_stats(
     ci_pct = f"{confidence_interval * 100:g}"
     col_w = max(len(k) for k in metric_keys) + 2
     header = f"  {'Metric':<{col_w}}  {'Mean':>10}  {'Std(ddof=1)':>12}  {f'CI {ci_pct}% lo':>10}  {f'CI {ci_pct}% hi':>10}"
-    print(
-        f"\n===== Calibration Results (n={n}, CI={confidence_interval}, t_crit={t_crit:.4f}) =====",
-    )
+    print(f"\n===== Calibration Results (n={n}, CI={confidence_interval}, t_crit={t_crit:.4f}) =====")
     print(header)
     print("  " + "-" * (len(header) - 2))
     for key in metric_keys:
@@ -76,7 +223,7 @@ def print_calibration_stats(
         me = t_crit * std / np.sqrt(len(arr))  # margin of error
         lo, hi = mean - me, mean + me
         print(
-            f"  {key:<{col_w}}  {mean:>10.4f}  {std:>12.4f}  {lo:>10.4f}  {hi:>10.4f}",
+            f"  {key:<{col_w}}  {mean:>10.4f}  {std:>12.4f}  {lo:>10.4f}  {hi:>10.4f}"
         )
     print("=" * (len(header)) + "\n")
 
@@ -101,9 +248,7 @@ def prepare_training_config():
     with open(config_path, "w") as f:
         yaml.dump(config, f, default_flow_style=False, sort_keys=False)
 
-    print(
-        f"Training config updated: epochs set to {config['training']['epochs']}, hidden_size set to {config['model']['hidden_size']}",
-    )
+    print(f"Training config updated: epochs set to {config['training']['epochs']}, hidden_size set to {config['model']['hidden_size']}")
 
     return config_path
 
@@ -128,9 +273,7 @@ def prepare_opf_training_config():
     with open(config_path, "w") as f:
         yaml.dump(config, f, default_flow_style=False, sort_keys=False)
 
-    print(
-        f"OPF training config updated: epochs set to {config['training']['epochs']}, hidden_size set to {config['model']['hidden_size']}",
-    )
+    print(f"OPF training config updated: epochs set to {config['training']['epochs']}, hidden_size set to {config['model']['hidden_size']}")
 
     return config_path
 
@@ -163,7 +306,7 @@ def cleanup_test_artifacts():
             shutil.rmtree(d, ignore_errors=True)
 
 
-def test_train_pf(cleanup_test_artifacts, calibrate_runs, ci_level):
+def test_train_pf(cleanup_test_artifacts, calibrate_runs, ci_level, calibrate_pad):
     """
     Integration test for power flow (PF): gridfm-datakit data generation and gridfm-graphkit training.
 
@@ -220,15 +363,17 @@ def test_train_pf(cleanup_test_artifacts, calibrate_runs, ci_level):
 
     if calibrate_runs > 0:
         print_calibration_stats(all_runs, pf_metric_keys, confidence_interval=ci_level)
+        bounds = compute_bounds(all_runs, pf_metric_keys, ci_level, calibrate_pad)
+        write_baseline("pf", bounds)
         return
+
+    checks = read_baseline("pf")
 
     MAX_RETRIES = 5
     last_error = None
     for attempt in range(1, MAX_RETRIES + 1):
         if attempt > 1:
-            print(
-                f"\n--- PF Retry attempt {attempt}/{MAX_RETRIES} after metric interval failure ---",
-            )
+            print(f"\n--- PF Retry attempt {attempt}/{MAX_RETRIES} after metric interval failure ---")
             execute_and_live_output(
                 f"gridfm_graphkit train "
                 f"--config {training_config_path} "
@@ -243,14 +388,14 @@ def test_train_pf(cleanup_test_artifacts, calibrate_runs, ci_level):
         else:
             metrics = all_runs[0]
 
-        pbe_mean_value = metrics["PBE Mean"]
         try:
-            assert 0.2042 <= pbe_mean_value <= 0.6397, (
-                f"PBE Mean value {pbe_mean_value} is outside 95% CI [0.2042, 0.6397]"
-            )
-            print(
-                f"PBE Mean value {pbe_mean_value} is within 95% CI [0.2042, 0.6397] (attempt {attempt})",
-            )
+            for metric_name, (lo, hi) in checks.items():
+                assert metric_name in metrics, f"Metric '{metric_name}' not found in CSV"
+                value = metrics[metric_name]
+                assert lo <= value <= hi, (
+                    f"Metric '{metric_name}' value {value} is outside calibrated bounds [{lo}, {hi}]"
+                )
+                print(f"{metric_name}: {value} is within calibrated bounds [{lo}, {hi}] (attempt {attempt})")
             last_error = None
             break
         except AssertionError as e:
@@ -273,7 +418,7 @@ def cleanup_opf_test_artifacts():
             shutil.rmtree(d, ignore_errors=True)
 
 
-def test_train_opf(cleanup_opf_test_artifacts, calibrate_runs, ci_level):
+def test_train_opf(cleanup_opf_test_artifacts, calibrate_runs, ci_level, calibrate_pad):
     """
     Integration test for OPF data download and gridfm-graphkit OPF training.
 
@@ -303,9 +448,7 @@ def test_train_opf(cleanup_opf_test_artifacts, calibrate_runs, ci_level):
     opf_data_dir = "data_out_opf"
 
     if not os.path.exists(opf_data_dir) or not os.listdir(opf_data_dir):
-        print(
-            "OPF data directory not found or empty, downloading pre-generated data...",
-        )
+        print("OPF data directory not found or empty, downloading pre-generated data...")
 
         gdrive_file_id = "1p5f5mRvmBQh8lZpIyWWbTbU42aHAIsdT"  # pragma: allowlist secret
         zip_filename = "case14_ieee.10000_scenarios_2_variants_opf.zip"
@@ -345,28 +488,17 @@ def test_train_opf(cleanup_opf_test_artifacts, calibrate_runs, ci_level):
 
     if calibrate_runs > 0:
         print_calibration_stats(all_runs, opf_metric_keys, confidence_interval=ci_level)
+        bounds = compute_bounds(all_runs, opf_metric_keys, ci_level, calibrate_pad)
+        write_baseline("opf", bounds)
         return
 
-    checks = {
-        "Avg. active res. (MW)": (0.2559, 0.2611),
-        "Avg. reactive res. (MVar)": (0.1028, 0.1048),
-        "RMSE PG generators (MW)": (2.7297, 2.7850),
-        "Mean optimality gap (%)": (1.2041, 1.2285),
-        "Mean branch thermal violation from (MVA)": (0.0, 0.0),
-        "Mean branch thermal violation to (MVA)": (0.0, 0.0),
-        "Mean branch angle difference violation (radians)": (0.0, 0.0),
-        "Mean Qg violation PV buses": (0.0782, 0.0798),
-        "Mean Qg violation REF buses": (0.1251, 0.1277),
-        "Mean Qg violation": (0.0879, 0.0897),
-    }
+    checks = read_baseline("opf")
 
     MAX_RETRIES = 5
     last_error = None
     for attempt in range(1, MAX_RETRIES + 1):
         if attempt > 1:
-            print(
-                f"\n--- OPF Retry attempt {attempt}/{MAX_RETRIES} after metric interval failure ---",
-            )
+            print(f"\n--- OPF Retry attempt {attempt}/{MAX_RETRIES} after metric interval failure ---")
             execute_and_live_output(
                 f"gridfm_graphkit train "
                 f"--config {training_config_path} "
@@ -383,16 +515,12 @@ def test_train_opf(cleanup_opf_test_artifacts, calibrate_runs, ci_level):
 
         try:
             for metric_name, (lo, hi) in checks.items():
-                assert metric_name in metrics, (
-                    f"Metric '{metric_name}' not found in CSV"
-                )
+                assert metric_name in metrics, f"Metric '{metric_name}' not found in CSV"
                 value = metrics[metric_name]
                 assert lo <= value <= hi, (
-                    f"Metric '{metric_name}' value {value} is outside 99.5% CI [{lo}, {hi}]"
+                    f"Metric '{metric_name}' value {value} is outside calibrated bounds [{lo}, {hi}]"
                 )
-                print(
-                    f"{metric_name}: {value} is within 99.5% CI [{lo}, {hi}] (attempt {attempt})",
-                )
+                print(f"{metric_name}: {value} is within calibrated bounds [{lo}, {hi}] (attempt {attempt})")
             last_error = None
             break
         except AssertionError as e:

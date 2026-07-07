@@ -65,8 +65,26 @@ def set_env():
         0
     ]  # Sets the MasterNode to thefirst node on the list of hosts
     os.environ["MASTER_PORT"] = "5" + LSB_JOBID[-5:-1]
+    current_host = os.environ.get("HOSTNAME", "")
+    host_list_norm = [h.strip().lower() for h in HOST_LIST]
+    current_norm = current_host.strip().lower()
+
+    # LSF host lists can be short names while HOSTNAME may be FQDN.
+    if current_norm in host_list_norm:
+        node_rank = host_list_norm.index(current_norm)
+    else:
+        current_short = current_norm.split(".")[0]
+        host_list_short = [h.split(".")[0] for h in host_list_norm]
+        if current_short in host_list_short:
+            node_rank = host_list_short.index(current_short)
+        else:
+            raise RuntimeError(
+                "Unable to compute NODE_RANK from LSF metadata: "
+                f"HOSTNAME='{current_host}', HOST_LIST={HOST_LIST}"
+            )
+
     os.environ["NODE_RANK"] = str(
-        HOST_LIST.index(os.environ["HOSTNAME"]),
+        node_rank,
     )  # Uses the list index for node rank, master node rank must be 0
     os.environ["NCCL_SOCKET_IFNAME"] = (
         "ib,bond"  # avoids using docker of loopback interface
