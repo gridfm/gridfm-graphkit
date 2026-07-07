@@ -16,6 +16,14 @@ def pytest_addoption(parser):
         help="Confidence interval level for calibration stats (default 0.995). "
         "Example: pytest --calibrate 5 -s --ci 0.995",
     )
+    parser.addoption(
+        "--pad",
+        type=float,
+        default=0.01,
+        help="Relative padding added to each calibrated bound as a floor on the "
+        "margin of error (default 0.01 = 1%%). Absorbs residual same-machine "
+        "jitter; metrics whose mean is 0 stay exactly (0, 0).",
+    )
 
 
 @pytest.fixture
@@ -28,3 +36,9 @@ def calibrate_runs(request):
 def ci_level(request):
     """Confidence interval level requested via --ci (default 0.995)."""
     return request.config.getoption("--ci")
+
+
+@pytest.fixture
+def calibrate_pad(request):
+    """Relative padding for calibrated bounds requested via --pad (default 0.01)."""
+    return request.config.getoption("--pad")
