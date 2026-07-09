@@ -17,7 +17,11 @@ from scipy import stats
 
 
 def _cpu_model() -> str:
-    """Best-effort CPU model string (platform.processor() is empty on Linux)."""
+    """Best-effort CPU model string.
+
+    Linux: /proc/cpuinfo (platform.processor() is usually empty).
+    macOS: sysctl machdep.cpu.brand_string (platform.processor() is just "arm").
+    """
     try:
         with open("/proc/cpuinfo") as f:
             for line in f:
@@ -25,6 +29,14 @@ def _cpu_model() -> str:
                     return line.split(":", 1)[1].strip()
     except OSError:
         pass
+    if platform.system() == "Darwin":
+        try:
+            return subprocess.check_output(
+                ["sysctl", "-n", "machdep.cpu.brand_string"],
+                text=True,
+            ).strip()
+        except (OSError, subprocess.CalledProcessError):
+            pass
     return platform.processor() or platform.machine()
 
 
