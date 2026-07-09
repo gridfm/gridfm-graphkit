@@ -81,8 +81,8 @@ def warn_on_fingerprint_mismatch(saved: dict, current: dict) -> None:
     if diffs:
         warnings.warn(
             "Calibration baseline was measured in a DIFFERENT environment; "
-            "metric bounds may not hold here. Re-run `pytest --calibrate N` to "
-            "recalibrate on this machine. Differing fields:\n" + "\n".join(diffs),
+            "metric bounds may not hold here. Re-run `pytest --calibrate N` on the unchanged code to "
+            "recalibrate on this machine before making changes. Differing fields:\n" + "\n".join(diffs),
             stacklevel=2,
         )
 
