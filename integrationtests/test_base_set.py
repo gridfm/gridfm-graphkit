@@ -168,7 +168,7 @@ def read_baseline(test_key: str) -> dict:
     path = baseline_path()
     assert os.path.exists(path), (
         f"No calibration baseline at {path}. Bounds are machine-specific -- "
-        f"calibrate on THIS machine first, e.g.:\n"
+        f"calibrate on THIS machine first **before** making changes to the code, e.g.:\n"
         f"    pytest integrationtests --calibrate 5 -s"
     )
     with open(path, "r") as f:
