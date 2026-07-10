@@ -62,7 +62,9 @@ def set_env():
     os.environ["MASTER_ADDR"] = HOST_LIST[
         0
     ]  # Sets the MasterNode to thefirst node on the list of hosts
-    os.environ["MASTER_PORT"] = "5" + LSB_JOBID[-5:-1]
+    # Unique port per job ID (10000–59999). Old "5"+LSB_JOBID[-5:-1] collided for
+    # adjacent IDs (e.g. 795186/795187 → 59518) when co-scheduled on one node.
+    os.environ["MASTER_PORT"] = str(10000 + int(LSB_JOBID) % 50000)
     os.environ["NODE_RANK"] = str(
         HOST_LIST.index(os.environ["HOSTNAME"]),
     )  # Uses the list index for node rank, master node rank must be 0
