@@ -5,16 +5,19 @@ def pytest_addoption(parser):
     parser.addoption(
         "--calibrate",
         type=int,
+        nargs="?",
+        const=5,
         default=0,
-        help="Run training N times to collect metric mean/std for range calibration. "
-        "Skips metric range assertions. Example: pytest --calibrate 5",
+        help="Calibrate metric bounds instead of asserting. Omit for normal assert mode "
+        "(default 0). --calibrate alone runs 5 calibration passes; --calibrate N runs N. "
+        "Example: pytest integrationtests --calibrate -s",
     )
     parser.addoption(
         "--ci",
         type=float,
         default=0.995,
         help="Confidence interval level for calibration stats (default 0.995). "
-        "Example: pytest --calibrate 5 -s --ci 0.995",
+        "Example: pytest integrationtests --calibrate -s --ci 0.995",
     )
     parser.addoption(
         "--pad",
@@ -28,17 +31,17 @@ def pytest_addoption(parser):
 
 @pytest.fixture
 def calibrate_runs(request):
-    """Number of calibration runs requested via --calibrate (0 = normal test mode)."""
+    """Number of calibration runs via --calibrate (Omitted = assert mode; flag alone = 5)."""
     return request.config.getoption("--calibrate")
 
 
 @pytest.fixture
 def ci_level(request):
-    """Confidence interval level requested via --ci (default 0.995)."""
+    """Student-t confidence level for calibrated bounds via --ci (0.995 if omitted)."""
     return request.config.getoption("--ci")
 
 
 @pytest.fixture
 def calibrate_pad(request):
-    """Relative padding for calibrated bounds requested via --pad (default 0.01)."""
+    """Relative half-width floor for calibrated bounds via --pad (0.01 if omitted)."""
     return request.config.getoption("--pad")

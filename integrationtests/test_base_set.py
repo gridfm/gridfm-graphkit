@@ -93,7 +93,8 @@ def warn_on_fingerprint_mismatch(saved: dict, current: dict) -> None:
     if diffs:
         warnings.warn(
             "Calibration baseline was measured in a DIFFERENT environment; "
-            "metric bounds may not hold here. Re-run `pytest --calibrate N` on the unchanged code to "
+            "metric bounds may not hold here. Re-run `pytest integrationtests --calibrate` "
+            "(or `--calibrate N`) on the unchanged code to "
             "recalibrate on this machine before making changes. Differing fields:\n" + "\n".join(diffs),
             stacklevel=2,
         )
@@ -178,14 +179,14 @@ def read_baseline(test_key: str) -> dict:
     assert os.path.exists(path), (
         f"No calibration baseline at {path}. Bounds are machine-specific -- "
         f"calibrate on THIS machine first **before** making changes to the code, e.g.:\n"
-        f"    pytest integrationtests --calibrate 5 -s"
+        f"    pytest integrationtests --calibrate -s"
     )
     with open(path, "r") as f:
         data = json.load(f)
     bounds = data.get("bounds", {})
     assert test_key in bounds, (
         f"Baseline {path} has no entry for '{test_key}'. Re-run calibration on "
-        f"this machine **before** making changes to the code: pytest integrationtests --calibrate 5 -s"
+        f"this machine **before** making changes to the code: pytest integrationtests --calibrate -s"
     )
     # Prefer this test's own fingerprint; fall back to the legacy shared one so
     # baselines written before per-test fingerprints still verify.
@@ -344,8 +345,9 @@ def test_train_pf(cleanup_test_artifacts, calibrate_runs, ci_level, calibrate_pa
     2. Train a PF model using gridfm-graphkit
     3. Validate the PBE Mean metric
 
-    Pass --calibrate N to pytest (e.g. pytest --calibrate 5) to run N training passes
-    and print metric mean/std without asserting range bounds.
+    Pass --calibrate to pytest (defaults to 5 runs; use --calibrate N for another
+    count) to run multiple training passes and print metric stats without
+    asserting range bounds.
     """
 
     n_runs = max(calibrate_runs, 1)
@@ -456,8 +458,9 @@ def test_train_opf(cleanup_opf_test_artifacts, calibrate_runs, ci_level, calibra
     2. Train a model using gridfm-graphkit with the OPF config
     3. Validate OPF-specific metrics
 
-    Pass --calibrate N to pytest (e.g. pytest --calibrate 5) to run N training passes
-    and print metric mean/std without asserting range bounds.
+    Pass --calibrate to pytest (defaults to 5 runs; use --calibrate N for another
+    count) to run multiple training passes and print metric stats without
+    asserting range bounds.
     """
 
     n_runs = max(calibrate_runs, 1)
