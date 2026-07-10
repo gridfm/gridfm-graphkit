@@ -176,7 +176,7 @@ def read_baseline(test_key: str) -> dict:
     bounds = data.get("bounds", {})
     assert test_key in bounds, (
         f"Baseline {path} has no entry for '{test_key}'. Re-run calibration on "
-        f"this machine: pytest integrationtests --calibrate 5 -s"
+        f"this machine **before** making changes to the code: pytest integrationtests --calibrate 5 -s"
     )
     warn_on_fingerprint_mismatch(data.get("fingerprint", {}), environment_fingerprint())
     return {k: tuple(v) for k, v in bounds[test_key].items()}
