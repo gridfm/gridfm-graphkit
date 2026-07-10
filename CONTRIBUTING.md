@@ -48,10 +48,10 @@ changes and run the tests to detect any drift they introduce:
 1. On an unchanged checkout, calibrate a baseline on this machine:
 
    ```bash
-   pytest integrationtests --calibrate 5 -s
+   pytest integrationtests --calibrate -s
    ```
 
-   This runs the training a few times and writes per-metric bounds (plus an
+   This runs training 5 times and writes per-metric bounds (plus a per-test
    environment fingerprint) to `integrationtests/calibration_baseline.json`.
 
 2. Make your code changes.
@@ -71,19 +71,20 @@ calibrate on the unchanged code first.
 
 Passed to `pytest`:
 
-| Flag | Default | Meaning |
-|------|---------|---------|
-| `--calibrate N` | `0` | Run training `N` times to record metric bounds instead of asserting. `0` = normal assert mode. |
-| `--ci C` | `0.995` | Confidence level for the Student-t interval used to derive the bounds. |
-| `--pad P` | `0.01` | Relative floor on each bound's half-width (`P * |mean|`), absorbing residual same-machine jitter. Metrics whose mean is exactly `0` stay exactly `(0, 0)`. |
+| Flag | When omitted | Meaning |
+|------|--------------|---------|
+| `--calibrate [N]` | assert mode (train once, check bounds) | `--calibrate` alone → 5 calibration runs; `--calibrate N` → `N` runs. Both write bounds and skip assertions. |
+| `--ci C` | `0.995` | Confidence level for the Student-t interval (calibration mode only). |
+| `--pad P` | `0.01` | Relative floor on each bound's half-width (`P * |mean|`) during calibration. Absorbs residual same-machine jitter; metrics whose mean is exactly `0` stay exactly `(0, 0)`. |
 
 ### If the environment fingerprint doesn't match
 
 Calibrated bounds depend on your hardware (CPU/GPU), CUDA/cuDNN, and library
-versions (notably the PyTorch version), so the baseline is stamped with an
-environment fingerprint. When you run the assertion tests, a fingerprint that
-differs from the one recorded in your baseline emits a **loud warning but does
-not fail the run** — it lists every differing field.
+versions (notably the PyTorch version), so each test's bounds are stamped with
+their own environment fingerprint under ``fingerprints`` in the baseline. When
+you run the assertion tests, a fingerprint that differs from the one recorded
+for that test emits a **loud warning but does not fail the run** — it lists
+every differing field.
 
 A mismatch means the recorded bounds may not hold in your current environment
 (for example, after a PyTorch upgrade the metrics can shift). When you see this
@@ -92,7 +93,7 @@ trusting the assertions**:
 
 ```bash
 export MLFLOW_ALLOW_FILE_STORE=true
-pytest integrationtests --calibrate 5 -s
+pytest integrationtests --calibrate -s
 ```
 
 
