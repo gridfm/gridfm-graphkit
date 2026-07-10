@@ -2,8 +2,13 @@ from gridfm_graphkit.datasets.hetero_powergrid_datamodule import LitGridHeteroDa
 from gridfm_graphkit.io.param_handler import NestedNamespace
 from gridfm_graphkit.io.registries import DATASET_WRAPPER_REGISTRY
 from gridfm_graphkit.training.callbacks import (
+    BEST_CHECKPOINT_MONITOR,
+    BEST_MODEL_FILENAME,
     SaveBestModelStateDict,
     EpochTimerCallback,
+    adapt_state_dict_for_model,
+    best_model_artifact_path,
+    canonicalize_state_dict_keys,
 )
 import importlib
 import numpy as np
@@ -25,15 +30,28 @@ from lightning.pytorch.strategies import DDPStrategy
 import lightning as L
 
 
-def _normalize_loaded_state_dict_keys(state_dict: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:
-    """Map legacy torch.compile checkpoint keys to the canonical model namespace."""
-    has_compiled_prefix = any(key.startswith("model._orig_mod.") for key in state_dict)
-    if not has_compiled_prefix:
-        return state_dict
-    return {
-        key.replace("model._orig_mod.", "model."): value
-        for key, value in state_dict.items()
-    }
+def _resolve_best_model_path(logger) -> str | None:
+    """Return the on-disk best checkpoint path when it exists."""
+    model_path = best_model_artifact_path(logger, BEST_MODEL_FILENAME)
+    if os.path.isfile(model_path):
+        return model_path
+    return None
+
+
+def _load_best_model_for_test(model, logger, trainer) -> None:
+    """Load the best validation checkpoint before test when training has finished."""
+    path = _resolve_best_model_path(logger) if trainer.is_global_zero else None
+
+    if dist.is_available() and dist.is_initialized() and trainer.world_size > 1:
+        path_list = [path]
+        dist.broadcast_object_list(path_list, src=0)
+        path = path_list[0]
+
+    if trainer.is_global_zero:
+        print(f"[checkpoint] Loading best model from {path} for test")
+    state_dict = torch.load(path, map_location="cpu")
+    state_dict = adapt_state_dict_for_model(state_dict, model)
+    model.load_state_dict(state_dict)
 
 
 def _load_plugins(plugins: list[str]) -> None:
@@ -129,7 +147,7 @@ def benchmark_cli(args):
 def get_training_callbacks(args):
     """Build the standard callback stack used for train/finetune runs."""
     early_stop_callback = EarlyStopping(
-        monitor="Validation loss",
+        monitor=BEST_CHECKPOINT_MONITOR,
         min_delta=args.callbacks.tol,
         patience=args.callbacks.patience,
         verbose=False,
@@ -137,13 +155,13 @@ def get_training_callbacks(args):
     )
 
     save_best_model_callback = SaveBestModelStateDict(
-        monitor="Validation loss",
+        monitor=BEST_CHECKPOINT_MONITOR,
         mode="min",
-        filename="best_model_state_dict.pt",
+        filename=BEST_MODEL_FILENAME,
     )
 
     checkpoint_callback = ModelCheckpoint(
-        monitor="Validation loss",  # or whichever metric you track
+        monitor=BEST_CHECKPOINT_MONITOR,
         mode="min",
         save_last=True,
         save_top_k=0,
@@ -204,7 +222,7 @@ def main_cli(args):
     if args.command != "train":
         print(f"Loading model weights from {args.model_path}")
         state_dict = torch.load(args.model_path, map_location="cpu")
-        state_dict = _normalize_loaded_state_dict_keys(state_dict)
+        state_dict = adapt_state_dict_for_model(state_dict, model)
         model.load_state_dict(state_dict)
 
     precision = "bf16-true" if getattr(args, "bfloat16", False) else None
@@ -251,7 +269,7 @@ def main_cli(args):
         accelerator=config_args.training.accelerator,
         devices=config_args.training.devices,
         strategy=_strategy,
-        log_every_n_steps=1000,
+        log_every_n_steps=500,
         default_root_dir=args.log_dir,
         max_epochs=config_args.training.epochs,
         callbacks=training_callbacks,
@@ -296,6 +314,9 @@ def main_cli(args):
                 )
 
     if args.command != "predict":
+        if args.command in ("train", "finetune"):
+            _load_best_model_for_test(model, logger, trainer)
+
         # Reuse the fit trainer when coming from train/finetune so that
         # torch.compile kernel caches are already warm (avoids a second
         # AUTOTUNE pass on the first test batch).
