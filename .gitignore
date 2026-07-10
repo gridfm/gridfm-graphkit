@@ -29,3 +29,6 @@ to_del/
 b12b6627956a448588674ce7cbc08cb4/
 build/
 dist/
+
+# Machine-specific calibration baseline (each machine calibrates its own; see CONTRIBUTING.md)
+integrationtests/calibration_baseline.json
