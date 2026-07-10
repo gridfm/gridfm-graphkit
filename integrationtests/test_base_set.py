@@ -144,16 +144,25 @@ def compute_bounds(
 def write_baseline(test_key: str, bounds: dict) -> None:
     """Merge this test's calibrated bounds into the baseline JSON on disk.
 
-    Also stamps the file with the environment fingerprint it was calibrated in.
+    Each test's bounds are stamped with the environment fingerprint they were
+    calibrated in, stored *per test* under ``fingerprints[test_key]``. This is
+    deliberately not a single shared fingerprint: calibrating only PF (or only
+    OPF) must not re-stamp the other test's bounds as if they were measured in
+    this environment. Only the current ``test_key`` is touched; other tests'
+    bounds and fingerprints are left exactly as they were.
     """
     path = baseline_path()
-    data = {"bounds": {}}
+    data = {}
     if os.path.exists(path):
         with open(path, "r") as f:
             data = json.load(f)
     data.setdefault("bounds", {})
-    data["fingerprint"] = environment_fingerprint()
+    data.setdefault("fingerprints", {})
+    # Drop the legacy single shared fingerprint if present; it is superseded by
+    # the per-test map and keeping it would misattribute other tests' bounds.
+    data.pop("fingerprint", None)
     data["bounds"][test_key] = {k: list(v) for k, v in bounds.items()}
+    data["fingerprints"][test_key] = environment_fingerprint()
     with open(path, "w") as f:
         json.dump(data, f, indent=2, sort_keys=True)
     print(f"\nCalibrated bounds for '{test_key}' written to {path}")
@@ -178,7 +187,10 @@ def read_baseline(test_key: str) -> dict:
         f"Baseline {path} has no entry for '{test_key}'. Re-run calibration on "
         f"this machine **before** making changes to the code: pytest integrationtests --calibrate 5 -s"
     )
-    warn_on_fingerprint_mismatch(data.get("fingerprint", {}), environment_fingerprint())
+    # Prefer this test's own fingerprint; fall back to the legacy shared one so
+    # baselines written before per-test fingerprints still verify.
+    saved_fp = data.get("fingerprints", {}).get(test_key, data.get("fingerprint", {}))
+    warn_on_fingerprint_mismatch(saved_fp, environment_fingerprint())
     return {k: tuple(v) for k, v in bounds[test_key].items()}
 
 
