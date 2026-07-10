@@ -3,6 +3,7 @@
 Thank you for your interest in contributing to GridFM. This document explains our contribution process and procedures:
 
 * [How to Contribute a Bug Fix or Change](#How-to-Contribute-a-Bug-Fix-or-Change)
+* [Running the Integration Tests](#Running-the-Integration-Tests)
 * [Development Workflow](#Development-Workflow)
 * [Coding Style](#Coding-Style)
 
@@ -29,8 +30,16 @@ Project committers will review the contribution in a timely manner, and advise o
 
 The integration tests in `integrationtests/` assert that training metrics fall
 within calibrated bounds. These bounds are **machine-specific** (they depend on
-your CPU/GPU, CUDA, and library versions), so they are not committed for you —
-you must calibrate them on your own machine first.
+your CPU/GPU, CUDA, and library versions), so the baseline
+(`integrationtests/calibration_baseline.json`) is **not committed** — it is
+git-ignored and you calibrate your own on your machine first.
+
+**Prerequisite.** The tests train through MLflow; if you don't have an MLflow
+tracking server, opt into the local file store first:
+
+```bash
+export MLFLOW_ALLOW_FILE_STORE=true
+```
 
 **Calibrate before you change any code.** Run the calibration on a clean
 checkout so the recorded bounds reflect the current behaviour, then make your
@@ -57,6 +66,34 @@ changes and run the tests to detect any drift they introduce:
 If you calibrate *after* changing the code, the baseline will simply encode your
 changed behaviour and the tests can no longer catch regressions — always
 calibrate on the unchanged code first.
+
+### Calibration options
+
+Passed to `pytest`:
+
+| Flag | Default | Meaning |
+|------|---------|---------|
+| `--calibrate N` | `0` | Run training `N` times to record metric bounds instead of asserting. `0` = normal assert mode. |
+| `--ci C` | `0.995` | Confidence level for the Student-t interval used to derive the bounds. |
+| `--pad P` | `0.01` | Relative floor on each bound's half-width (`P * |mean|`), absorbing residual same-machine jitter. Metrics whose mean is exactly `0` stay exactly `(0, 0)`. |
+
+### If the environment fingerprint doesn't match
+
+Calibrated bounds depend on your hardware (CPU/GPU), CUDA/cuDNN, and library
+versions (notably the PyTorch version), so the baseline is stamped with an
+environment fingerprint. When you run the assertion tests, a fingerprint that
+differs from the one recorded in your baseline emits a **loud warning but does
+not fail the run** — it lists every differing field.
+
+A mismatch means the recorded bounds may not hold in your current environment
+(for example, after a PyTorch upgrade the metrics can shift). When you see this
+warning, **recalibrate on the unchanged code in your current environment before
+trusting the assertions**:
+
+```bash
+export MLFLOW_ALLOW_FILE_STORE=true
+pytest integrationtests --calibrate 5 -s
+```
 
 
 [PEP 8]: https://peps.python.org/pep-0008/
