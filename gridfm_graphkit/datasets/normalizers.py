@@ -138,9 +138,11 @@ class HeteroDataMVANormalizer(Normalizer):
         Returns:
             Dictionary of computed parameters.
         """
-        bus_data = pd.read_parquet(os.path.join(data_path, "bus_data.parquet"))
-        gen_data = pd.read_parquet(os.path.join(data_path, "gen_data.parquet"))
-
+        bus_data = pd.read_parquet(os.path.join(data_path, "bus_data.parquet"), columns=["scenario", "Pd", "Qd", "Qg", "vn_kv"])
+        gen_data = pd.read_parquet(os.path.join(data_path, "gen_data.parquet"), columns=["scenario", "p_mw"])
+        # print total memory usage of the two dataframes
+        print(f"Total memory usage of bus_data: {bus_data.memory_usage().sum() / 1024 / 1024} MB")
+        print(f"Total memory usage of gen_data: {gen_data.memory_usage().sum() / 1024 / 1024} MB")
         assert (
             bus_data.scenario.min() == 0
             and bus_data.scenario.max() == len(bus_data.scenario.unique()) - 1
@@ -228,8 +230,17 @@ class HeteroDataMVANormalizer(Normalizer):
         data.edge_attr_dict[("bus", "connects", "bus")][:, ANG_MIN] *= torch.pi / 180.0
         data.edge_attr_dict[("bus", "connects", "bus")][:, ANG_MAX] *= torch.pi / 180.0
         data.edge_attr_dict[("bus", "connects", "bus")][:, RATE_A] /= self.baseMVA
-        data.baseMVA = torch.tensor(self.baseMVA, dtype=data.x_dict["bus"].dtype) # # needs to be float32 for MPS
-        data.is_normalized = torch.tensor(True, dtype=torch.bool) # needs to be bool for MPS
+        device = data.x_dict["bus"].device
+        data.baseMVA = torch.tensor(
+            self.baseMVA,
+            dtype=data.x_dict["bus"].dtype,
+            device=device,
+        )  # needs to be float32 for MPS
+        data.is_normalized = torch.tensor(
+            True,
+            dtype=torch.bool,
+            device=device,
+        )  # needs to be bool for MPS
 
     def inverse_transform(self, data: HeteroData):
         if self.baseMVA is None or self.baseMVA == 0:

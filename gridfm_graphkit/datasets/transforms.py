@@ -26,10 +26,11 @@ class RemoveInactiveGenerators(BaseTransform):
         active_mask = data["gen"].x[:, G_ON] == 1
 
         num_gen = data["gen"].num_nodes
+        device = active_mask.device
 
         # Mapping old generator IDs → new compact IDs
-        old_to_new = torch.full((num_gen,), -1, dtype=torch.long)
-        old_to_new[active_mask] = torch.arange(active_mask.sum())
+        old_to_new = torch.full((num_gen,), -1, dtype=torch.long, device=device)
+        old_to_new[active_mask] = torch.arange(active_mask.sum(), device=device)
 
         # Filter generator node features
         data["gen"].x = data["gen"].x[active_mask]
