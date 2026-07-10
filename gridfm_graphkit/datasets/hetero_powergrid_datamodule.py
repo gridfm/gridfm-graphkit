@@ -285,6 +285,13 @@ class LitGridHeteroDataModule(L.LightningDataModule):
             if use_saved:
                 print(f"Restoring normalizer for {network} from saved stats")
                 data_normalizer.fit_from_dict(saved_stats[network])
+            elif (preset := getattr(self.args.data, "normalizer_preset", None)) and data_normalizer.fit_strategy == "fit_on_train":
+                print(f"Restoring normalizer for {network} from YAML preset")
+                data_normalizer.fit_from_dict({
+                    "baseMVA_orig": torch.tensor(self.args.data.baseMVA, dtype=torch.float),
+                    "baseMVA": torch.tensor(preset.baseMVA, dtype=torch.float),
+                    "vn_kv_max": torch.tensor(preset.vn_kv_max, dtype=torch.float),
+                })
             else:
                 self._fit_normalizer(
                     data_normalizer,
