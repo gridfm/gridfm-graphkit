@@ -25,6 +25,39 @@ GridFM is licensed under the [Apache 2.0 license]. Contributions should abide by
 
 Project committers will review the contribution in a timely manner, and advise of any changes needed to merge the request.
 
+## Running the Integration Tests
+
+The integration tests in `integrationtests/` assert that training metrics fall
+within calibrated bounds. These bounds are **machine-specific** (they depend on
+your CPU/GPU, CUDA, and library versions), so they are not committed for you —
+you must calibrate them on your own machine first.
+
+**Calibrate before you change any code.** Run the calibration on a clean
+checkout so the recorded bounds reflect the current behaviour, then make your
+changes and run the tests to detect any drift they introduce:
+
+1. On an unchanged checkout, calibrate a baseline on this machine:
+
+   ```bash
+   pytest integrationtests --calibrate 5 -s
+   ```
+
+   This runs the training a few times and writes per-metric bounds (plus an
+   environment fingerprint) to `integrationtests/calibration_baseline.json`.
+
+2. Make your code changes.
+
+3. Run the integration tests (no `--calibrate`) to assert against the baseline
+   you calibrated in step 1:
+
+   ```bash
+   pytest integrationtests -s
+   ```
+
+If you calibrate *after* changing the code, the baseline will simply encode your
+changed behaviour and the tests can no longer catch regressions — always
+calibrate on the unchanged code first.
+
 
 [PEP 8]: https://peps.python.org/pep-0008/
 [Apache 2.0 license]: LICENSE
