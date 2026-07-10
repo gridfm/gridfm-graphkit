@@ -202,40 +202,45 @@ def collect_metrics_from_log(log_base: str, metric_keys: list) -> dict:
     return dict(zip(df["Metric"], df["Value"].astype(float)))
 
 
-def print_calibration_stats(all_runs: list, metric_keys: list, confidence_interval: float = 0.995) -> None:
+def print_calibration_stats(
+    all_runs: list, metric_keys: list, bounds: dict, confidence_interval: float = 0.995
+) -> None:
     """
     Print per-metric stats across calibration runs:
-      - std with Bessel's correction (ddof=1)
-      - two-sided CI using Student-t distribution
+      - mean and std with Bessel's correction (ddof=1)
+      - the calibrated (lo, hi) bounds as computed by ``compute_bounds``
+
+    The lo/hi columns are the SAME bounds that get written to the baseline and
+    asserted against -- they are not recomputed here. This keeps the printed
+    interval coherent with the enforced one (in particular it reflects the
+    ``--pad`` floor, so deterministic near-zero-std runs still show a non-zero
+    width instead of a collapsed ``lo == hi == mean``).
 
     Args:
         all_runs: list of per-run metric dicts
         metric_keys: list of metric names to report
-        confidence_interval: desired confidence level (default 0.995).
-            Example with higher confidence:
-                print_calibration_stats(all_runs, metric_keys, confidence_interval=0.995)
+        bounds: {metric: (lo, hi)} as returned by ``compute_bounds``
+        confidence_interval: confidence level used to compute ``bounds`` (for
+            display in the header only).
     """
     n = len(all_runs)
-    alpha_half = (1 + confidence_interval) / 2
-    t_crit = stats.t.ppf(alpha_half, df=max(n - 1, 1))
     ci_pct = f"{confidence_interval * 100:g}"
     col_w = max(len(k) for k in metric_keys) + 2
-    header = f"  {'Metric':<{col_w}}  {'Mean':>10}  {'Std(ddof=1)':>12}  {f'CI {ci_pct}% lo':>10}  {f'CI {ci_pct}% hi':>10}"
-    print(f"\n===== Calibration Results (n={n}, CI={confidence_interval}, t_crit={t_crit:.4f}) =====")
+    header = f"  {'Metric':<{col_w}}  {'Mean':>10}  {'Std(ddof=1)':>12}  {f'Bound {ci_pct}% lo':>12}  {f'Bound {ci_pct}% hi':>12}"
+    print(f"\n===== Calibration Results (n={n}, CI={confidence_interval}) =====")
     print(header)
     print("  " + "-" * (len(header) - 2))
     for key in metric_keys:
         values = [run[key] for run in all_runs if key in run]
-        if not values:
+        if not values or key not in bounds:
             print(f"  {key:<{col_w}}  {'no data':>10}")
             continue
         arr = np.array(values, dtype=float)
         mean = float(np.mean(arr))
         std = float(np.std(arr, ddof=1)) if len(arr) > 1 else 0.0
-        me = t_crit * std / np.sqrt(len(arr))  # margin of error
-        lo, hi = mean - me, mean + me
+        lo, hi = bounds[key]
         print(
-            f"  {key:<{col_w}}  {mean:>10.4f}  {std:>12.4f}  {lo:>10.4f}  {hi:>10.4f}"
+            f"  {key:<{col_w}}  {mean:>10.4f}  {std:>12.4f}  {lo:>12.4f}  {hi:>12.4f}"
         )
     print("=" * (len(header)) + "\n")
 
@@ -374,8 +379,8 @@ def test_train_pf(cleanup_test_artifacts, calibrate_runs, ci_level, calibrate_pa
         all_runs.append(metrics)
 
     if calibrate_runs > 0:
-        print_calibration_stats(all_runs, pf_metric_keys, confidence_interval=ci_level)
         bounds = compute_bounds(all_runs, pf_metric_keys, ci_level, calibrate_pad)
+        print_calibration_stats(all_runs, pf_metric_keys, bounds, confidence_interval=ci_level)
         write_baseline("pf", bounds)
         return
 
@@ -499,8 +504,8 @@ def test_train_opf(cleanup_opf_test_artifacts, calibrate_runs, ci_level, calibra
         all_runs.append(metrics)
 
     if calibrate_runs > 0:
-        print_calibration_stats(all_runs, opf_metric_keys, confidence_interval=ci_level)
         bounds = compute_bounds(all_runs, opf_metric_keys, ci_level, calibrate_pad)
+        print_calibration_stats(all_runs, opf_metric_keys, bounds, confidence_interval=ci_level)
         write_baseline("opf", bounds)
         return
 
