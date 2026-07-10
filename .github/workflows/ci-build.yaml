@@ -48,7 +48,12 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip wheel
-          pip install -e ".[test]"
+          # Pin torch to the newest release with prebuilt torch-scatter wheels on
+          # the PyG index (currently 2.12.x). Newer torch (e.g. 2.13) has no
+          # torch-scatter wheel, so pip would fall back to building from sdist,
+          # which fails under build isolation (import torch) with no compiler in
+          # the slim image.
+          pip install -e ".[test]" "torch==2.12.*"
           TORCH_VERSION=$(python -c "import torch; print(torch.__version__.split('+')[0])")
           pip install torch-scatter -f "https://data.pyg.org/whl/torch-${TORCH_VERSION}+cpu.html"
 
