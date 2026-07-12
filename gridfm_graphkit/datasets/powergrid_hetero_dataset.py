@@ -4,11 +4,15 @@ import os.path as osp
 import os
 import torch
 from torch_geometric.data import Dataset
-import pandas as pd
-from tqdm import tqdm
 from typing import Optional, Callable
 from torch_geometric.data import HeteroData
-from gridfm_graphkit.datasets.globals import VA_H, PG_H
+from gridfm_graphkit.datasets.hetero_preprocess import (
+    build_load_scenarios,
+    merge_agg_gen_into_bus,
+    process_scenarios,
+    read_raw_tables,
+    assert_scenario_index,
+)
 
 
 class HeteroGridDatasetDisk(Dataset):
@@ -63,171 +67,28 @@ class HeteroGridDatasetDisk(Dataset):
 
     def process(self):
         print("LOADING DATA")
-        bus_data = pd.read_parquet(osp.join(self.raw_dir, "bus_data.parquet"))
-        gen_data = pd.read_parquet(osp.join(self.raw_dir, "gen_data.parquet"))
-        branch_data = pd.read_parquet(osp.join(self.raw_dir, "branch_data.parquet"))
+        bus_data, gen_data, branch_data = read_raw_tables(self.raw_dir)
+        assert_scenario_index(bus_data)
 
-        assert (
-            bus_data["scenario"].min() == 0
-            and bus_data["scenario"].max() == len(bus_data["scenario"].unique()) - 1
-        )
-        if "load_scenario_idx" in bus_data.columns:
-            load_scenarios = torch.tensor(
-                bus_data.groupby("scenario", sort=True)["load_scenario_idx"].first().values,
-            )
+        load_scenarios = build_load_scenarios(bus_data)
+        if load_scenarios is not None:
             torch.save(load_scenarios, osp.join(self.processed_dir, "load_scenarios.pt"))
 
-        agg_gen = (
-            gen_data.groupby(["scenario", "bus"])[["min_q_mvar", "max_q_mvar"]]
-            .sum()
-            .reset_index()
-        )
-        bus_data = bus_data.merge(agg_gen, on=["scenario", "bus"], how="left").fillna(0)
+        bus_data = merge_agg_gen_into_bus(bus_data, gen_data)
 
         done_path = osp.join(self.processed_dir, self.processed_done_file)
         if osp.exists(done_path):
             print("Processed files already exist. Skipping processing.")
             return
 
-        bus_features = [
-            "Pd",
-            "Qd",
-            "Qg",
-            "Vm",
-            "Va",
-            "PQ",
-            "PV",
-            "REF",
-            "min_vm_pu",
-            "max_vm_pu",
-            "min_q_mvar",
-            "max_q_mvar",
-            "GS",
-            "BS",
-            "vn_kv",
-        ]
-
-        gen_features = [
-            "p_mw",
-            "min_p_mw",
-            "max_p_mw",
-            "cp0_eur",
-            "cp1_eur_per_mw",
-            "cp2_eur_per_mw2",
-            "in_service",
-        ]
-
-        common_branch_features = ["tap", "ang_min", "ang_max", "rate_a", "br_status"]
-        forward_branch_features = [
-            "pf",
-            "qf",
-            "Yff_r",
-            "Yff_i",
-            "Yft_r",
-            "Yft_i",
-        ] + common_branch_features
-        reverse_branch_features = [
-            "pt",
-            "qt",
-            "Ytt_r",
-            "Ytt_i",
-            "Ytf_r",
-            "Ytf_i",
-        ] + common_branch_features
-
-        # Group by scenario
-        bus_groups = bus_data.groupby("scenario") # Groupby preserves the order of rows within each group. 
-        # https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.groupby.html
-        gen_groups = gen_data.groupby("scenario")
-        branch_groups = branch_data.groupby("scenario")
-
-        # Process each scenario
-        for scenario in tqdm(
-            bus_data["scenario"].unique(),
-            desc="Processing scenarios",
-        ):
-            if osp.exists(osp.join(self.processed_dir, f"data_index_{scenario}.pt")):
-                continue
-            if (
-                scenario not in gen_groups.groups
-                or scenario not in branch_groups.groups
-            ):
-                raise ValueError
-
-            data = HeteroData()
-
-            # Bus nodes
-            bus_df = bus_groups.get_group(scenario)
-            # assert that the buses are in increasing order
-            assert (bus_df["bus"].values == torch.arange(len(bus_df))).all(), "Buses are not in increasing order"
-            #todo: we should remove this assert and store the bus idx in the tensors
-            # right now we need the increasing order for e.g. the predict step that uses torch.arange(n_nodes) to index the buses.
-            data["bus"].x = torch.tensor(bus_df[bus_features].values, dtype=torch.float)
-
-            # Generator nodes
-            gen_df = gen_groups.get_group(scenario).reset_index()
-            data["gen"].x = torch.tensor(gen_df[gen_features].values, dtype=torch.float)
-            gen_df["gen_index"] = gen_df.index  # Use actual index as generator ID
-            # todo: change this to instead use the generator id as the index
-
-            data["bus"].y = data["bus"].x[:, : (VA_H + 1)].clone()
-            data["gen"].y = data["gen"].x[:, : (PG_H + 1)].clone()
-
-            # Bus-Bus edges
-            branch_df = branch_groups.get_group(scenario)
-
-            forward_edges = torch.tensor(
-                branch_df[["from_bus", "to_bus"]].values.T,
-                dtype=torch.long,
-            )
-            forward_edge_attr = torch.tensor(
-                branch_df[forward_branch_features].values,
-                dtype=torch.float,
-            )
-
-            reverse_edges = torch.tensor(
-                branch_df[["to_bus", "from_bus"]].values.T,
-                dtype=torch.long,
-            )
-            reverse_edge_attr = torch.tensor(
-                branch_df[reverse_branch_features].values,
-                dtype=torch.float,
-            )
-
-            edge_index = torch.cat([forward_edges, reverse_edges], dim=1)
-            edge_attr = torch.cat([forward_edge_attr, reverse_edge_attr], dim=0)
-
-            forward_targets = torch.tensor(
-                branch_df[["pf", "qf"]].values,
-                dtype=torch.float,
-            )
-            reverse_targets = torch.tensor(
-                branch_df[["pt", "qt"]].values,
-                dtype=torch.float,
-            )
-            edge_y = torch.cat([forward_targets, reverse_targets], dim=0)
-
-            data["bus", "connects", "bus"].edge_index = edge_index
-            data["bus", "connects", "bus"].edge_attr = edge_attr
-            data["bus", "connects", "bus"].y = edge_y
-
-            # Gen-Bus and Bus-Gen edges
-            data["gen", "connected_to", "bus"].edge_index = torch.tensor(
-                gen_df[["gen_index", "bus"]].values.T,
-                dtype=torch.long,
-            )
-            data["bus", "connected_to", "gen"].edge_index = torch.tensor(
-                gen_df[["bus", "gen_index"]].values.T,
-                dtype=torch.long,
-            )
-
-            data["scenario_id"] = torch.tensor([scenario], dtype=torch.long)
-
-            # Save graph
-            torch.save(
-                data.to_dict(),
-                osp.join(self.processed_dir, f"data_index_{scenario}.pt"),
-            )
+        process_scenarios(
+            bus_data,
+            gen_data,
+            branch_data,
+            self.processed_dir,
+            skip_existing=True,
+            show_progress=True,
+        )
 
         with open(osp.join(self.processed_dir, self.processed_done_file), "w") as f:
             f.write("done")
