@@ -7,6 +7,7 @@ import torch
 
 # Metric logged in validation_step as f"Validation {metric}" for layer_11_residual.
 BEST_CHECKPOINT_MONITOR = "Validation layer_11_residual"
+LR_SCHEDULER_MONITOR = "Validation loss"
 BEST_MODEL_FILENAME = "best_model_state_dict.pt"
 COMPILE_STATE_DICT_PREFIX = "model._orig_mod."
 
