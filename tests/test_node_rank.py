@@ -6,9 +6,36 @@ HOSTNAME may disagree on FQDN vs short form, so the matching falls back from
 full name to short name. These tests exercise that fallback without a cluster.
 """
 
+import os
+
 import pytest
 
 from gridfm_graphkit.__main__ import set_env
+
+
+@pytest.fixture(autouse=True)
+def restore_distributed_env():
+    """Save and restore distributed-training env vars set by set_env().
+
+    set_env() writes NODE_RANK, MASTER_ADDR, MASTER_PORT, NCCL_SOCKET_IFNAME,
+    and NCCL_IB_CUDA_SUPPORT directly into os.environ.  Without this fixture
+    those values leak into subsequent test files (e.g. test_pipeline.py) and
+    cause Lightning to block waiting for a non-existent distributed master.
+    """
+    keys = [
+        "NODE_RANK",
+        "MASTER_ADDR",
+        "MASTER_PORT",
+        "NCCL_SOCKET_IFNAME",
+        "NCCL_IB_CUDA_SUPPORT",
+    ]
+    original = {key: os.environ.get(key) for key in keys}
+    yield
+    for key, value in original.items():
+        if value is None:
+            os.environ.pop(key, None)
+        else:
+            os.environ[key] = value
 
 
 def _apply_lsf_env(monkeypatch, mcpu_hosts, hostname):
