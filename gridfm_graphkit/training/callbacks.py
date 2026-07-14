@@ -10,6 +10,7 @@ BEST_CHECKPOINT_MONITOR = "Validation layer_11_residual"
 LR_SCHEDULER_MONITOR = "Validation loss"
 BEST_MODEL_FILENAME = "best_model_state_dict.pt"
 COMPILE_STATE_DICT_PREFIX = "model._orig_mod."
+MLFLOW_FILE_URI_PREFIX = "file:"
 
 
 def canonicalize_state_dict_keys(
@@ -57,23 +58,43 @@ def adapt_state_dict_for_model(
     return canonical
 
 
+def mlflow_local_root(logger) -> str | None:
+    """Local MLflow store root; None when tracking URI is not a file: path."""
+    save_dir = getattr(logger, "save_dir", None)
+    if save_dir:
+        return save_dir
+    if isinstance(logger, MLFlowLogger):
+        tracking_uri = getattr(logger, "_tracking_uri", None) or ""
+        if tracking_uri.startswith(MLFLOW_FILE_URI_PREFIX):
+            return tracking_uri[len(MLFLOW_FILE_URI_PREFIX) :]
+    return None
+
+
+def mlflow_run_artifacts_dir(logger, *parts: str) -> str | None:
+    """Return <store>/<exp_id>/<run_id>/artifacts/... when resolvable."""
+    if isinstance(logger, MLFlowLogger):
+        experiment_id = logger.experiment_id
+        run_id = logger.run_id
+        root = mlflow_local_root(logger)
+        if root and experiment_id and run_id:
+            return os.path.join(root, experiment_id, run_id, "artifacts", *parts)
+        return None
+    root = getattr(logger, "save_dir", None)
+    if root:
+        return os.path.join(root, *parts)
+    return None
+
+
 def best_model_artifact_path(
     logger,
     filename: str = BEST_MODEL_FILENAME,
 ) -> str:
     """Return the on-disk path where SaveBestModelStateDict writes the checkpoint."""
-    experiment_id = getattr(logger, "experiment_id", None)
-    run_id = getattr(logger, "run_id", None)
-    if experiment_id and run_id:
-        return os.path.join(
-            logger.save_dir,
-            experiment_id,
-            run_id,
-            "artifacts",
-            "model",
-            filename,
-        )
-    return os.path.join(logger.save_dir, "model", filename)
+    path = mlflow_run_artifacts_dir(logger, "model", filename)
+    if path:
+        return path
+    root = mlflow_local_root(logger) or getattr(logger, "save_dir", None)
+    return os.path.join(root, "model", filename)
 
 
 class EpochTimerCallback(Callback):
@@ -140,21 +161,9 @@ class SaveBestModelStateDict(Callback):
         ):
             self.best_score = current
 
-            # Determine artifact directory
             logger = trainer.logger
-            if isinstance(logger, MLFlowLogger):
-                model_dir = os.path.join(
-                    logger.save_dir,
-                    logger.experiment_id,
-                    logger.run_id,
-                    "artifacts",
-                    "model",
-                )
-            else:
-                model_dir = os.path.join(logger.save_dir, "model")
-
-            os.makedirs(model_dir, exist_ok=True)
+            model_path = best_model_artifact_path(logger, self.filename)
+            os.makedirs(os.path.dirname(model_path), exist_ok=True)
 
             # Save the model's state_dict
-            model_path = os.path.join(model_dir, self.filename)
             torch.save(self._canonical_state_dict(pl_module), model_path)
