@@ -11,17 +11,12 @@ Agreed with data partner:
 1. **1 year of snapshots @ 30 min** — OK (~17 520 snapshots).
 2. Hold out **10% → `TEST_DS`** (move elsewhere; not under the train path) → ~**1.7k** samples.
 3. Remaining **90% → `TRAIN_POOL`** (~**15.8k**). Train/finetune sample N ∈ {100, 1k, 10k, 20k} from `TRAIN_POOL` with `val_ratio: 0.1`, `test_ratio: 0.01` (the 1% train-time test split is **not** used for reporting).
-4. Report metrics only from **`evaluate` on `TEST_DS`**.
+4. Report metrics only from **`evaluate` on `TEST_DS`**. (I set 250k scenarios in the config file but graphkit will just use all available scenarios from `TEST_DS`)
 5. **Reindex scenarios** in both `TRAIN_POOL` and `TEST_DS` so IDs **start at 0 and are contiguous** (0…N−1). Gaps or non-zero starts break loading / `scenarios:` sampling.
 
-### N = 20k vs TRAIN_POOL size (keep yaml; treat as “full pool”)
+### Precisions about  N = 20k
 
-With a 1-year / 30-min pool, **`scenarios: 20000` exceeds `TRAIN_POOL` (~15.8k)**. GraphKit warns and uses the **full pool** — so the “20k” arm is effectively **~all of TRAIN_POOL**, not a true 20k subsample. Keep [`HGNS_PF_datakit_hq1200_jul15_20k_2_gpus.yaml`](HGNS_PF_datakit_hq1200_jul15_20k_2_gpus.yaml) as-is; label results accordingly (e.g. “full TRAIN_POOL”). True 20k needs denser or longer data.
-
-### Eval `scenarios`
-
-Eval yaml has `scenarios: 250000` as a placeholder (oversized → use all of `TEST_DS`). Set it to **`≥ |TEST_DS|`** or the exact count; you do **not** need 250k test samples.
-
+With ~15.8k in `TRAIN_POOL`, `scenarios: 20000` silently uses the **full pool**. 
 ---
 
 ## Architecture caveat
@@ -59,8 +54,8 @@ HQ=$REPO/HQ_experiment
 source $REPO/venv/bin/activate
 unset MLFLOW_TRACKING_URI               # if set, can override --log_dir
 
-TRAIN_POOL=/path/to/TRAIN_POOL          # 90% snapshots; must contain hq1200/
-TEST_DS=/path/to/TEST_DS                # held-out 10%; must contain hq1200/
+TRAIN_POOL=/path/to/TRAIN_POOL          # 90% snapshots; 
+TEST_DS=/path/to/TEST_DS                # held-out 10%; 
 MLFLOW=/path/to/mlflow_store            # file: MLflow root for --log_dir
 PRETRAINED=/path/to/best_model_state_dict.pt
 
