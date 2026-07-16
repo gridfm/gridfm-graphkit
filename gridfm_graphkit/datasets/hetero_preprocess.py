@@ -1,6 +1,7 @@
 import os
 import os.path as osp
 from concurrent.futures import ThreadPoolExecutor
+from functools import partial
 from typing import Iterable, Optional
 
 import numpy as np
@@ -9,7 +10,25 @@ import torch
 from torch_geometric.data import HeteroData
 from tqdm import tqdm
 
-from gridfm_graphkit.datasets.globals import PG_H, VA_H
+from gridfm_graphkit.datasets.globals import (
+    PG_H,
+    VA_H,
+    QD_H,
+    QG_H,
+    VM_H,
+    PV_H,
+    REF_H,
+    VM_OUT,
+    VA_OUT,
+)
+from gridfm_graphkit.models.utils import (
+    ComputeBranchFlow,
+    ComputeNodeInjection,
+    compute_shunt_power,
+)
+
+# Valid modes for reconcile_reactive_balance / the --reactive-correction CLI flag.
+REACTIVE_CORRECTION_MODES = ("qd_all", "qd_pq_qg_pvref")
 
 BUS_FEATURES = [
     "Pd",
@@ -189,11 +208,74 @@ def validate_partition_scenarios(
     return total_scenarios
 
 
+def reconcile_reactive_balance(data: HeteroData, mode: str) -> HeteroData:
+    """Absorb the ground-truth reactive-power residual into loads/generation in place.
+
+    The nodal reactive balance is ``residual_Q = Qg - Qd + q_shunt - Q_in`` (matching
+    ``ComputeNodeResiduals``). ``Q_in`` depends only on voltages and branch admittances,
+    so ``Qd``/``Qg`` appear purely additively. Absorbing ``residual_Q`` into them drives
+    the per-bus residual to ~0 without touching voltages, angles, branch flows, or active
+    power, and without coupling to neighbouring buses.
+
+    Operates on physical-unit bus features (pre-normalization). The bus angle ``Va`` is
+    stored in degrees on disk; it is converted to radians only for the internal flow
+    computation and never persisted in changed units. ``Qd``/``Qg`` are unaffected by the
+    angle unit, so the corrected values stay in their existing units.
+
+    Args:
+        data: HeteroData for one scenario, with bus features in the *input* layout.
+        mode: ``"qd_all"`` absorbs the residual into ``Qd`` on every bus; ``"qd_pq_qg_pvref"``
+            absorbs into ``Qd`` on PQ buses and into ``Qg`` on PV/REF buses.
+
+    Returns:
+        The same ``data`` object, mutated in place.
+    """
+    if mode not in REACTIVE_CORRECTION_MODES:
+        raise ValueError(
+            f"Unknown reactive_correction mode {mode!r}; "
+            f"expected one of {REACTIVE_CORRECTION_MODES}.",
+        )
+
+    bus = data["bus"].x  # input layout, physical units, angle in degrees
+    edge_index = data["bus", "connects", "bus"].edge_index
+    edge_attr = data["bus", "connects", "bus"].edge_attr
+    num_bus = bus.size(0)
+
+    # Output-layout view [Vm, Va(rad), _, _] expected by ComputeBranchFlow.
+    out = torch.zeros((num_bus, 4), dtype=bus.dtype)
+    out[:, VM_OUT] = bus[:, VM_H]
+    out[:, VA_OUT] = bus[:, VA_H] * torch.pi / 180.0  # deg -> rad, local only
+
+    Pft, Qft = ComputeBranchFlow()(out, edge_index, edge_attr)
+    _, Q_in = ComputeNodeInjection()(Pft, Qft, edge_index, num_bus)
+    _, q_shunt = compute_shunt_power(out, bus)  # uses VM_OUT on `out`, GS/BS on `bus`
+
+    residual_Q = bus[:, QG_H] - bus[:, QD_H] + q_shunt - Q_in
+
+    if mode == "qd_all":
+        # residual_Q = Qg - Qd + ... ; adding to Qd zeroes it on every bus.
+        bus[:, QD_H] = bus[:, QD_H] + residual_Q
+    else:  # "qd_pq_qg_pvref"
+        pv_ref = (bus[:, PV_H] > 0.5) | (bus[:, REF_H] > 0.5)
+        # PQ buses: add to Qd (+residual_Q). PV/REF buses: subtract from Qg (-residual_Q).
+        bus[:, QG_H] = torch.where(pv_ref, bus[:, QG_H] - residual_Q, bus[:, QG_H])
+        bus[:, QD_H] = torch.where(pv_ref, bus[:, QD_H], bus[:, QD_H] + residual_Q)
+
+    # Keep the target (y) load/gen columns consistent with the corrected inputs.
+    # data["bus"].y is a clone of x[:, :VA_H + 1], which includes QD_H and QG_H.
+    if "y" in data["bus"] and data["bus"].y.size(1) > max(QD_H, QG_H):
+        data["bus"].y[:, QD_H] = bus[:, QD_H]
+        data["bus"].y[:, QG_H] = bus[:, QG_H]
+
+    return data
+
+
 def build_hetero_data_for_scenario(
     scenario: int,
     bus_df: pd.DataFrame,
     gen_df: pd.DataFrame,
     branch_df: pd.DataFrame,
+    reactive_correction: Optional[str] = None,
 ) -> HeteroData:
     assert (bus_df["bus"].values == torch.arange(len(bus_df))).all(), (
         "Buses are not in increasing order"
@@ -253,6 +335,10 @@ def build_hetero_data_for_scenario(
     )
 
     data["scenario_id"] = torch.tensor([scenario], dtype=torch.long)
+
+    if reactive_correction is not None:
+        reconcile_reactive_balance(data, mode=reactive_correction)
+
     return data
 
 
@@ -262,8 +348,15 @@ def _save_scenario(
     gen_df: pd.DataFrame,
     branch_df: pd.DataFrame,
     processed_dir: str,
+    reactive_correction: Optional[str] = None,
 ) -> None:
-    data = build_hetero_data_for_scenario(scenario, bus_df, gen_df, branch_df)
+    data = build_hetero_data_for_scenario(
+        scenario,
+        bus_df,
+        gen_df,
+        branch_df,
+        reactive_correction=reactive_correction,
+    )
     torch.save(
         data.to_dict(),
         osp.join(processed_dir, f"data_index_{scenario}.pt"),
@@ -280,6 +373,7 @@ def process_scenarios(
     show_progress: bool = True,
     progress_desc: str = "Processing scenarios",
     workers: int = 1,
+    reactive_correction: Optional[str] = None,
 ) -> None:
     bus_groups = bus_data.groupby("scenario")
     gen_groups = gen_data.groupby("scenario")
@@ -310,14 +404,16 @@ def process_scenarios(
     if not tasks:
         return
 
+    save_scenario = partial(_save_scenario, reactive_correction=reactive_correction)
+
     if workers <= 1:
         iterator = tqdm(tasks, desc=progress_desc) if show_progress else tasks
         for task in iterator:
-            _save_scenario(*task)
+            save_scenario(*task)
         return
 
     with ThreadPoolExecutor(max_workers=workers) as executor:
-        results = executor.map(_save_scenario, *zip(*tasks))
+        results = executor.map(save_scenario, *zip(*tasks))
         if show_progress:
             results = tqdm(results, total=len(tasks), desc=progress_desc)
         for _ in results:
@@ -333,6 +429,7 @@ def process_partition(
     show_progress: bool = True,
     workers: int = 1,
     previous_scenario_max: Optional[int] = None,
+    reactive_correction: Optional[str] = None,
 ) -> tuple[int, Optional[np.ndarray]]:
     bus_data, gen_data, branch_data = read_raw_tables(raw_dir, partition_id)
     assert_partition_scenarios_contiguous(bus_data)
@@ -358,6 +455,7 @@ def process_partition(
         show_progress=show_progress,
         progress_desc=f"partition {partition_id}",
         workers=workers,
+        reactive_correction=reactive_correction,
     )
     return scenario_max, load_chunk
 

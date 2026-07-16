@@ -9,6 +9,7 @@ parallel. Output files match the sequential ``process()`` path.
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import os.path as osp
 
@@ -17,6 +18,7 @@ import torch
 from tqdm import tqdm
 
 from gridfm_graphkit.datasets.hetero_preprocess import (
+    REACTIVE_CORRECTION_MODES,
     assert_scenario_index,
     build_load_scenarios,
     get_partition_ids,
@@ -28,6 +30,7 @@ from gridfm_graphkit.datasets.hetero_preprocess import (
 )
 
 PROCESSED_DONE_FILE = "processed_raw_files.done"
+REACTIVE_CORRECTION_MARKER = "reactive_correction.json"
 
 
 def process_dataset_parallel(
@@ -36,6 +39,7 @@ def process_dataset_parallel(
     workers: int = 1,
     skip_existing: bool = True,
     force: bool = False,
+    reactive_correction: str | None = None,
 ) -> None:
     raw_dir = osp.join(root, "raw")
     processed_dir = osp.join(root, "processed")
@@ -44,6 +48,7 @@ def process_dataset_parallel(
     print(f"Dataset root: {root}")
     print(f"Raw dir:      {raw_dir}")
     print(f"Processed dir:{processed_dir}")
+    print(f"Reactive correction: {reactive_correction or 'none'}")
 
     done_path = osp.join(processed_dir, PROCESSED_DONE_FILE)
     if osp.exists(done_path) and not force:
@@ -80,6 +85,7 @@ def process_dataset_parallel(
             skip_existing=skip_existing,
             show_progress=True,
             workers=workers,
+            reactive_correction=reactive_correction,
         )
     else:
         load_chunks = []
@@ -99,6 +105,7 @@ def process_dataset_parallel(
                 show_progress=True,
                 workers=workers,
                 previous_scenario_max=previous_scenario_max,
+                reactive_correction=reactive_correction,
             )
             if load_chunk is not None:
                 load_chunks.append(load_chunk)
@@ -114,6 +121,14 @@ def process_dataset_parallel(
     with open(done_path, "w", encoding="utf-8") as done_file:
         done_file.write("done")
     print(f"Done. Wrote {PROCESSED_DONE_FILE} -> {done_path}")
+
+    # Provenance marker: record that (and how) the ground-truth reactive balance was
+    # corrected, so a corrected dataset is distinguishable from a raw one on disk.
+    if reactive_correction is not None:
+        marker_path = osp.join(processed_dir, REACTIVE_CORRECTION_MARKER)
+        with open(marker_path, "w", encoding="utf-8") as marker_file:
+            json.dump({"mode": reactive_correction}, marker_file)
+        print(f"Wrote {REACTIVE_CORRECTION_MARKER} (mode={reactive_correction}) -> {marker_path}")
 
 
 def main() -> None:
@@ -140,13 +155,27 @@ def main() -> None:
         action="store_true",
         help="Run even if processed_raw_files.done exists.",
     )
+    parser.add_argument(
+        "--reactive-correction",
+        choices=("none", *REACTIVE_CORRECTION_MODES),
+        default="none",
+        help=(
+            "Absorb the ground-truth reactive-power residual per bus at creation time. "
+            "'none' (default): no correction, dataset built as-is. "
+            "'qd_all': add residual to Qd on every bus. "
+            "'qd_pq_qg_pvref': Qd on PQ buses, Qg on PV/REF buses."
+        ),
+    )
     args = parser.parse_args()
+
+    reactive_correction = None if args.reactive_correction == "none" else args.reactive_correction
 
     process_dataset_parallel(
         args.root,
         workers=max(1, args.workers),
         skip_existing=not args.no_skip_existing,
         force=args.force,
+        reactive_correction=reactive_correction,
     )
 
 
