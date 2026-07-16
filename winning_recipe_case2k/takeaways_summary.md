@@ -90,4 +90,16 @@ Winning case2k used N=**20k** scenarios, not 250k. Intuition: smaller N can be o
 
 For large grids I think we havent mastered yet the HPO for base and small architecture, so that so far tiny works best. It allows fast training in less than 7 hours for case2k so that's nice. in the future we should try base again and train for longer.
 
+---
+
+### Offline preprocess (partition-by-partition)
+
+Train-time `process()` loads all parquet at once. For large / Hive-partitioned data, preprocess offline first (then train skips processing):
+
+```bash
+python scripts/process_hetero_dataset_parallel.py /path/to/<network>_goc --workers 32
+```
+
+Writes `processed/data_index_*.pt` + `processed_raw_files.done`.
+
 
