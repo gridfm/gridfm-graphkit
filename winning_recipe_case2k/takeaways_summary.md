@@ -1,33 +1,36 @@
 **Winning case2k PF recipe — branch `paper`**
 
-Scope: **case2000_goc @ 20k**. Config: [`HGNS_PF_datakit_case2000_canonical_best.yaml`](HGNS_PF_datakit_case2000_canonical_best.yaml).  
+Scope: **case2000_goc @ 20k**. Config: `[HGNS_PF_datakit_case2000_canonical_best.yaml](HGNS_PF_datakit_case2000_canonical_best.yaml)`.  
 Best observed: **0.91 MW** test active (val l11 **0.0086**, seed0).
 
 ---
 
 ### Branch (required)
 
-Use **`paper`**, not `main`:
+Use `**paper`**, not `main`:
+
 - **Checkpoint** on `Validation layer_11_residual` (last-layer power balance — closer to the metric we care about).
-- **LR schedule** on `Validation loss` — **not** layer_11 (too noisy → decay ~**3×** too early: first drop ~ep12 vs ~ep34; LR fell to **~1.7e-4 by ep24** instead of staying at **5e-4 until ~ep58**).
+- **LR schedule** on `Validation loss` — **not** layer_11 (too noisy → decay ~~**3×** too early: first drop ~ep12 vs ~ep34; LR fell to **~~1.7e-4 by ep24** instead of staying at **5e-4 until ~ep58**).
 - Restore **best checkpoint before test** (old path tested last-epoch weights).
 
 ---
 
 ### Config knobs (why)
 
-| Knob | Value | Evidence (seed0 unless noted) |
-|------|--------|-------------------------------|
-| Physics / MSE | **20% / 80%** | **1.03 MW** vs 10% **~1.27–1.44** (~**20%** better) and 5% **2.03**. 30% catastrophic (**509 / 76 MW**). **Unstable across seeds** (below). |
-| `base_weight` | **0.5** | bw0.3 hurts 10% baseline (**1.64 vs 1.27**); on 20% phys **1.06 vs 1.03**. Winners used 0.5. |
-| `lr_patience` | **10** | On 20% phys: **0.98 vs 1.03** (lrp5) → **−0.05 (~5%)**. No gain on 10% baseline. Does **not** fix seed divergence. |
-| `lr_decay` | **0.85** | On 20% phys + lrp10: **0.91 vs 0.98** (decay 0.7) → **−0.07 (~7%)**. Neutral on 10% baseline. |
-| LR | **5e-4** | Fine mid-run when LR monitor is correct; don’t raise first. |
-| Arch | **tiny h12** | At 10% phys, size doesn’t help (tiny **1.44** / small **1.48** / base **1.51**). At 20% phys, small ≈ tiny (**0.92 vs 0.91**). Skip **h48**. |
-| Batch | **global 16** (`bs=8` × 2 GPU) | case2k tiny: bs16 **1.36** vs bs4 **2.27** MW. |
-| Epochs | **300** | 300 vs 200 on 10% baseline: **1.27 vs 1.37** only; jump to ~1 MW was **20% phys**. Diminishing returns ~ep250 (**0.92** at early-stop ≈ full run). |
-| Data | **20k**, split by load scenario, norm **121 / 345** | Winning stack; preset avoids heavy fit on large data. |
-| Seed | **0** (then **42**) | Same 20% recipe: seed0 **1.03** vs seed1 **505**; seed1 failed **4×**. Never average diverged seeds (**~253 MW** fake mean). |
+
+| Knob          | Value                                               | Evidence (seed0 unless noted)                                                                                                                      |
+| ------------- | --------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Physics / MSE | **20% / 80%**                                       | **1.03 MW** vs 10% **~1.27–1.44** (~**20%** better) and 5% **2.03**. 30% catastrophic (**509 / 76 MW**). **Unstable across seeds** (below).        |
+| `base_weight` | **0.5**                                             | bw0.3 hurts 10% baseline (**1.64 vs 1.27**); on 20% phys **1.06 vs 1.03**. Winners used 0.5.                                                       |
+| `lr_patience` | **10**                                              | On 20% phys: **0.98 vs 1.03** (lrp5) → **−0.05 (~5%)**. No gain on 10% baseline. Does **not** fix seed divergence.                                 |
+| `lr_decay`    | **0.85**                                            | On 20% phys + lrp10: **0.91 vs 0.98** (decay 0.7) → **−0.07 (~7%)**. Neutral on 10% baseline.                                                      |
+| LR            | **5e-4**                                            | Fine mid-run when LR monitor is correct; don’t raise first.                                                                                        |
+| Arch          | **tiny h12**                                        | At 10% phys, size doesn’t help (tiny **1.44** / small **1.48** / base **1.51**). At 20% phys, small ≈ tiny (**0.92 vs 0.91**). Skip **h48**.       |
+| Batch         | **global 16** (`bs=8` × 2 GPU)                      | case2k tiny: bs16 **1.36** vs bs4 **2.27** MW.                                                                                                     |
+| Epochs        | **300**                                             | 300 vs 200 on 10% baseline: **1.27 vs 1.37** only; jump to ~1 MW was **20% phys**. Diminishing returns ~ep250 (**0.92** at early-stop ≈ full run). |
+| Data          | **20k**, split by load scenario, norm **121 / 345** | Winning stack; preset avoids heavy fit on large data.                                                                                              |
+| Seed          | **0** (then **42**)                                 | Same 20% recipe: seed0 **1.03** vs seed1 **505**; seed1 failed **4×**. Never average diverged seeds (**~253 MW** fake mean).                       |
+
 
 **Stacked (20% phys @ lrp5/d0.7 → this file):** 1.03 → 0.98 (lrp10) → **0.91** (−**0.12 / ~12%** from LR; physics still dominant).
 
@@ -55,12 +58,13 @@ gridfm_graphkit train \
 
 ### case10k — do not copy this file
 
-| case2k (this recipe) | case10k |
-|----------------------|---------|
-| global **bs16** | global **bs4** (small bs4 **~0.82** vs bs16 **~2.8** MW) |
-| **20%** phys | **10%** phys — 20% wins residuals on case2k but seed-diverges often |
-| tiny ≈ small | **small** often ≥ tiny |
-| ~64G | **128–256G** |
+
+| case2k (this recipe) | case10k                                                             |
+| -------------------- | ------------------------------------------------------------------- |
+| global **bs16**      | global **bs4** (small bs4 **~0.82** vs bs16 **~2.8** MW)            |
+| **20%** phys         | **10%** phys — 20% wins residuals on case2k but seed-diverges often |
+| tiny ≈ small         | **small** often ≥ tiny                                              |
+| ~64G                 | **128–256G**                                                        |
 
 
 ---
@@ -78,6 +82,7 @@ gridfm_graphkit train \
 
 - We could consider different weight init distrutions 
 - We should start training with 10 epochs with only MSE to have stable training, and then add physics loss later -> needs to be implemented
+
 ---
 
 ### Dataset size vs steps (hypothesis)
@@ -94,12 +99,11 @@ For large grids I think we havent mastered yet the HPO for base and small archit
 
 ### Offline preprocess (partition-by-partition)
 
-Train-time `process()` loads all parquet at once. For large / Hive-partitioned data, preprocess offline first (then train skips processing):
+Train-time `process()` loads all parquet at once. For large partitioned data, preprocess offline first (then train skips processing automatically):
 
 ```bash
-python scripts/process_hetero_dataset_parallel.py /path/to/<network>_goc --workers 32
+python scripts/process_hetero_dataset_parallel.py /path/to/<network> --workers 32
 ```
 
-Writes `processed/data_index_*.pt` + `processed_raw_files.done`.
-
-
+Writes `processed/data_index_*.pt` + `processed_raw_files.done`.  
+  
