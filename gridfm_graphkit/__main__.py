@@ -371,6 +371,11 @@ def main():
         help="Directory for the dataset wrapper's disk cache. If set, cache is loaded from here when present and saved here after first population.",
     )
     predict_parser.add_argument("--output_path", type=str, default="data")
+    predict_parser.add_argument(
+        "--get-embeddings",
+        action="store_true",
+        help="Export final hidden embeddings as separate parquet files during predict.",
+    )
     predict_parser.add_argument("--compile", **_compile_kwargs)
     predict_parser.add_argument("--bfloat16", **_bfloat16_kwargs)
     predict_parser.add_argument("--tf32", **_tf32_kwargs)

@@ -162,7 +162,7 @@ class GNS_heterogeneous(nn.Module):
         # container for monitoring residual norms per layer and type
         self.layer_residuals = {}
 
-    def forward(self, batch):
+    def forward(self, batch, return_embeddings: bool = False):
         """
         Accepts a PyG HeteroData batch and extracts the required tensors.
 
@@ -300,4 +300,7 @@ class GNS_heterogeneous(nn.Module):
                 ).mean()
                 h_bus = h_bus + self.physics_mlp(bus_residuals)
 
-        return {"bus": output_temp, "gen": gen_temp}
+        predictions = {"bus": output_temp, "gen": gen_temp}
+        if not return_embeddings:
+            return predictions
+        return predictions, {"bus": h_bus, "gen": h_gen}

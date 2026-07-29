@@ -30,6 +30,8 @@ from gridfm_graphkit.datasets.globals import (
 from gridfm_graphkit.tasks.reconstruction_tasks import ReconstructionTask
 from gridfm_graphkit.io.registries import TASK_REGISTRY
 from gridfm_graphkit.tasks.utils import (
+    embedding_table_from_tensor,
+    local_index_per_graph,
     plot_correlation_by_node_type,
     plot_residuals_histograms,
     residual_stats_by_type,
@@ -529,7 +531,11 @@ class OptimalPowerFlowTask(ReconstructionTask):
         self.test_outputs.clear()
 
     def predict_step(self, batch, batch_idx, dataloader_idx=0):
-        output, _ = self.shared_step(batch)
+        embeddings = None
+        if getattr(self.args, "get_embeddings", False):
+            output, embeddings = self.model(batch, return_embeddings=True)
+        else:
+            output, _ = self.shared_step(batch)
 
         self.data_normalizers[dataloader_idx].inverse_transform(batch)
         self.data_normalizers[dataloader_idx].inverse_output(output, batch)
@@ -556,12 +562,8 @@ class OptimalPowerFlowTask(ReconstructionTask):
 
         bus_batch = batch.batch_dict["bus"]
         scenario_ids = batch["scenario_id"][bus_batch]
-        local_bus_idx = torch.cat(
-            [
-                torch.arange(c, device=bus_batch.device)
-                for c in torch.bincount(bus_batch)
-            ],
-        )  # this works because the order of the buses is preserved by the groupby in the dataset wrapper and datakit data has buses in increasing order.
+        local_bus_idx = local_index_per_graph(bus_batch)
+        # this works because the order of the buses is preserved by the groupby in the dataset wrapper and datakit data has buses in increasing order.
 
         bus_x = batch.x_dict["bus"]
         bus_y = batch.y_dict["bus"]
@@ -578,17 +580,12 @@ class OptimalPowerFlowTask(ReconstructionTask):
         )
         gen_batch = batch.batch_dict["gen"]
         gen_scenario_ids = batch["scenario_id"][gen_batch]
-        local_gen_idx = torch.cat(
-            [
-                torch.arange(c, device=gen_batch.device)
-                for c in torch.bincount(gen_batch)
-            ],
-        )
+        local_gen_idx = local_index_per_graph(gen_batch)
         gen_x = batch.x_dict["gen"]
         gen_target = batch.y_dict["gen"].reshape(-1)
         gen_pred = output["gen"].reshape(-1)
 
-        return {
+        prediction_tables = {
             "bus": {
                 "scenario": scenario_ids.cpu().numpy(),
                 "bus": local_bus_idx.cpu().numpy(),
@@ -626,3 +623,23 @@ class OptimalPowerFlowTask(ReconstructionTask):
                 "cp2_eur_per_mw2": gen_x[:, C2_H].cpu().numpy(),
             },
         }
+        if embeddings is None:
+            return prediction_tables
+        if "bus" in embeddings:
+            prediction_tables["bus_embeddings"] = embedding_table_from_tensor(
+                embeddings["bus"],
+                id_columns={
+                    "scenario": scenario_ids.cpu().numpy(),
+                    "bus": local_bus_idx.cpu().numpy(),
+                },
+            )
+        if "gen" in embeddings:
+            prediction_tables["gen_embeddings"] = embedding_table_from_tensor(
+                embeddings["gen"],
+                id_columns={
+                    "scenario": gen_scenario_ids.cpu().numpy(),
+                    "idx": local_gen_idx.cpu().numpy(),
+                    "bus": local_bus_idx[gen_to_bus_index].cpu().numpy(),
+                },
+            )
+        return prediction_tables
