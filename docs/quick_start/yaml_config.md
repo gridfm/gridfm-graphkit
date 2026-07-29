@@ -207,7 +207,7 @@ scheduler tracks. Each names a metric that must appear in the validation logs
 `Validation loss`.
 
 - `early_stopping_monitor`: metric watched by early stopping.
-- `checkpoint_monitor`: metric watched by best-model saving and checkpointing.
+- `checkpoint_monitor`: metric watched by best-model saving.
 - `lr_scheduler_monitor`: metric watched by the `ReduceLROnPlateau` scheduler.
 
 All of them are minimized: a **lower** value is always considered better

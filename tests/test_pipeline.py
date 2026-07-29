@@ -129,7 +129,6 @@ def test_get_training_callbacks_reads_config_monitors():
     by_type = _callbacks_by_type(get_training_callbacks(args))
 
     assert by_type[EarlyStopping].monitor == "Validation PBE Mean"
-    # save-best and checkpoint share the checkpoint_monitor key
     assert by_type[SaveBestModelStateDict].monitor == "Validation layer_11_residual"
 
     assert all(cb.mode == "min" for cb in by_type.values())
