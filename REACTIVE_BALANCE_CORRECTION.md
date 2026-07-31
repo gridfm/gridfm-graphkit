@@ -130,6 +130,21 @@ Automated checks live in `tests/test_reactive_correction.py`:
 python -m pytest tests/test_reactive_correction.py -q
 ```
 
+## Bug fix: baseMVA unit mismatch
+
+`ComputeBranchFlow`/`compute_shunt_power` return `Q_in`/`q_shunt` in **per-unit**, but
+`Qd`/`Qg` are in **Mvar** at creation time. The original residual mixed the two, inflating
+it by `baseMVA` (≈159 Mvar of phantom imbalance on case14). Fixed by scaling the per-unit
+terms: `Q_in, q_shunt = Q_in * base_mva, q_shunt * base_mva` (with `base_mva` from
+`data.baseMVA`, default 100). Post-fix the residual on converged data is ~0.
+
+Max reactive imbalance over all 19,957 raw case14 scenarios:
+
+| | Max imbalance |
+|---|---|
+| Without the fix (unscaled) | 159.07 Mvar |
+| With the fix (`base_mva=100`) | 0.001 Mvar |
+
 ## Implementation pointers
 
 - Core correction: `reconcile_reactive_balance(...)` in

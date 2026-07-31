@@ -40,6 +40,7 @@ def process_dataset_parallel(
     skip_existing: bool = True,
     force: bool = False,
     reactive_correction: str | None = None,
+    base_mva: float = 100.0,
 ) -> None:
     raw_dir = osp.join(root, "raw")
     processed_dir = osp.join(root, "processed")
@@ -48,7 +49,8 @@ def process_dataset_parallel(
     print(f"Dataset root: {root}")
     print(f"Raw dir:      {raw_dir}")
     print(f"Processed dir:{processed_dir}")
-    print(f"Reactive correction: {reactive_correction or 'none'}")
+    print(f"Reactive correction: {reactive_correction or 'none'}"
+          f"{f' (baseMVA={base_mva})' if reactive_correction else ''}")
 
     done_path = osp.join(processed_dir, PROCESSED_DONE_FILE)
     if osp.exists(done_path) and not force:
@@ -86,6 +88,7 @@ def process_dataset_parallel(
             show_progress=True,
             workers=workers,
             reactive_correction=reactive_correction,
+            base_mva=base_mva,
         )
     else:
         load_chunks = []
@@ -106,6 +109,7 @@ def process_dataset_parallel(
                 workers=workers,
                 previous_scenario_max=previous_scenario_max,
                 reactive_correction=reactive_correction,
+                base_mva=base_mva,
             )
             if load_chunk is not None:
                 load_chunks.append(load_chunk)
@@ -166,6 +170,13 @@ def main() -> None:
             "'qd_pq_qg_pvref': Qd on PQ buses, Qg on PV/REF buses."
         ),
     )
+    parser.add_argument(
+        "--base-mva",
+        type=float,
+        default=100.0,
+        help="System base power (MVA) used to scale the per-unit branch/shunt flows "
+        "when correcting (should match data.baseMVA; default 100).",
+    )
     args = parser.parse_args()
 
     reactive_correction = None if args.reactive_correction == "none" else args.reactive_correction
@@ -176,6 +187,7 @@ def main() -> None:
         skip_existing=not args.no_skip_existing,
         force=args.force,
         reactive_correction=reactive_correction,
+        base_mva=args.base_mva,
     )
 
 

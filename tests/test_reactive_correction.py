@@ -20,7 +20,7 @@ from gridfm_graphkit.datasets.globals import (
 from gridfm_graphkit.models.utils import (
     ComputeBranchFlow,
     ComputeNodeInjection,
-    ComputeNodeResiduals,
+    compute_shunt_power,
 )
 
 PROCESSED = "tests/data/case14_ieee/processed/data_index_0.pt"
@@ -32,8 +32,12 @@ def _load_scenario() -> HeteroData:
     return HeteroData.from_dict(torch.load(PROCESSED, weights_only=True))
 
 
-def _residual_Q(data: HeteroData) -> torch.Tensor:
-    """Per-bus reactive residual via the same layer chain used by the training loss."""
+def _residual_Q(data: HeteroData, base_mva: float = 100.0) -> torch.Tensor:
+    """Per-bus reactive residual in Mvar.
+
+    ComputeBranchFlow works in per-unit (p.u. admittances/voltages), while Qg/Qd are in
+    Mvar, so Q_in is scaled by base_mva before forming the residual.
+    """
     bus = data["bus"].x
     ei = data["bus", "connects", "bus"].edge_index
     ea = data["bus", "connects", "bus"].edge_attr
@@ -44,8 +48,40 @@ def _residual_Q(data: HeteroData) -> torch.Tensor:
     out[:, QG_OUT] = bus[:, QG_H]
     Pft, Qft = ComputeBranchFlow()(out, ei, ea)
     _, Q_in = ComputeNodeInjection()(Pft, Qft, ei, n)
-    _, residual_Q = ComputeNodeResiduals()(torch.zeros(n), Q_in, out, bus)
-    return residual_Q
+    _, q_shunt = compute_shunt_power(out, bus)
+    # p.u. -> Mvar to match Qg/Qd, then form the residual (matches reconcile_reactive_balance).
+    return bus[:, QG_H] - bus[:, QD_H] + q_shunt * base_mva - Q_in * base_mva
+
+
+def test_uncorrupted_fixture_is_already_balanced():
+    # The stored ground truth is a converged solution: with correct per-unit -> Mvar
+    # scaling the reactive residual is ~0. A regression here means the base_mva scaling
+    # in reconcile_reactive_balance / _residual_Q is wrong (mixed p.u. and Mvar).
+    data = _load_scenario()
+    assert _residual_Q(data).abs().max() < 1e-2
+
+
+def test_correction_is_noop_on_uncorrupted_fixture():
+    # On the converged (balanced) fixture the correction must have nothing to do:
+    # Qd/Qg are left essentially unchanged. Without the base_mva scaling this would shove
+    # a large phantom imbalance into Qd instead (see test_missing_base_mva_scaling_*).
+    data = _load_scenario()
+    qd_before = data["bus"].x[:, QD_H].clone()
+    qg_before = data["bus"].x[:, QG_H].clone()
+
+    reconcile_reactive_balance(data, mode="qd_all")
+
+    assert (data["bus"].x[:, QD_H] - qd_before).abs().max() < 1e-2
+    assert torch.equal(data["bus"].x[:, QG_H], qg_before)
+
+
+def test_missing_base_mva_scaling_makes_balanced_fixture_look_unbalanced():
+    # Guards the baseMVA unit fix: Q_in/q_shunt are per-unit and must be scaled to Mvar.
+    # base_mva=1 leaves them unscaled (the pre-fix behavior), so the already-balanced
+    # fixture reports a large phantom reactive residual instead of ~0.
+    data = _load_scenario()
+    assert _residual_Q(data, base_mva=100.0).abs().max() < 1e-2  # balanced with the fix
+    assert _residual_Q(data, base_mva=1.0).abs().max() > 1.0  # "unbalanced" pre-fix
 
 
 @pytest.mark.parametrize("mode", REACTIVE_CORRECTION_MODES)

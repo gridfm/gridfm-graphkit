@@ -208,7 +208,9 @@ def validate_partition_scenarios(
     return total_scenarios
 
 
-def reconcile_reactive_balance(data: HeteroData, mode: str) -> HeteroData:
+def reconcile_reactive_balance(
+    data: HeteroData, mode: str, base_mva: float = 100.0,
+) -> HeteroData:
     """Absorb the ground-truth reactive-power residual into loads/generation in place.
 
     The nodal reactive balance is ``residual_Q = Qg - Qd + q_shunt - Q_in`` (matching
@@ -217,15 +219,19 @@ def reconcile_reactive_balance(data: HeteroData, mode: str) -> HeteroData:
     the per-bus residual to ~0 without touching voltages, angles, branch flows, or active
     power, and without coupling to neighbouring buses.
 
-    Operates on physical-unit bus features (pre-normalization). The bus angle ``Va`` is
-    stored in degrees on disk; it is converted to radians only for the internal flow
-    computation and never persisted in changed units. ``Qd``/``Qg`` are unaffected by the
-    angle unit, so the corrected values stay in their existing units.
+    Operates on physical-unit bus features (pre-normalization). ``Qd``/``Qg`` are in Mvar,
+    but ``ComputeBranchFlow`` works in per-unit (its admittances and voltages are p.u.), so
+    ``Q_in``/``q_shunt`` are scaled by ``base_mva`` to Mvar before forming the residual.
+    The bus angle ``Va`` is stored in degrees on disk; it is converted to radians only for
+    the internal flow computation and never persisted in changed units. ``Qd``/``Qg`` are
+    unaffected by the angle unit, so the corrected values stay in their existing units.
 
     Args:
         data: HeteroData for one scenario, with bus features in the *input* layout.
         mode: ``"qd_all"`` absorbs the residual into ``Qd`` on every bus; ``"qd_pq_qg_pvref"``
             absorbs into ``Qd`` on PQ buses and into ``Qg`` on PV/REF buses.
+        base_mva: System base power (MVA) used to convert the per-unit branch/shunt flows
+            back to Mvar. Must match the grid's baseMVA (``args.data.baseMVA``).
 
     Returns:
         The same ``data`` object, mutated in place.
@@ -246,11 +252,23 @@ def reconcile_reactive_balance(data: HeteroData, mode: str) -> HeteroData:
     out[:, VM_OUT] = bus[:, VM_H]
     out[:, VA_OUT] = bus[:, VA_H] * torch.pi / 180.0  # deg -> rad, local only
 
-    Pft, Qft = ComputeBranchFlow()(out, edge_index, edge_attr)
-    _, Q_in = ComputeNodeInjection()(Pft, Qft, edge_index, num_bus)
-    _, q_shunt = compute_shunt_power(out, bus)  # uses VM_OUT on `out`, GS/BS on `bus`
+    Pft, Qft = ComputeBranchFlow()(out, edge_index, edge_attr) # returns flows in p.u.!!! 
+    _, Q_in = ComputeNodeInjection()(Pft, Qft, edge_index, num_bus) # MVar
+    _, q_shunt = compute_shunt_power(out, bus)  # uses VM_OUT on `out`, GS/BS on `bus` and returns p.u.!!!
+    # p.u. -> Mvar to match Qd/Qg that are in Mvar
+    Q_in, q_shunt = Q_in * base_mva, q_shunt * base_mva
 
     residual_Q = bus[:, QG_H] - bus[:, QD_H] + q_shunt - Q_in
+    abs_residual = residual_Q.abs()
+    scenario_id = int(data["scenario_id"].item()) if "scenario_id" in data else -1
+    n_ok = int((abs_residual < 0.1).sum().item())
+    print(
+        f"reactive correction (scenario={scenario_id}, mode={mode}): |residual_Q| in Mvar "
+        f"min={abs_residual.min().item():.4g} (bus {int(abs_residual.argmin().item())}), "
+        f"mean={abs_residual.mean().item():.4g}, "
+        f"max={abs_residual.max().item():.4g} (bus {int(abs_residual.argmax().item())}); "
+        f"{n_ok}/{num_bus} buses < 0.1 Mvar (no correction needed)",
+    )
 
     if mode == "qd_all":
         # residual_Q = Qg - Qd + ... ; adding to Qd zeroes it on every bus.
@@ -276,6 +294,7 @@ def build_hetero_data_for_scenario(
     gen_df: pd.DataFrame,
     branch_df: pd.DataFrame,
     reactive_correction: Optional[str] = None,
+    base_mva: float = 100.0,
 ) -> HeteroData:
     assert (bus_df["bus"].values == torch.arange(len(bus_df))).all(), (
         "Buses are not in increasing order"
@@ -337,7 +356,7 @@ def build_hetero_data_for_scenario(
     data["scenario_id"] = torch.tensor([scenario], dtype=torch.long)
 
     if reactive_correction is not None:
-        reconcile_reactive_balance(data, mode=reactive_correction)
+        reconcile_reactive_balance(data, mode=reactive_correction, base_mva=base_mva)
 
     return data
 
@@ -349,6 +368,7 @@ def _save_scenario(
     branch_df: pd.DataFrame,
     processed_dir: str,
     reactive_correction: Optional[str] = None,
+    base_mva: float = 100.0,
 ) -> None:
     data = build_hetero_data_for_scenario(
         scenario,
@@ -356,6 +376,7 @@ def _save_scenario(
         gen_df,
         branch_df,
         reactive_correction=reactive_correction,
+        base_mva=base_mva,
     )
     torch.save(
         data.to_dict(),
@@ -374,6 +395,7 @@ def process_scenarios(
     progress_desc: str = "Processing scenarios",
     workers: int = 1,
     reactive_correction: Optional[str] = None,
+    base_mva: float = 100.0,
 ) -> None:
     bus_groups = bus_data.groupby("scenario")
     gen_groups = gen_data.groupby("scenario")
@@ -404,7 +426,9 @@ def process_scenarios(
     if not tasks:
         return
 
-    save_scenario = partial(_save_scenario, reactive_correction=reactive_correction)
+    save_scenario = partial(
+        _save_scenario, reactive_correction=reactive_correction, base_mva=base_mva,
+    )
 
     if workers <= 1:
         iterator = tqdm(tasks, desc=progress_desc) if show_progress else tasks
@@ -430,6 +454,7 @@ def process_partition(
     workers: int = 1,
     previous_scenario_max: Optional[int] = None,
     reactive_correction: Optional[str] = None,
+    base_mva: float = 100.0,
 ) -> tuple[int, Optional[np.ndarray]]:
     bus_data, gen_data, branch_data = read_raw_tables(raw_dir, partition_id)
     assert_partition_scenarios_contiguous(bus_data)
@@ -456,6 +481,7 @@ def process_partition(
         progress_desc=f"partition {partition_id}",
         workers=workers,
         reactive_correction=reactive_correction,
+        base_mva=base_mva,
     )
     return scenario_max, load_chunk
 
