@@ -221,6 +221,10 @@ class GNS_heterogeneous(nn.Module):
             bus_temp = self.mlp_bus(h_bus)  # [Nb, 2]  -> Vm, Va
             gen_temp = self.mlp_gen(h_gen)  # [Ng, 1]  -> Pg
 
+            # Snapshot the embedding that actually produced bus_temp/output_temp,
+            # before the physics-residual update below moves h_bus past it.
+            h_bus_embed = h_bus
+
             if self.task == "StateEstimation":
                 if i == self.num_layers - 1:
                     Pft, Qft = self.branch_flow_layer(
@@ -303,4 +307,4 @@ class GNS_heterogeneous(nn.Module):
         predictions = {"bus": output_temp, "gen": gen_temp}
         if not return_embeddings:
             return predictions
-        return predictions, {"bus": h_bus, "gen": h_gen}
+        return predictions, {"bus": h_bus_embed, "gen": h_gen}
