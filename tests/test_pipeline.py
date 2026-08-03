@@ -3,9 +3,12 @@ from argparse import ArgumentParser
 from unittest import mock
 
 import pytest
+from lightning.pytorch.callbacks.early_stopping import EarlyStopping
 
-from gridfm_graphkit.cli import main_cli
+from gridfm_graphkit.cli import DEFAULT_MONITOR, get_training_callbacks, main_cli
 from gridfm_graphkit.__main__ import main
+from gridfm_graphkit.io.param_handler import NestedNamespace
+from gridfm_graphkit.training.callbacks import SaveBestModelStateDict
 
 
 # -------------------------------------------------
@@ -104,3 +107,37 @@ def test_entrypoint_train(config):
 
     with mock.patch.object(sys, "argv", test_argv):
         main()
+
+
+# -------------------------------------------------
+# Callback monitor wiring (from YAML callbacks section)
+# -------------------------------------------------
+def _callbacks_by_type(callbacks):
+    return {type(cb): cb for cb in callbacks}
+
+
+def test_get_training_callbacks_reads_config_monitors():
+    """Each callback tracks its configured metric; direction is always 'min'."""
+    args = NestedNamespace(
+        callbacks={
+            "patience": 5,
+            "tol": 0,
+            "early_stopping_monitor": "Validation PBE Mean",
+            "checkpoint_monitor": "Validation layer_11_residual",
+        },
+    )
+    by_type = _callbacks_by_type(get_training_callbacks(args))
+
+    assert by_type[EarlyStopping].monitor == "Validation PBE Mean"
+    assert by_type[SaveBestModelStateDict].monitor == "Validation layer_11_residual"
+
+    assert all(cb.mode == "min" for cb in by_type.values())
+
+
+def test_get_training_callbacks_defaults_when_monitors_absent():
+    """Omitted monitor keys fall back to the default 'Validation loss'."""
+    args = NestedNamespace(callbacks={"patience": 5, "tol": 0})
+    by_type = _callbacks_by_type(get_training_callbacks(args))
+
+    assert by_type[EarlyStopping].monitor == DEFAULT_MONITOR
+    assert by_type[SaveBestModelStateDict].monitor == DEFAULT_MONITOR

@@ -80,7 +80,7 @@ def set_env():
         else:
             raise RuntimeError(
                 "Unable to compute NODE_RANK from LSF metadata: "
-                f"HOSTNAME='{current_host}', HOST_LIST={HOST_LIST}"
+                f"HOSTNAME='{current_host}', HOST_LIST={HOST_LIST}",
             )
 
     os.environ["NODE_RANK"] = str(

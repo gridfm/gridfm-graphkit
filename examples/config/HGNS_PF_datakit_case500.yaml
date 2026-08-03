@@ -1,6 +1,9 @@
 callbacks:
   patience: 100
   tol: 0
+  early_stopping_monitor: Validation loss
+  checkpoint_monitor: Validation layer_11_residual
+  lr_scheduler_monitor: Validation loss
 task:
   task_name: PowerFlow
 data:

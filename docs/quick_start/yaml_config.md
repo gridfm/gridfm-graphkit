@@ -53,6 +53,9 @@ verbose: true
 callbacks:
   patience: 100
   tol: 0
+  early_stopping_monitor: Validation loss
+  checkpoint_monitor: Validation layer_11_residual
+  lr_scheduler_monitor: Validation loss
 ```
 
 ---
@@ -64,7 +67,7 @@ callbacks:
 - `model`: model architecture and dimensions.
 - `optimizer`: optimizer and scheduler parameters.
 - `training`: epochs, loss composition, and accelerator strategy.
-- `callbacks`: early stopping behavior.
+- `callbacks`: early stopping behavior and the validation metrics monitored by the training callbacks and the LR scheduler.
 - `seed`: random seed used for reproducible shuffling/splits.
 - `verbose`: enables extra outputs (for example additional test plots/log artifacts).
 
@@ -195,6 +198,27 @@ Common `loss_args` patterns:
 - `patience`: early stopping patience (epochs without sufficient improvement).
 - `tol`: minimum required improvement threshold to reset patience.
 
+### Monitored metrics
+
+Three keys select which logged validation metric each callback and the LR
+scheduler tracks. Each names a metric that must appear in the validation logs
+(for example `Validation loss` or a per-layer physics residual such as
+`Validation layer_11_residual`). If a key is omitted it defaults to
+`Validation loss`.
+
+- `early_stopping_monitor`: metric watched by early stopping.
+- `checkpoint_monitor`: metric watched by best-model saving.
+- `lr_scheduler_monitor`: metric watched by the `ReduceLROnPlateau` scheduler.
+
+All of them are minimized: a **lower** value is always considered better
+(`mode="min"`). This direction is fixed and cannot be configured.
+
+Note: A monitored metric name must exactly match a logged validation metric.
+For example, `Validation layer_11_residual` is only produced by the
+`LayeredWeightedPhysics` loss and requires a model deep enough to have a
+layer index 11 (a 12-layer model). Pointing a monitor at a metric that is
+never logged aborts the run once training begins.
+
 ---
 
 ## Practical validation checklist
@@ -204,3 +228,4 @@ Before launching a run, verify:
 - `len(data.networks) == len(data.scenarios)`.
 - `len(training.losses) == len(training.loss_weights) == len(training.loss_args)`.
 - `split_by_load_scenario_idx` and `split_from_existing_files` are not both active.
+- each `callbacks.*_monitor` value matches a metric that is actually logged during validation.

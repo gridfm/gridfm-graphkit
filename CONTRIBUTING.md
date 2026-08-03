@@ -103,3 +103,97 @@ pytest integrationtests --calibrate -s
 [Technical Charter]: https://github.com/lf-energy/foundation/blob/main/project_charters/gridfm_charter.pdf
 [copyright and license headers]: https://github.com/lf-energy/tac/blob/main/process/contribution_guidelines.md#license
 [Developer Certificate of Origin signoff]: https://github.com/lf-energy/tac/blob/main/process/contribution_guidelines.md#contribution-sign-off
+
+# Contribution Checklist ✅
+
+Before opening a PR, make sure you complete all steps:
+
+### 1. Development setup
+- [ ] Install dev and test dependencies:
+  ```bash
+  pip install -e ".[dev,test]"
+  ```
+
+* [ ] Install `torch-scatter` and `torch-sparse` separately (the correct wheel depends on your PyTorch and CUDA versions):
+  ```bash
+  TORCH_CUDA_VERSION=$(python -c "import torch; print(torch.__version__ + ('+cpu' if torch.version.cuda is None else ''))")
+  pip install torch-scatter -f https://data.pyg.org/whl/torch-${TORCH_CUDA_VERSION}.html
+  pip install torch-sparse -f https://data.pyg.org/whl/torch-${TORCH_CUDA_VERSION}.html
+  ```
+
+  If `data.pyg.org` has no prebuilt wheel for your PyTorch version, build from source instead (this
+  compiles against your installed torch, so it works with any version):
+  ```bash
+  pip install torch-scatter torch-sparse --no-build-isolation
+  ```
+  Building from source requires a C++ compiler (and a matching CUDA toolkit with
+  `nvcc` for GPU builds).
+
+* [ ] Install the git hooks (this repo runs pre-commit hooks at the **pre-push** stage):
+  ```bash
+  pre-commit install
+  ```
+
+* [ ] Create a new branch for your feature from `main`.
+
+
+### 2. Code quality
+
+* [ ] Write clear, readable code with self-explanatory variable names.
+* [ ] Comment code where needed.
+* [ ] Prefer the clearest implementation if multiple options have similar complexity.
+
+### 3. Code style & documentation
+
+* [ ] Add Google-style Python docstrings for all functions/classes.
+* [ ] **Double-check that no debug prints or temporary files are left in the code.**
+* [ ] Update documentation and `README.md` whenever relevant.
+
+### 4. Configuration & dependencies
+
+* [ ] Add any new dependencies to `pyproject.toml`.
+* [ ] If introducing new parameters, update all relevant YAML files:
+
+  * `examples/config`
+  * `tests/config`
+
+### 5. Testing
+* [ ] Ask your favorite code assistant to identify bugs and edge cases.
+* [ ] Add unit tests covering:
+
+  * Core functionality of your changes.
+  * Potential edge cases.
+* [ ] Run all tests:
+
+  ```bash
+  MLFLOW_ALLOW_FILE_STORE=true pytest tests/
+  ```
+* [ ] Run integration tests, see [Running the Integration Tests](#running-the-integration-tests).
+
+### 6. Pre-commit & linting
+
+The hooks run automatically on `git push`. To run them manually before pushing:
+
+* [ ] Run the hooks on all files:
+
+  ```bash
+  pre-commit run --all-files
+  ```
+* [ ] Fix any issues.
+* [ ] Re-run the hooks after any code changes.
+
+### 7. Documentation build
+
+* [ ] Build docs and check rendering:
+
+  ```bash
+  mkdocs build
+  mkdocs serve
+  ```
+
+### 8. Pull request
+
+* [ ] **Rebase your branch onto the latest `main` before opening a PR.**
+* [ ] **Sign off all commits** with the Developer Certificate of Origin (`git commit -s`). See [Developer Certificate of Origin signoff].
+* [ ] Open a PR with a short description of your changes.
+* [ ] Ensure code, tests, and documentation are clear and complete.
