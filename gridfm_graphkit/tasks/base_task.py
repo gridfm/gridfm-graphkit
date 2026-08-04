@@ -104,8 +104,9 @@ class BaseTask(L.LightningModule, ABC):
         log_stats_path = os.path.join(log_dir, "normalization_stats.txt")
         with open(log_stats_path, "w") as log_file:
             for i, normalizer in enumerate(self.data_normalizers):
+                network = self.args.data.networks[i]
                 log_file.write(
-                    f"Data Normalizer {self.args.data.networks[i]} stats:\n{normalizer.get_stats()}\n\n",
+                    f"Data Normalizer {network} stats:\n{normalizer.get_stats()}\n\n",
                 )
 
         # Machine-loadable stats (one file per network, keyed by network name)
@@ -120,7 +121,9 @@ class BaseTask(L.LightningModule, ABC):
             self.args.optimizer.type = "AdamW"
         optimizer = getattr(torch.optim, self.args.optimizer.type)
         if not isinstance(self.args.optimizer.optimizer_params, Mapping):
-            self.args.optimizer.optimizer_params = self.args.optimizer.optimizer_params.to_dict()
+            self.args.optimizer.optimizer_params = (
+                self.args.optimizer.optimizer_params.to_dict()
+            )
 
         # initialize optimizer with config params
         self.optimizer = optimizer(
@@ -143,7 +146,9 @@ class BaseTask(L.LightningModule, ABC):
         # initialize scheduler with config params
         scheduler = getattr(torch.optim.lr_scheduler, scheduler_type)
         if not isinstance(self.args.optimizer.scheduler_params, Mapping):
-            self.args.optimizer.scheduler_params = self.args.optimizer.scheduler_params.to_dict()
+            self.args.optimizer.scheduler_params = (
+                self.args.optimizer.scheduler_params.to_dict()
+            )
         self.scheduler = scheduler(
             self.optimizer,
             **self.args.optimizer.scheduler_params,
