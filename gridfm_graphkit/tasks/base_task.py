@@ -1,14 +1,14 @@
 import os
 import time
 from abc import ABC, abstractmethod
+from collections.abc import Mapping
+
 import lightning as L
-from pytorch_lightning.utilities import rank_zero_only
-from lightning.pytorch.loggers import MLFlowLogger
 import torch
-from torch.optim.lr_scheduler import ReduceLROnPlateau
+from lightning.pytorch.loggers import MLFlowLogger
+from pytorch_lightning.utilities import rank_zero_only
 
 from gridfm_graphkit.training.callbacks import DEFAULT_MONITOR
-from collections.abc import Mapping
 
 
 class BaseTask(L.LightningModule, ABC):
@@ -126,14 +126,14 @@ class BaseTask(L.LightningModule, ABC):
         self.optimizer = optimizer(
             self.model.parameters(),
             lr=self.args.optimizer.learning_rate,
-            **self.args.optimizer.optimizer_params, #unpack all other optim parameters
+            **self.args.optimizer.optimizer_params,  # unpack all other optim parameters
         )
 
         # if no scheduler has been specified, return optimizer only
         scheduler_type = getattr(self.args.optimizer, "scheduler_type", None)
         if scheduler_type is None:
             return {"optimizer": self.optimizer}
-            
+
         lr_scheduler_monitor = getattr(
             self.args.callbacks,
             "lr_scheduler_monitor",
@@ -146,16 +146,13 @@ class BaseTask(L.LightningModule, ABC):
             self.args.optimizer.scheduler_params = self.args.optimizer.scheduler_params.to_dict()
         self.scheduler = scheduler(
             self.optimizer,
-            **self.args.optimizer.scheduler_params
+            **self.args.optimizer.scheduler_params,
         )
 
-        
         return {
             "optimizer": self.optimizer,
             "lr_scheduler": {
                 "scheduler": self.scheduler,
                 "monitor": lr_scheduler_monitor,
-                # "reduce_on_plateau": True,
-                # "strict": True,
             },
         }
