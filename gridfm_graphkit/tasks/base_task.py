@@ -8,6 +8,7 @@ import torch
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 from gridfm_graphkit.training.callbacks import DEFAULT_MONITOR
+from collections.abc import Mapping
 
 
 class BaseTask(L.LightningModule, ABC):
@@ -114,28 +115,47 @@ class BaseTask(L.LightningModule, ABC):
         torch.save(stats_dict, os.path.join(log_dir, "normalizer_stats.pt"))
 
     def configure_optimizers(self):
-        self.optimizer = torch.optim.AdamW(
+        # if no optimizer has been specified, use AdamW optimizer
+        if self.args.optimizer.type is None:
+            self.args.optimizer.type = "AdamW"
+        optimizer = getattr(torch.optim, self.args.optimizer.type)
+        if not isinstance(self.args.optimizer.optimizer_params, Mapping):
+            self.args.optimizer.optimizer_params = self.args.optimizer.optimizer_params.to_dict()
+
+        # initialize optimizer with config params
+        self.optimizer = optimizer(
             self.model.parameters(),
             lr=self.args.optimizer.learning_rate,
-            betas=(self.args.optimizer.beta1, self.args.optimizer.beta2),
+            **self.args.optimizer.optimizer_params, #unpack all other optim parameters
         )
+
+        # if no scheduler has been specified, return optimizer only
+        scheduler_type = getattr(self.args.optimizer, "scheduler_type", None)
+        if scheduler_type is None:
+            return {"optimizer": self.optimizer}
+            
         lr_scheduler_monitor = getattr(
             self.args.callbacks,
             "lr_scheduler_monitor",
             DEFAULT_MONITOR,
         )
-        self.scheduler = ReduceLROnPlateau(
+
+        # initialize scheduler with config params
+        scheduler = getattr(torch.optim.lr_scheduler, scheduler_type)
+        if not isinstance(self.args.optimizer.scheduler_params, Mapping):
+            self.args.optimizer.scheduler_params = self.args.optimizer.scheduler_params.to_dict()
+        self.scheduler = scheduler(
             self.optimizer,
-            mode="min",
-            factor=self.args.optimizer.lr_decay,
-            patience=self.args.optimizer.lr_patience,
+            **self.args.optimizer.scheduler_params
         )
+
+        
         return {
             "optimizer": self.optimizer,
             "lr_scheduler": {
                 "scheduler": self.scheduler,
                 "monitor": lr_scheduler_monitor,
-                "reduce_on_plateau": True,
-                "strict": True,
+                # "reduce_on_plateau": True,
+                # "strict": True,
             },
         }
