@@ -46,6 +46,14 @@ pip install torch-scatter -f https://data.pyg.org/whl/torch-${TORCH_CUDA_VERSION
 pip install torch-sparse -f https://data.pyg.org/whl/torch-${TORCH_CUDA_VERSION}.html
 ```
 
+If `data.pyg.org` has no prebuilt wheel for your PyTorch version, build from source instead (this
+compiles against your installed torch, so it works with any version):
+```bash
+pip install torch-scatter torch-sparse --no-build-isolation
+```
+Building from source requires a C++ compiler (and a matching CUDA toolkit with
+`nvcc` for GPU builds).
+
 
 For documentation generation and unit testing, install with the optional `dev` and `test` extras:
 
@@ -96,7 +104,6 @@ gridfm_graphkit train --config path/to/config.yaml
 | `--profiler` | `str` | Enable Lightning profiler (`simple`, `advanced`, `pytorch`). | `None` |
 | `--compute_dc_ac_metrics` | `flag` | Compute ground-truth AC/DC power balance metrics on the test split. | `False` |
 | `--mp_context` | `str` | DataLoader multiprocessing start method (`spawn`, `fork`, `forkserver`). Defaults to PyTorch's automatic choice. On Linux, `spawn` is recommended for safety (CUDA + fork is unsafe); other choices emit a warning. | `None` |
-
 ### Examples
 
 **Standard Training:**
@@ -133,7 +140,6 @@ gridfm_graphkit finetune --config path/to/config.yaml --model_path path/to/model
 | `--profiler` | `str` | Enable Lightning profiler (`simple`, `advanced`, `pytorch`). | `None` |
 | `--compute_dc_ac_metrics` | `flag` | Compute ground-truth AC/DC power balance metrics on the test split. | `False` |
 | `--mp_context` | `str` | DataLoader multiprocessing start method (`spawn`, `fork`, `forkserver`). Defaults to PyTorch's automatic choice. On Linux, `spawn` is recommended for safety (CUDA + fork is unsafe); other choices emit a warning. | `None` |
-
 
 ---
 

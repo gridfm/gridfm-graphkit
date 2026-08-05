@@ -2,6 +2,7 @@ from gridfm_graphkit.datasets.hetero_powergrid_datamodule import LitGridHeteroDa
 from gridfm_graphkit.io.param_handler import NestedNamespace
 from gridfm_graphkit.io.registries import DATASET_WRAPPER_REGISTRY
 from gridfm_graphkit.training.callbacks import (
+    DEFAULT_MONITOR,
     SaveBestModelStateDict,
     EpochTimerCallback,
 )
@@ -129,24 +130,35 @@ def benchmark_cli(args):
 
 
 def get_training_callbacks(args):
-    """Build the standard callback stack used for train/finetune runs."""
+    """Build the standard callback stack used for train/finetune runs.
+
+    Args:
+        args: config namespace providing ``callbacks.tol``, ``callbacks.patience``
+            and the optional monitor keys above.
+    """
+    early_stopping_monitor = getattr(
+        args.callbacks,
+        "early_stopping_monitor",
+        DEFAULT_MONITOR,
+    )
+    checkpoint_monitor = getattr(args.callbacks, "checkpoint_monitor", DEFAULT_MONITOR)
+
     early_stop_callback = EarlyStopping(
-        monitor="Validation loss",
+        monitor=early_stopping_monitor,
         min_delta=args.callbacks.tol,
         patience=args.callbacks.patience,
         verbose=False,
         mode="min",
+        strict=True,
     )
 
     save_best_model_callback = SaveBestModelStateDict(
-        monitor="Validation loss",
+        monitor=checkpoint_monitor,
         mode="min",
         filename="best_model_state_dict.pt",
     )
 
     checkpoint_callback = ModelCheckpoint(
-        monitor="Validation loss",  # or whichever metric you track
-        mode="min",
         save_last=True,
         save_top_k=0,
     )
@@ -263,7 +275,8 @@ def main_cli(args):
         max_epochs=config_args.training.epochs,
         callbacks=training_callbacks,
         deterministic=(
-            True if getattr(args, "deterministic", None) == "true"
+            True
+            if getattr(args, "deterministic", None) == "true"
             else (getattr(args, "deterministic", None) or False)
         ),
         **trainer_kwargs,
