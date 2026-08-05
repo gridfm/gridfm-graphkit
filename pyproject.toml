@@ -49,6 +49,7 @@ dependencies = [
     "plotly>=6.1.2",
     "pyyaml>=6.0.2",
     "torch>=2.10",
+    "torch-scatter>=2.1.2",
     "torch-geometric>=2.6.1",
     "torchaudio>=2.10",
     "torchvision>=0.25",
@@ -75,3 +76,14 @@ test = [
 
 [project.scripts]
 gridfm_graphkit = "gridfm_graphkit.__main__:main"
+
+[tool.uv]
+# torch-scatter is not on PyPI — it requires a PyG wheel index matching your torch version.
+# The find-links URL below must be updated whenever the torch version in [project.dependencies] changes.
+# CPU:  https://data.pyg.org/whl/torch-X.Y.Z+cpu.html
+# CUDA: https://data.pyg.org/whl/torch-X.Y.Z+cuNNN.html
+# After updating, regenerate the lock file with: uv lock
+find-links = [
+    "https://data.pyg.org/whl/torch-2.13.0+cpu.html",
+    "https://data.pyg.org/whl/torch-2.13.0+cu126.html",
+]
