@@ -98,7 +98,7 @@ def test_predict_parser_accepts_get_embeddings_flag() -> None:
         "examples/config/HGNS_PF_118Bus.yaml",
         "--model_path",
         "tests/models/dummy_model.pt",
-        "--get-embeddings",
+        "--get_embeddings",
     ]
 
     with (

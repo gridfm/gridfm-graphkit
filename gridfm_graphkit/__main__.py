@@ -372,7 +372,7 @@ def main():
     )
     predict_parser.add_argument("--output_path", type=str, default="data")
     predict_parser.add_argument(
-        "--get-embeddings",
+        "--get_embeddings",
         action="store_true",
         help="Export final hidden embeddings as separate parquet files during predict.",
     )
