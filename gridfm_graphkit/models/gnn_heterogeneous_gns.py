@@ -221,9 +221,12 @@ class GNS_heterogeneous(nn.Module):
             bus_temp = self.mlp_bus(h_bus)  # [Nb, 2]  -> Vm, Va
             gen_temp = self.mlp_gen(h_gen)  # [Ng, 1]  -> Pg
 
-            # Snapshot the embedding that actually produced bus_temp/output_temp,
-            # before the physics-residual update below moves h_bus past it.
-            h_bus_embed = h_bus
+            # Snapshot the embedding that actually produced bus_temp/output_temp.
+            # The physics-residual update below rebinds h_bus out-of-place, so a
+            # plain reference is already correct; clone() keeps it correct if that
+            # ever becomes an in-place update.
+            if return_embeddings:
+                h_bus_embed = h_bus.clone()
 
             if self.task == "StateEstimation":
                 if i == self.num_layers - 1:
