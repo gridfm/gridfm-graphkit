@@ -142,7 +142,7 @@ class OptimalPowerFlowTask(ReconstructionTask):
         angle_min = bus_edge_attr[:, ANG_MIN] * torch.pi / 180.0 # convert to radians for comparison
         angle_max = bus_edge_attr[:, ANG_MAX] * torch.pi / 180.0 # convert to radians for comparison
 
-        bus_angles = output["bus"][:, VA_OUT]  # in degrees
+        bus_angles = output["bus"][:, VA_OUT]  # in radians
         from_bus = bus_edge_index[0]
         to_bus = bus_edge_index[1]
         angle_diff = bus_angles[from_bus] - bus_angles[to_bus]  # keep sign
