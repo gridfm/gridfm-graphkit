@@ -139,8 +139,8 @@ class OptimalPowerFlowTask(ReconstructionTask):
         mean_thermal_violation_reverse = torch.mean(reverse_excess)
 
         # Compute branch angle difference violation
-        angle_min = bus_edge_attr[:, ANG_MIN]
-        angle_max = bus_edge_attr[:, ANG_MAX]
+        angle_min = bus_edge_attr[:, ANG_MIN] * torch.pi / 180.0 # convert to radians for comparison
+        angle_max = bus_edge_attr[:, ANG_MAX] * torch.pi / 180.0 # convert to radians for comparison
 
         bus_angles = output["bus"][:, VA_OUT]  # in degrees
         from_bus = bus_edge_index[0]
