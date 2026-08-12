@@ -15,6 +15,7 @@ import pytest
 import torch
 
 from gridfm_graphkit.datasets.powergrid_hetero_dataset import HeteroGridDatasetDisk
+from gridfm_graphkit.datasets.globals import VA_H, PG_H
 
 _SRC_RAW = "tests/data/case14_ieee/raw"
 _TABLES = ["bus_data.parquet", "gen_data.parquet", "branch_data.parquet"]
@@ -105,6 +106,54 @@ def test_streaming_matches_flat(tmp_path):
 
     assert len(flat_graphs) == _N_SCENARIOS
     _assert_graphs_equal(flat_graphs, part_graphs)
+
+
+def test_scenario_graph_structure(tmp_path):
+    """Pin the absolute structure of a built graph against the case14 fixture.
+
+    The equivalence test only proves flat == streaming; because both paths share
+    ``_build_and_save_scenario``, a fault in that shared builder would corrupt
+    both sides identically and still pass. These assertions check ground truth
+    (shapes, slice boundaries, edge mirroring) so builder faults are caught.
+    """
+    root = str(tmp_path / "flat")
+    _write_flat(root)
+    _build(root, "off")
+    g = torch.load(
+        osp.join(root, "processed", "data_index_0.pt"), weights_only=True
+    )
+
+    bus, gen = g["bus"], g["gen"]
+    bb = g[("bus", "connects", "bus")]
+    n_bus, n_gen = 14, 5
+    n_branch = 20
+
+    # Node feature blocks and target slice boundaries (kills VA_H/PG_H mutants).
+    assert bus["x"].shape == (n_bus, 15)
+    assert gen["x"].shape == (n_gen, 7)
+    assert bus["y"].shape == (n_bus, VA_H + 1)
+    assert gen["y"].shape == (n_gen, PG_H + 1)
+    assert torch.equal(bus["y"], bus["x"][:, : VA_H + 1])
+    assert torch.equal(gen["y"], gen["x"][:, : PG_H + 1])
+
+    # Directed edges = forward + reverse of every branch (kills cat/order mutants).
+    ei = bb["edge_index"]
+    assert ei.shape == (2, 2 * n_branch)
+    assert bb["edge_attr"].shape == (2 * n_branch, 11)
+    assert bb["y"].shape == (2 * n_branch, 2)
+    fwd, rev = ei[:, :n_branch], ei[:, n_branch:]
+    # Reverse half must mirror the forward half (kills from_bus/to_bus swaps).
+    assert torch.equal(rev[0], fwd[1])
+    assert torch.equal(rev[1], fwd[0])
+
+    # Generator connectivity is symmetric between the two directed edge sets.
+    g2b = g[("gen", "connected_to", "bus")]["edge_index"]
+    b2g = g[("bus", "connected_to", "gen")]["edge_index"]
+    assert g2b.shape == (2, n_gen)
+    assert torch.equal(g2b[0], b2g[1])
+    assert torch.equal(g2b[1], b2g[0])
+
+    assert int(g["_global_store"]["scenario_id"].item()) == 0
 
 
 def test_streaming_matches_flat_load_scenarios(tmp_path):
