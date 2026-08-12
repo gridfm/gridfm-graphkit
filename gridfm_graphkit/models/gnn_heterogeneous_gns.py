@@ -221,13 +221,6 @@ class GNS_heterogeneous(nn.Module):
             bus_temp = self.mlp_bus(h_bus)  # [Nb, 2]  -> Vm, Va
             gen_temp = self.mlp_gen(h_gen)  # [Ng, 1]  -> Pg
 
-            # Snapshot the embedding that actually produced bus_temp/output_temp.
-            # The physics-residual update below rebinds h_bus out-of-place, so a
-            # plain reference is already correct; clone() keeps it correct if that
-            # ever becomes an in-place update.
-            if return_embeddings:
-                h_bus_embed = h_bus.clone()
-
             if self.task == "StateEstimation":
                 if i == self.num_layers - 1:
                     Pft, Qft = self.branch_flow_layer(
@@ -300,14 +293,22 @@ class GNS_heterogeneous(nn.Module):
 
                 bus_residuals = torch.stack([residual_P, residual_Q], dim=-1)
 
-                # Save and project residuals to latent space
+                # Save and project residuals to latent space.
+                # layer_residuals is consumed by LayeredWeightedPhysicsLoss for
+                # every layer, so it is recorded unconditionally.
                 self.layer_residuals[i] = torch.linalg.norm(
                     bus_residuals,
                     dim=-1,
                 ).mean()
-                h_bus = h_bus + self.physics_mlp(bus_residuals)
+                # On the last layer the updated h_bus is never read again: the
+                # loop ends, predictions come from output_temp/gen_temp, and the
+                # exported embedding is the tensor that fed mlp_bus. Skipping the
+                # update avoids a dead forward pass and makes h_bus itself the
+                # correct embedding to return (no snapshot/clone needed).
+                if i < self.num_layers - 1:
+                    h_bus = h_bus + self.physics_mlp(bus_residuals)
 
         predictions = {"bus": output_temp, "gen": gen_temp}
         if not return_embeddings:
             return predictions
-        return predictions, {"bus": h_bus_embed, "gen": h_gen}
+        return predictions, {"bus": h_bus, "gen": h_gen}

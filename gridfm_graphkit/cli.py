@@ -93,7 +93,6 @@ def benchmark_cli(args):
         base_config = yaml.safe_load(f)
 
     config_args = NestedNamespace(**base_config)
-    config_args.get_embeddings = bool(getattr(args, "get_embeddings", False))
 
     num_workers_override = getattr(args, "num_workers", None)
     if num_workers_override is not None:

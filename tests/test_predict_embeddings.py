@@ -6,6 +6,7 @@ from types import SimpleNamespace
 
 from gridfm_graphkit.__main__ import main
 from gridfm_graphkit.cli import _prediction_output_filename, main_cli
+from gridfm_graphkit.models.gnn_heterogeneous_gns import GNS_heterogeneous
 from gridfm_graphkit.models.grit_transformer import GritHeteroAdapter
 from gridfm_graphkit.tasks.utils import (
     embedding_table_from_tensor,
@@ -572,3 +573,89 @@ def test_main_cli_predict_saves_opf_embedding_tables(tmp_path) -> None:
         "emb_000",
     ]
     assert all(not index for _, _, index in saved.values())
+
+
+class _Const(torch.nn.Module):
+    """Returns a constant tensor of width ``out_dim``, one row per input row."""
+
+    def __init__(self, out_dim: int, value: float = 0.0):
+        super().__init__()
+        self.out_dim = out_dim
+        self.value = value
+
+    def forward(self, x):
+        return torch.full((x.shape[0], self.out_dim), self.value)
+
+
+def test_gns_bus_embedding_excludes_final_physics_update() -> None:
+    """The exported bus embedding must be the tensor that fed ``mlp_bus``.
+
+    The physics-residual update is skipped on the last layer, so ``h_bus`` at
+    the return is exactly that tensor. ``physics_mlp`` returns a huge constant,
+    so if the final update were reapplied the embedding would blow up.
+    """
+    n_bus, n_gen, hidden = 3, 2, 4
+    model = object.__new__(GNS_heterogeneous)
+    torch.nn.Module.__init__(model)
+
+    # Two layers: layer 0 applies the physics update, layer 1 must not.
+    model.task = "PowerFlow"
+    model.num_layers = 2
+    model.activation = torch.nn.Identity()
+    model.layer_residuals = {}
+    model.input_proj_bus = _Const(hidden, 2.0)
+    model.input_proj_gen = _Const(hidden, 3.0)
+    model.input_proj_edge = torch.nn.Identity()
+    model.layers = [lambda h, ei, ea: dict(h)] * 2
+    model.norms_bus = [torch.nn.Identity()] * 2
+    model.norms_gen = [torch.nn.Identity()] * 2
+    model.mlp_bus = _Const(2, 1.0)
+    model.mlp_gen = _Const(1, 1.0)
+    model.physics_mlp = _Const(hidden, 1e6)
+    model.branch_flow_layer = lambda bus, ei, ea: (
+        torch.zeros(ei.shape[1]),
+        torch.zeros(ei.shape[1]),
+    )
+    model.node_injection_layer = lambda p, q, ei, nb: (
+        torch.zeros(nb),
+        torch.zeros(nb),
+    )
+    model.physics_decoder = lambda p, q, bus_temp, bus_x, agg, md: torch.zeros(
+        (n_bus, 4),
+    )
+    model.node_residuals_layer = lambda p, q, out, bus_x: (
+        torch.zeros(n_bus),
+        torch.zeros(n_bus),
+    )
+
+    batch = SimpleNamespace(
+        x_dict={"bus": torch.zeros((n_bus, 16)), "gen": torch.zeros((n_gen, 8))},
+        edge_index_dict={
+            ("bus", "connects", "bus"): torch.tensor([[0, 1], [1, 2]]),
+            ("gen", "connected_to", "bus"): torch.tensor([[0, 1], [0, 1]]),
+        },
+        edge_attr_dict={
+            ("bus", "connects", "bus"): torch.zeros((2, 2)),
+            ("gen", "connected_to", "bus"): None,
+        },
+        mask_dict={
+            "bus": torch.ones((n_bus, 16), dtype=torch.bool),
+            "gen": torch.ones((n_gen, 8), dtype=torch.bool),
+        },
+    )
+
+    _, embeddings = model(batch, return_embeddings=True)
+
+    # layer 0: h_bus = 2.0 (proj) + 2.0 (identity conv) = 4.0, then += 1e6.
+    # layer 1: h_bus = 1e6+4 doubled by the skip connection, and NO further update.
+    expected = torch.full((n_bus, hidden), (1e6 + 4.0) * 2)
+    torch.testing.assert_close(embeddings["bus"], expected)
+
+    # The final layer's physics update must not be included.
+    assert not torch.allclose(
+        embeddings["bus"],
+        expected + 1e6,
+    ), "bus embedding includes the final-layer physics update"
+
+    # layer_residuals must still be recorded for every layer (the loss reads all).
+    assert sorted(model.layer_residuals) == [0, 1]

@@ -531,11 +531,12 @@ class OptimalPowerFlowTask(ReconstructionTask):
         self.test_outputs.clear()
 
     def predict_step(self, batch, batch_idx, dataloader_idx=0):
-        embeddings = None
+        # Predict only needs the forward pass; shared_step would also compute a
+        # loss that is discarded here (and would require targets to be present).
         if getattr(self.args, "get_embeddings", False):
             output, embeddings = self.model(batch, return_embeddings=True)
         else:
-            output, _ = self.shared_step(batch)
+            output, embeddings = self.model(batch), None
 
         self.data_normalizers[dataloader_idx].inverse_transform(batch)
         self.data_normalizers[dataloader_idx].inverse_output(output, batch)
