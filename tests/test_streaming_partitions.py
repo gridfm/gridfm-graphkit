@@ -1,3 +1,18 @@
+# Copyright 2026 GridFM Contributors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# SPDX-License-Identifier: Apache-2.0
 """Tests for Hive-partition streaming in HeteroGridDatasetDisk.
 
 The central guarantee is that streaming changes *memory usage*, not *results*:
@@ -33,7 +48,8 @@ def _write_flat(root: str) -> None:
     os.makedirs(raw, exist_ok=True)
     for table in _TABLES:
         _subset(pd.read_parquet(osp.join(_SRC_RAW, table))).to_parquet(
-            osp.join(raw, table), index=False
+            osp.join(raw, table),
+            index=False,
         )
 
 
@@ -66,9 +82,7 @@ def _load_graphs(processed_dir: str) -> dict[str, dict]:
     graphs = {}
     for name in os.listdir(processed_dir):
         if name.startswith("data_index_") and name.endswith(".pt"):
-            graphs[name] = torch.load(
-                osp.join(processed_dir, name), weights_only=True
-            )
+            graphs[name] = torch.load(osp.join(processed_dir, name), weights_only=True)
     return graphs
 
 
@@ -119,9 +133,7 @@ def test_scenario_graph_structure(tmp_path):
     root = str(tmp_path / "flat")
     _write_flat(root)
     _build(root, "off")
-    g = torch.load(
-        osp.join(root, "processed", "data_index_0.pt"), weights_only=True
-    )
+    g = torch.load(osp.join(root, "processed", "data_index_0.pt"), weights_only=True)
 
     bus, gen = g["bus"], g["gen"]
     bb = g[("bus", "connects", "bus")]
@@ -167,10 +179,12 @@ def test_streaming_matches_flat_load_scenarios(tmp_path):
     _build(part_root, "on")
 
     flat_ls = torch.load(
-        osp.join(flat_root, "processed", "load_scenarios.pt"), weights_only=True
+        osp.join(flat_root, "processed", "load_scenarios.pt"),
+        weights_only=True,
     )
     part_ls = torch.load(
-        osp.join(part_root, "processed", "load_scenarios.pt"), weights_only=True
+        osp.join(part_root, "processed", "load_scenarios.pt"),
+        weights_only=True,
     )
     assert torch.equal(flat_ls, part_ls)
 

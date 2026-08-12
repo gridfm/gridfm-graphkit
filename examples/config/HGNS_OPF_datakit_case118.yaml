@@ -13,6 +13,7 @@ data:
   val_ratio: 0.1
   workers: 32 # 1 gpu
   split_by_load_scenario_idx: true
+  stream_partitions: auto
 model:
   attention_head: 8
   edge_dim: 10

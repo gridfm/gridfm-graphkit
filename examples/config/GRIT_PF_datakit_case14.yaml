@@ -39,6 +39,7 @@ data:
     cache: true   # cache the computed positional encoding at first pass (if false computes every access)
     kernel:
       times: 21
+  stream_partitions: auto
 model:
   attention_head: 8
   dropout: 0.1

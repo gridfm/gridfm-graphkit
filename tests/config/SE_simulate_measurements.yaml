@@ -34,6 +34,7 @@ data:
   test_ratio: 0.1
   val_ratio: 0.1
   workers: 1
+  stream_partitions: auto
 model:
   attention_head: 8
   edge_dim: 10

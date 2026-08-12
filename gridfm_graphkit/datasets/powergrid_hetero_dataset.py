@@ -40,7 +40,7 @@ class HeteroGridDatasetDisk(Dataset):
         if stream_partitions not in _VALID:
             raise ValueError(
                 f"stream_partitions={stream_partitions!r} is not valid; "
-                f"choose one of {sorted(_VALID)}"
+                f"choose one of {sorted(_VALID)}",
             )
         self.stream_partitions = stream_partitions
         self.data_normalizer = data_normalizer
@@ -76,7 +76,7 @@ class HeteroGridDatasetDisk(Dataset):
             if partitions is None:
                 raise RuntimeError(
                     f"stream_partitions='on' requires Hive-partitioned parquet, "
-                    f"but detected flat files in {self.raw_dir!r}. Use 'auto' or 'off'."
+                    f"but detected flat files in {self.raw_dir!r}. Use 'auto' or 'off'.",
                 )
             return self._process_streaming(partitions)
 
@@ -137,7 +137,7 @@ class HeteroGridDatasetDisk(Dataset):
                 or scenario not in branch_groups.groups
             ):
                 raise ValueError(
-                    f"Scenario {scenario} is missing generator or branch data."
+                    f"Scenario {scenario} is missing generator or branch data.",
                 )
 
             self._build_and_save_scenario(
@@ -154,9 +154,7 @@ class HeteroGridDatasetDisk(Dataset):
 
     def _partition_dir(self, table: str, partition_val: int) -> str:
         """Path to a single Hive partition directory for a raw table."""
-        return osp.join(
-            self.raw_dir, table, f"{self._PARTITION_PREFIX}{partition_val}"
-        )
+        return osp.join(self.raw_dir, table, f"{self._PARTITION_PREFIX}{partition_val}")
 
     def _detect_partitions(self) -> list[int] | None:
         """Return sorted scenario_partition values when all three tables are Hive-partitioned, else None."""
@@ -171,7 +169,7 @@ class HeteroGridDatasetDisk(Dataset):
                 return None
         bus_path = osp.join(self.raw_dir, "bus_data.parquet")
         return sorted(
-            int(d[len(self._PARTITION_PREFIX):])
+            int(d[len(self._PARTITION_PREFIX) :])
             for d in os.listdir(bus_path)
             if d.startswith(self._PARTITION_PREFIX)
         )
@@ -187,13 +185,13 @@ class HeteroGridDatasetDisk(Dataset):
         load_scenarios: dict[int, int] = {}
         for partition_val in tqdm(partitions, desc="Processing partitions"):
             bus_data = pd.read_parquet(
-                self._partition_dir("bus_data.parquet", partition_val)
+                self._partition_dir("bus_data.parquet", partition_val),
             )
             gen_data = pd.read_parquet(
-                self._partition_dir("gen_data.parquet", partition_val)
+                self._partition_dir("gen_data.parquet", partition_val),
             )
             branch_data = pd.read_parquet(
-                self._partition_dir("branch_data.parquet", partition_val)
+                self._partition_dir("branch_data.parquet", partition_val),
             )
 
             if "load_scenario_idx" in bus_data.columns:
@@ -205,18 +203,27 @@ class HeteroGridDatasetDisk(Dataset):
                 .sum()
                 .reset_index()
             )
-            bus_data = bus_data.merge(agg_gen, on=["scenario", "bus"], how="left").fillna(0)
+            bus_data = bus_data.merge(
+                agg_gen,
+                on=["scenario", "bus"],
+                how="left",
+            ).fillna(0)
 
             bus_groups = bus_data.groupby("scenario")
             gen_groups = gen_data.groupby("scenario")
             branch_groups = branch_data.groupby("scenario")
 
             for scenario in bus_data["scenario"].unique():
-                if osp.exists(osp.join(self.processed_dir, f"data_index_{scenario}.pt")):
+                if osp.exists(
+                    osp.join(self.processed_dir, f"data_index_{scenario}.pt"),
+                ):
                     continue
-                if scenario not in gen_groups.groups or scenario not in branch_groups.groups:
+                if (
+                    scenario not in gen_groups.groups
+                    or scenario not in branch_groups.groups
+                ):
                     raise ValueError(
-                        f"Scenario {scenario} is missing generator or branch data."
+                        f"Scenario {scenario} is missing generator or branch data.",
                     )
                 self._build_and_save_scenario(
                     scenario,
@@ -244,26 +251,52 @@ class HeteroGridDatasetDisk(Dataset):
     ) -> None:
         """Build and persist one scenario's heterogeneous graph to disk."""
         bus_features = [
-            "Pd", "Qd", "Qg", "Vm", "Va", "PQ", "PV", "REF",
-            "min_vm_pu", "max_vm_pu", "min_q_mvar", "max_q_mvar",
-            "GS", "BS", "vn_kv",
+            "Pd",
+            "Qd",
+            "Qg",
+            "Vm",
+            "Va",
+            "PQ",
+            "PV",
+            "REF",
+            "min_vm_pu",
+            "max_vm_pu",
+            "min_q_mvar",
+            "max_q_mvar",
+            "GS",
+            "BS",
+            "vn_kv",
         ]
         gen_features = [
-            "p_mw", "min_p_mw", "max_p_mw",
-            "cp0_eur", "cp1_eur_per_mw", "cp2_eur_per_mw2",
+            "p_mw",
+            "min_p_mw",
+            "max_p_mw",
+            "cp0_eur",
+            "cp1_eur_per_mw",
+            "cp2_eur_per_mw2",
             "in_service",
         ]
         common_branch_features = ["tap", "ang_min", "ang_max", "rate_a", "br_status"]
         forward_branch_features = [
-            "pf", "qf", "Yff_r", "Yff_i", "Yft_r", "Yft_i",
+            "pf",
+            "qf",
+            "Yff_r",
+            "Yff_i",
+            "Yft_r",
+            "Yft_i",
         ] + common_branch_features
         reverse_branch_features = [
-            "pt", "qt", "Ytt_r", "Ytt_i", "Ytf_r", "Ytf_i",
+            "pt",
+            "qt",
+            "Ytt_r",
+            "Ytt_i",
+            "Ytf_r",
+            "Ytf_i",
         ] + common_branch_features
 
-        assert (
-            bus_df["bus"].values == torch.arange(len(bus_df))
-        ).all(), "Buses are not in increasing order"
+        assert (bus_df["bus"].values == torch.arange(len(bus_df))).all(), (
+            "Buses are not in increasing order"
+        )
 
         data = HeteroData()
 

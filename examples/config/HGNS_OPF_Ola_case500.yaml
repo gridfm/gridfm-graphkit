@@ -12,6 +12,7 @@ data:
   workers: 16 # 2 gpus
   split_by_load_scenario_idx: false
   split_from_existing_files: "/dccstor/gridfm/march_opf_exp/opfdata_olay_splits/"
+  stream_partitions: auto
 model:
   attention_head: 8
   edge_dim: 10
