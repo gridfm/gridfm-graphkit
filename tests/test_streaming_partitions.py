@@ -301,3 +301,20 @@ def test_streaming_accepts_contiguous_scenario_ids(tmp_path):
     _write_partitioned(root)
     _build(root, "on")
     assert len(_load_graphs(osp.join(root, "processed"))) == _N_SCENARIOS
+
+
+def test_detect_partitions_raises_on_mismatched_partition_sets(tmp_path):
+    """_detect_partitions must raise early when all tables are partitioned but sets differ.
+
+    A mismatch (e.g. branch missing partition 1) would otherwise surface as a
+    confusing FileNotFoundError deep inside _process_streaming.
+    """
+    root = str(tmp_path / "mismatch")
+    _write_partitioned(root)
+    raw = osp.join(root, "raw")
+
+    # Remove partition 1 from branch only — bus and gen still have {0, 1}.
+    shutil.rmtree(osp.join(raw, "branch_data.parquet", "scenario_partition=1"))
+
+    with pytest.raises(ValueError, match=r"inconsistent across tables.*branch_data\.parquet"):
+        _build(root, "auto")
