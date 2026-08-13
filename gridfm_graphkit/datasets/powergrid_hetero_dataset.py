@@ -186,15 +186,13 @@ class HeteroGridDatasetDisk(Dataset):
         reference = partition_sets[reference_table]
         mismatches = {t: p for t, p in partition_sets.items() if p != reference}
         if mismatches:
-            details = ", ".join(
-                f"{t}={sorted(p)}" for t, p in mismatches.items()
-            )
+            details = ", ".join(f"{t}={sorted(p)}" for t, p in mismatches.items())
             raise ValueError(
                 f"Hive partition sets are inconsistent across tables. "
                 f"{reference_table} has partitions {sorted(reference)}, "
                 f"but the following tables differ: {details}. "
                 f"Re-generate your partitioned data so all tables share the same "
-                f"scenario_partition values."
+                f"scenario_partition values.",
             )
 
         return sorted(reference)
@@ -243,7 +241,7 @@ class HeteroGridDatasetDisk(Dataset):
                     f"Each scenario must be fully contained within a single "
                     f"scenario_partition so that per-partition Q-limit aggregation "
                     f"(agg_gen) is equivalent to the legacy whole-dataset merge. "
-                    f"Re-partition your data so no scenario spans two partitions."
+                    f"Re-partition your data so no scenario spans two partitions.",
                 )
             for s in partition_scenarios:
                 seen_scenarios[s] = partition_val
@@ -298,7 +296,7 @@ class HeteroGridDatasetDisk(Dataset):
             raise ValueError(
                 f"Scenario ids are not contiguous integers from 0 to {n - 1}. "
                 f"Found min={actual_min}, max={actual_max}, count={n}. "
-                f"Ensure no scenarios are missing from your partitioned data."
+                f"Ensure no scenarios are missing from your partitioned data.",
             )
 
         if load_scenarios:
