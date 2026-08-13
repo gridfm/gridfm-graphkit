@@ -274,3 +274,30 @@ def test_scenario_spanning_two_partitions_raises(tmp_path):
 
     with pytest.raises(ValueError, match=r"Scenario 0 appears in both partition 0 and partition 1"):
         _build(root, "on")
+
+
+def test_streaming_raises_on_noncontiguous_scenario_ids(tmp_path):
+    """Streaming must raise when scenario ids have a gap (e.g. 0,1,2,4,5 — missing 3).
+
+    The gap fixture is built by writing a valid partitioned layout and then
+    deleting scenario 3's files from all tables.  This leaves ids {0,1,2,4,5}:
+    min=0, max=5, count=5 → the contiguity check (max == count-1, i.e. 5==4) fails.
+    """
+    root = str(tmp_path / "gap")
+    _write_partitioned(root)
+    raw = osp.join(root, "raw")
+    for table in _TABLES:
+        gap_file = osp.join(raw, table, "scenario_partition=1", "scenario_3.parquet")
+        if osp.exists(gap_file):
+            os.remove(gap_file)
+
+    with pytest.raises(ValueError, match=r"max=5, count=5"):
+        _build(root, "on")
+
+
+def test_streaming_accepts_contiguous_scenario_ids(tmp_path):
+    """Streaming must not raise when scenario ids are a complete 0..N-1 range."""
+    root = str(tmp_path / "contiguous")
+    _write_partitioned(root)
+    _build(root, "on")
+    assert len(_load_graphs(osp.join(root, "processed"))) == _N_SCENARIOS
