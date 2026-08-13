@@ -157,22 +157,47 @@ class HeteroGridDatasetDisk(Dataset):
         return osp.join(self.raw_dir, table, f"{self._PARTITION_PREFIX}{partition_val}")
 
     def _detect_partitions(self) -> list[int] | None:
-        """Return sorted scenario_partition values when all three tables are Hive-partitioned, else None."""
+        """Return sorted scenario_partition values when all three tables are Hive-partitioned, else None.
+
+        Returns:
+            Sorted list of partition integers when all three tables expose the same
+            scenario_partition Hive layout, or None when at least one table is flat.
+
+        Raises:
+            ValueError: If all tables are partitioned but their partition sets differ,
+                indicating a data-preparation inconsistency that would cause a silent
+                read error later in streaming.
+        """
+        partition_sets: dict[str, set[int]] = {}
         for table in self.raw_file_names:
             table_path = osp.join(self.raw_dir, table)
             if not osp.isdir(table_path):
                 return None
-            has_partition_dirs = any(
-                d.startswith(self._PARTITION_PREFIX) for d in os.listdir(table_path)
-            )
-            if not has_partition_dirs:
+            parts = {
+                int(d[len(self._PARTITION_PREFIX) :])
+                for d in os.listdir(table_path)
+                if d.startswith(self._PARTITION_PREFIX)
+            }
+            if not parts:
                 return None
-        bus_path = osp.join(self.raw_dir, "bus_data.parquet")
-        return sorted(
-            int(d[len(self._PARTITION_PREFIX) :])
-            for d in os.listdir(bus_path)
-            if d.startswith(self._PARTITION_PREFIX)
-        )
+            partition_sets[table] = parts
+
+        reference_table = self.raw_file_names[0]
+        reference = partition_sets[reference_table]
+        mismatches = {t: p for t, p in partition_sets.items() if p != reference}
+        if mismatches:
+            details = ", ".join(
+                f"{t}={sorted(p)}" for t, p in mismatches.items()
+            )
+            raise ValueError(
+                f"Hive partition sets are inconsistent across tables. "
+                f"{reference_table} has partitions {sorted(reference)}, "
+                f"but the following tables differ: {details}. "
+                f"Re-generate your partitioned data so all tables share the same "
+                f"scenario_partition values."
+            )
+
+        return sorted(reference)
 
     def _process_streaming(self, partitions: list[int]) -> None:
         """Build the scenario cache by reading one Hive partition at a time.
