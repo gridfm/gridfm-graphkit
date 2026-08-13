@@ -140,6 +140,8 @@ Controls whether `process()` reads raw parquet data partition-by-partition (stre
 - `on`: require Hive partitions; raises `RuntimeError` with a clear message if the raw directory is flat.
 - `off`: force the legacy flat-file path even if partitions exist.
 
+**Data layout requirements for streaming:** all three tables must expose the same set of `scenario_partition` values, and every scenario's rows must be fully contained within a single partition. Violations are caught early with a clear error.
+
 The CLI flag `--stream-partitions` overrides this YAML value.
 
 ## `model` section
