@@ -266,13 +266,14 @@ def test_scenario_spanning_two_partitions_raises(tmp_path):
     for table in _TABLES:
         part0_dir = osp.join(raw, table, "scenario_partition=0")
         part1_dir = osp.join(raw, table, "scenario_partition=1")
-        src_file = next(
-            f for f in os.listdir(part0_dir) if f.startswith("scenario_0.")
-        )
+        src_file = next(f for f in os.listdir(part0_dir) if f.startswith("scenario_0."))
         df = pd.read_parquet(osp.join(part0_dir, src_file))
         df.to_parquet(osp.join(part1_dir, "scenario_0_duplicate.parquet"), index=False)
 
-    with pytest.raises(ValueError, match=r"Scenario 0 appears in both partition 0 and partition 1"):
+    with pytest.raises(
+        ValueError,
+        match=r"Scenario 0 appears in both partition 0 and partition 1",
+    ):
         _build(root, "on")
 
 
@@ -316,5 +317,8 @@ def test_detect_partitions_raises_on_mismatched_partition_sets(tmp_path):
     # Remove partition 1 from branch only — bus and gen still have {0, 1}.
     shutil.rmtree(osp.join(raw, "branch_data.parquet", "scenario_partition=1"))
 
-    with pytest.raises(ValueError, match=r"inconsistent across tables.*branch_data\.parquet"):
+    with pytest.raises(
+        ValueError,
+        match=r"inconsistent across tables.*branch_data\.parquet",
+    ):
         _build(root, "auto")
