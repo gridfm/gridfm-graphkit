@@ -175,7 +175,16 @@ class HeteroGridDatasetDisk(Dataset):
         )
 
     def _process_streaming(self, partitions: list[int]) -> None:
-        """Build the scenario cache by reading one Hive partition at a time."""
+        """Build the scenario cache by reading one Hive partition at a time.
+
+        Args:
+            partitions: Sorted list of scenario_partition values to process.
+
+        Raises:
+            ValueError: If a scenario id appears in more than one partition,
+                violating the datakit invariant that each scenario belongs to
+                exactly one scenario_partition.
+        """
         done_path = osp.join(self.processed_dir, self.processed_done_file)
         if osp.exists(done_path):
             print("Processed files already exist. Skipping processing.")
@@ -183,6 +192,9 @@ class HeteroGridDatasetDisk(Dataset):
 
         print(f"Streaming {len(partitions)} partitions...")
         load_scenarios: dict[int, int] = {}
+        # Maps scenario id → partition it was first seen in, to enforce the
+        # datakit invariant: every scenario lives in exactly one partition.
+        seen_scenarios: dict[int, int] = {}
         for partition_val in tqdm(partitions, desc="Processing partitions"):
             bus_data = pd.read_parquet(
                 self._partition_dir("bus_data.parquet", partition_val),
@@ -194,10 +206,28 @@ class HeteroGridDatasetDisk(Dataset):
                 self._partition_dir("branch_data.parquet", partition_val),
             )
 
+            partition_scenarios = set(int(s) for s in bus_data["scenario"].unique())
+            duplicates = partition_scenarios & seen_scenarios.keys()
+            if duplicates:
+                offender = min(duplicates)
+                raise ValueError(
+                    f"Scenario {offender} appears in both partition "
+                    f"{seen_scenarios[offender]} and partition {partition_val}. "
+                    f"Each scenario must be fully contained within a single "
+                    f"scenario_partition so that per-partition Q-limit aggregation "
+                    f"(agg_gen) is equivalent to the legacy whole-dataset merge. "
+                    f"Re-partition your data so no scenario spans two partitions."
+                )
+            for s in partition_scenarios:
+                seen_scenarios[s] = partition_val
+
             if "load_scenario_idx" in bus_data.columns:
                 first_idx = bus_data.groupby("scenario")["load_scenario_idx"].first()
                 load_scenarios.update(first_idx.to_dict())
 
+            # Invariant: every scenario's rows are fully contained in this
+            # partition, so summing Q-limits here equals the legacy whole-dataset
+            # groupby sum.
             agg_gen = (
                 gen_data.groupby(["scenario", "bus"])[["min_q_mvar", "max_q_mvar"]]
                 .sum()
