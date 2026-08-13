@@ -184,6 +184,8 @@ class HeteroGridDatasetDisk(Dataset):
             ValueError: If a scenario id appears in more than one partition,
                 violating the datakit invariant that each scenario belongs to
                 exactly one scenario_partition.
+            ValueError: If the accumulated scenario ids across all partitions
+                are not a contiguous 0..N-1 range.
         """
         done_path = osp.join(self.processed_dir, self.processed_done_file)
         if osp.exists(done_path):
@@ -261,6 +263,18 @@ class HeteroGridDatasetDisk(Dataset):
                     gen_groups.get_group(scenario),
                     branch_groups.get_group(scenario),
                 )
+
+        # Mirror the legacy contiguity assertion: predict-step indexing
+        # relies on scenario ids forming a complete 0..N-1 range.
+        n = len(seen_scenarios)
+        actual_min = min(seen_scenarios)
+        actual_max = max(seen_scenarios)
+        if actual_min != 0 or actual_max != n - 1:
+            raise ValueError(
+                f"Scenario ids are not contiguous integers from 0 to {n - 1}. "
+                f"Found min={actual_min}, max={actual_max}, count={n}. "
+                f"Ensure no scenarios are missing from your partitioned data."
+            )
 
         if load_scenarios:
             ordered = [load_scenarios[s] for s in sorted(load_scenarios)]
