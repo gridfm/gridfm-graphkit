@@ -171,6 +171,14 @@ class GNS_heterogeneous(nn.Module):
             edge_index_dict: keys like ("bus","connects","bus"), ("gen","connected_to","bus"), ("bus","connected_to","gen")
             edge_attr_dict: same keys -> edge attributes (bus-bus requires G,B)
             mask_dict: dict mapping node/bus types to mask tensors
+
+        When ``return_embeddings`` is ``True``, returns ``(predictions, embeddings)``
+        instead of ``predictions`` alone. Each embedding is the latent tensor fed
+        directly into the corresponding prediction head: ``embeddings["bus"]`` is
+        the ``h_bus`` consumed by ``mlp_bus`` and ``embeddings["gen"]`` is the
+        ``h_gen`` consumed by ``mlp_gen`` on the final layer. (Note the last-layer
+        ``physics_mlp`` update to ``h_bus`` is intentionally skipped, so the
+        returned bus embedding is exactly the head input, not a post-update state.)
         """
         x_dict = batch.x_dict
         edge_index_dict = batch.edge_index_dict

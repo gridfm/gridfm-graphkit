@@ -48,6 +48,7 @@ from gridfm_graphkit.models.utils import (
 import matplotlib.pyplot as plt
 import seaborn as sns
 from lightning.pytorch.loggers import MLFlowLogger
+from lightning.pytorch.utilities import rank_zero_warn
 import numpy as np
 import os
 import pandas as pd
@@ -643,4 +644,12 @@ class OptimalPowerFlowTask(ReconstructionTask):
                     "bus": local_bus_idx[gen_to_bus_index].cpu().numpy(),
                 },
             )
+        elif not getattr(self, "_warned_no_gen_embeddings", False):
+            # e.g. GRIT returns only bus embeddings. Warn once so the absence of
+            # a gen_embeddings parquet file is not mistaken for a bug.
+            rank_zero_warn(
+                f"get_embeddings is set but {type(self.model).__name__} does not "
+                "expose generator embeddings; only bus embeddings will be exported.",
+            )
+            self._warned_no_gen_embeddings = True
         return prediction_tables

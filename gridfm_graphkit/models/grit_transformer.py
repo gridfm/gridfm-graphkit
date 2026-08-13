@@ -385,7 +385,10 @@ class GritHeteroAdapter(torch.nn.Module):
         Returns:
             dict with keys ``"bus"`` and ``"gen"``, each mapping to the
             predicted output features. When ``return_embeddings`` is ``True``,
-            also returns a ``{"bus": ...}`` embedding dictionary.
+            also returns a ``{"bus": ...}`` embedding dictionary, where the bus
+            embedding is the latent tensor (``homo.x``) fed into the prediction
+            heads. This model does not expose a separate ``"gen"`` embedding, so
+            downstream gen-embedding export is skipped for GRIT.
         """
         # --- Extract bus-only homogeneous subgraph ---
         # Aggregate generator PG onto buses
