@@ -246,3 +246,31 @@ def test_detect_partitions_requires_all_tables(tmp_path, missing_table):
 
     ds = _build(root, "auto")
     assert ds._detect_partitions() is None
+
+
+def test_scenario_spanning_two_partitions_raises(tmp_path):
+    """A scenario whose rows are split across two partitions must raise ValueError.
+
+    This guards the per-partition agg_gen Q-limit sum: if scenario X lives in
+    both partition 0 and partition 1, the sum is computed twice on partial data
+    and diverges from the legacy whole-dataset merge.  The guard must fire
+    before any .pt file is written for the offending scenario.
+    """
+    root = str(tmp_path / "split_scenario")
+    raw = osp.join(root, "raw")
+
+    # Write a valid partitioned layout first, then inject a copy of scenario 0
+    # into partition 1 so it spans two partitions.
+    _write_partitioned(root)
+
+    for table in _TABLES:
+        part0_dir = osp.join(raw, table, "scenario_partition=0")
+        part1_dir = osp.join(raw, table, "scenario_partition=1")
+        src_file = next(
+            f for f in os.listdir(part0_dir) if f.startswith("scenario_0.")
+        )
+        df = pd.read_parquet(osp.join(part0_dir, src_file))
+        df.to_parquet(osp.join(part1_dir, "scenario_0_duplicate.parquet"), index=False)
+
+    with pytest.raises(ValueError, match=r"Scenario 0 appears in both partition 0 and partition 1"):
+        _build(root, "on")
