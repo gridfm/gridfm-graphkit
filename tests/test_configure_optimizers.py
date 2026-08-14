@@ -6,8 +6,30 @@ from gridfm_graphkit.io.param_handler import NestedNamespace
 from gridfm_graphkit.tasks.base_task import BaseTask
 
 
+class ConcreteTask(BaseTask):
+    """Minimal concrete subclass of BaseTask for testing configure_optimizers().
+
+    All abstract methods are stubbed out — they are not exercised by these tests.
+    """
+
+    def forward(self, *args, **kwargs):
+        pass
+
+    def training_step(self, *args, **kwargs):
+        pass
+
+    def validation_step(self, *args, **kwargs):
+        pass
+
+    def test_step(self, *args, **kwargs):
+        pass
+
+    def predict_step(self, *args, **kwargs):
+        pass
+
+
 def make_task(optimizer_config: dict, callbacks_config: dict = {}):
-    """Build a minimal BaseTask instance with a fake model and given optimizer config.
+    """Build a minimal ConcreteTask instance with a fake model and given optimizer config.
 
     Bypasses __init__ to avoid requiring a full args/normalizer setup — we only
     need self.args and self.model to exercise configure_optimizers().
@@ -16,7 +38,7 @@ def make_task(optimizer_config: dict, callbacks_config: dict = {}):
         optimizer=optimizer_config,
         callbacks=callbacks_config,
     )
-    task = BaseTask.__new__(BaseTask)
+    task = ConcreteTask.__new__(ConcreteTask)
     task.args = args
     # Fake model with a single parameter so the optimizer has something to hold
     task.model = MagicMock()
