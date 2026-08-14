@@ -48,7 +48,7 @@ dependencies = [
     "pandas>=2.3.0",
     "plotly>=6.1.2",
     "pyyaml>=6.0.2",
-    "torch>=2.10",
+    "torch>=2.10,<2.13", # add upper bound 
     "torch-geometric>=2.6.1",
     "torch-scatter>=2.1.2",
     "torchaudio>=2.10",
@@ -81,8 +81,8 @@ test = [
 # CUDA: https://data.pyg.org/whl/torch-X.Y.Z+cuNNN.html
 # After updating, regenerate the lock file with: uv lock
 find-links = [
-    "https://data.pyg.org/whl/torch-2.13.0+cpu.html",
-    "https://data.pyg.org/whl/torch-2.13.0+cu126.html",
+    "https://data.pyg.org/whl/torch-2.12.0+cpu.html",
+    "https://data.pyg.org/whl/torch-2.12.0+cu126.html",
 ]
 
 [project.scripts]
