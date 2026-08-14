@@ -25,7 +25,7 @@ def test_angle_violation_zero_within_limits():
     )
 
     assert violation == pytest.approx(0.0), (
-        f"Expected zero violation within limits, got {violation.item()}"
+        f"Expected zero violation within limits, got {violation}"
     )
 
 
@@ -65,8 +65,8 @@ def test_angle_violation_positive_outside_limits():
     #   edge 1: excess = 0.0 (within limits)
     #   mean over 2 edges = 0.01273 / 2 ≈ 0.00637 rad
     expected = (0.1 - 5.0 * torch.pi / 180.0) / 2.0
-    assert violation.item() == pytest.approx(expected.item(), abs=1e-6), (
-        f"Violation value mismatch: got {violation.item():.8f}, "
-        f"expected {expected.item():.8f}. "
+    assert violation == pytest.approx(expected, abs=1e-6), (
+        f"Violation value mismatch: got {violation:.8f}, "
+        f"expected {expected:.8f}. "
         "Check that ANG_MIN/ANG_MAX are being converted from degrees to radians."
     )
