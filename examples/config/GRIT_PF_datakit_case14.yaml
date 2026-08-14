@@ -87,11 +87,15 @@ model:
       bn_momentum: 0.1
       bn_no_runner: false
 optimizer:
-  beta1: 0.9
-  beta2: 0.999
+  type: AdamW
   learning_rate: 0.0001
-  lr_decay: 0.7
-  lr_patience: 10
+  optimizer_params:
+    betas: [0.9, 0.999]
+  scheduler_type:  ReduceLROnPlateau
+  scheduler_params:
+    mode: min
+    factor: 0.7      # previously lr_decay
+    patience: 5      # previously lr_patience
 seed: 0
 training:
   batch_size: 8

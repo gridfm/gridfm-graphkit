@@ -1,11 +1,11 @@
+import argparse
 import os
 import time
 from abc import ABC, abstractmethod
 import lightning as L
-from pytorch_lightning.utilities import rank_zero_only
-from lightning.pytorch.loggers import MLFlowLogger
 import torch
-from torch.optim.lr_scheduler import ReduceLROnPlateau
+from lightning.pytorch.loggers import MLFlowLogger
+from pytorch_lightning.utilities import rank_zero_only
 
 from gridfm_graphkit.training.callbacks import DEFAULT_MONITOR
 
@@ -103,8 +103,9 @@ class BaseTask(L.LightningModule, ABC):
         log_stats_path = os.path.join(log_dir, "normalization_stats.txt")
         with open(log_stats_path, "w") as log_file:
             for i, normalizer in enumerate(self.data_normalizers):
+                network = self.args.data.networks[i]
                 log_file.write(
-                    f"Data Normalizer {self.args.data.networks[i]} stats:\n{normalizer.get_stats()}\n\n",
+                    f"Data Normalizer {network} stats:\n{normalizer.get_stats()}\n\n",
                 )
 
         # Machine-loadable stats (one file per network, keyed by network name)
@@ -114,28 +115,59 @@ class BaseTask(L.LightningModule, ABC):
         torch.save(stats_dict, os.path.join(log_dir, "normalizer_stats.pt"))
 
     def configure_optimizers(self):
-        self.optimizer = torch.optim.AdamW(
+        # if no optimizer has been specified, use AdamW optimizer
+        optimizer_type = getattr(self.args.optimizer, "type", "AdamW")
+        optimizer = getattr(torch.optim, optimizer_type, None)
+        if optimizer is None:
+            raise ValueError(
+                f"Unknown optimizer type: '{optimizer_type}'. Must be a valid torch.optim class.",
+            )
+
+        optimizer_params = getattr(self.args.optimizer, "optimizer_params", {})
+        if isinstance(optimizer_params, argparse.Namespace):
+            optimizer_params = optimizer_params.to_dict()
+
+        if self.args.optimizer.learning_rate is None:
+            raise ValueError("Learning rate has not been provided.")
+
+        # initialize optimizer with config params
+        self.optimizer = optimizer(
             self.model.parameters(),
             lr=self.args.optimizer.learning_rate,
-            betas=(self.args.optimizer.beta1, self.args.optimizer.beta2),
+            **optimizer_params,  # unpack all other optim parameters
         )
+
+        # if no scheduler has been specified, return optimizer only
+        scheduler_type = getattr(self.args.optimizer, "scheduler_type", None)
+        if scheduler_type is None:
+            return {"optimizer": self.optimizer}
+
+        # initialize scheduler with config params
+        scheduler = getattr(torch.optim.lr_scheduler, scheduler_type, None)
+        if scheduler is None:
+            raise ValueError(
+                f"Unknown scheduler type: '{scheduler_type}'. Must be a valid torch.optim.lr_scheduler class.",
+            )
+
         lr_scheduler_monitor = getattr(
             self.args.callbacks,
             "lr_scheduler_monitor",
             DEFAULT_MONITOR,
         )
-        self.scheduler = ReduceLROnPlateau(
+
+        scheduler_params = getattr(self.args.optimizer, "scheduler_params", {})
+        if isinstance(scheduler_params, argparse.Namespace):
+            scheduler_params = scheduler_params.to_dict()
+
+        self.scheduler = scheduler(
             self.optimizer,
-            mode="min",
-            factor=self.args.optimizer.lr_decay,
-            patience=self.args.optimizer.lr_patience,
+            **scheduler_params,
         )
+
         return {
             "optimizer": self.optimizer,
             "lr_scheduler": {
                 "scheduler": self.scheduler,
                 "monitor": lr_scheduler_monitor,
-                "reduce_on_plateau": True,
-                "strict": True,
             },
         }

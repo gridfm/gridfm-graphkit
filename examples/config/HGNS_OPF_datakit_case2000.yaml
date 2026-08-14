@@ -23,11 +23,15 @@ model:
   num_layers: 12
   type: GNS_heterogeneous
 optimizer:
-  beta1: 0.9
-  beta2: 0.999
+  type: AdamW
   learning_rate: 0.0005
-  lr_decay: 0.7
-  lr_patience: 5
+  optimizer_params:
+    betas: [0.9, 0.999]
+  scheduler_type:  ReduceLROnPlateau
+  scheduler_params:
+    mode: min
+    factor: 0.7      # previously lr_decay
+    patience: 5      # previously lr_patience
 training:
   batch_size: 4 # 4 gpus
   epochs: 200
