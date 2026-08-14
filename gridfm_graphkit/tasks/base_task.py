@@ -1,14 +1,11 @@
+import argparse
 import os
 import time
 from abc import ABC, abstractmethod
-from collections.abc import Mapping
-
 import lightning as L
 import torch
 from lightning.pytorch.loggers import MLFlowLogger
 from pytorch_lightning.utilities import rank_zero_only
-from gridfm_graphkit.io.param_handler import NestedNamespace
-
 
 from gridfm_graphkit.training.callbacks import DEFAULT_MONITOR
 
@@ -127,10 +124,7 @@ class BaseTask(L.LightningModule, ABC):
             )
 
         optimizer_params = getattr(self.args.optimizer, "optimizer_params", {})
-        if isinstance(optimizer_params, NestedNamespace) or isinstance(
-            optimizer_params,
-            Mapping,
-        ):
+        if isinstance(optimizer_params, argparse.Namespace):
             optimizer_params = optimizer_params.to_dict()
 
         if self.args.optimizer.learning_rate is None:
@@ -162,7 +156,7 @@ class BaseTask(L.LightningModule, ABC):
         )
 
         scheduler_params = getattr(self.args.optimizer, "scheduler_params", {})
-        if isinstance(scheduler_params, NestedNamespace):
+        if isinstance(scheduler_params, argparse.Namespace):
             scheduler_params = scheduler_params.to_dict()
 
         self.scheduler = scheduler(
