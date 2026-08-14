@@ -24,7 +24,7 @@ def test_angle_violation_zero_within_limits():
         ang_max_col=ANG_MAX,
     )
 
-    assert violation==pytest.approx(0.0), (
+    assert violation == pytest.approx(0.0), (
         f"Expected zero violation within limits, got {violation.item()}"
     )
 
@@ -56,7 +56,7 @@ def test_angle_violation_positive_outside_limits():
         ang_max_col=ANG_MAX,
     )
 
-    assert violation.item() > 0.0, (
+    assert violation > 0.0, (
         "Expected positive violation when angle_diff exceeds degree-converted limit"
     )
 
