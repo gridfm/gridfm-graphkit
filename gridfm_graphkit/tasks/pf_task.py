@@ -21,6 +21,8 @@ from gridfm_graphkit.datasets.globals import (
 from gridfm_graphkit.tasks.reconstruction_tasks import ReconstructionTask
 from gridfm_graphkit.io.registries import TASK_REGISTRY
 from gridfm_graphkit.tasks.utils import (
+    embedding_table_from_tensor,
+    local_index_per_graph,
     plot_correlation_by_node_type,
     plot_residuals_histograms,
     residual_stats_by_type,
@@ -420,7 +422,12 @@ class PowerFlowTask(ReconstructionTask):
         self.test_outputs.clear()
 
     def predict_step(self, batch, batch_idx, dataloader_idx=0):
-        output, _ = self.shared_step(batch)  # get the predicted output from the model
+        # Predict only needs the forward pass; shared_step would also compute a
+        # loss that is discarded here (and would require targets to be present).
+        if getattr(self.args, "get_embeddings", False):
+            output, embeddings = self.model(batch, return_embeddings=True)
+        else:
+            output, embeddings = self.model(batch), None
 
         self.data_normalizers[dataloader_idx].inverse_transform(
             batch,
@@ -478,12 +485,8 @@ class PowerFlowTask(ReconstructionTask):
 
         bus_batch = batch.batch_dict["bus"]
         scenario_ids = batch["scenario_id"][bus_batch]
-        local_bus_idx = torch.cat(
-            [
-                torch.arange(c, device=bus_batch.device)
-                for c in torch.bincount(bus_batch)
-            ],
-        )  # this is based on the assumptions that the buses within a graph are ordered and indexed as 0 ... n_nodes-1.
+        local_bus_idx = local_index_per_graph(bus_batch)
+        # this is based on the assumptions that the buses within a graph are ordered and indexed as 0 ... n_nodes-1.
         # todo: we should remove this assert and store the bus idx in the tensors
         # right now we need the increasing order and we have an assert in the dataset to check it.
         bus_x = batch.x_dict["bus"]
@@ -492,7 +495,7 @@ class PowerFlowTask(ReconstructionTask):
         mask_PV = batch.mask_dict["PV"]
         mask_REF = batch.mask_dict["REF"]
 
-        return {
+        prediction_table = {
             "scenario": scenario_ids.cpu().numpy(),
             "bus": local_bus_idx.cpu().numpy(),
             "Pd": bus_x[:, PD_H].cpu().numpy(),
@@ -515,4 +518,16 @@ class PowerFlowTask(ReconstructionTask):
             "active res. (MW)": residual_P.detach().cpu().numpy(),
             "reactive res. (MVar)": residual_Q.detach().cpu().numpy(),
             "PBE": residual_mva.detach().cpu().numpy(),
+        }
+        if embeddings is None or "bus" not in embeddings:
+            return prediction_table
+        return {
+            "bus": prediction_table,
+            "bus_embeddings": embedding_table_from_tensor(
+                embeddings["bus"],
+                id_columns={
+                    "scenario": scenario_ids.cpu().numpy(),
+                    "bus": local_bus_idx.cpu().numpy(),
+                },
+            ),
         }

@@ -60,6 +60,20 @@ def _predictions_to_dataframe(predictions: list[dict[str, np.ndarray]]) -> pd.Da
     return pd.DataFrame({key: np.concatenate(vals) for key, vals in rows.items()})
 
 
+def _prediction_output_filename(grid_name: str, table_name: str) -> str:
+    """Return the parquet filename for one prediction or embedding table."""
+
+    if table_name == "bus":
+        return f"{grid_name}_predictions.parquet"
+    if table_name == "gen":
+        return f"{grid_name}_gen_predictions.parquet"
+    if table_name == "bus_embeddings":
+        return f"{grid_name}_bus_embeddings.parquet"
+    if table_name == "gen_embeddings":
+        return f"{grid_name}_gen_embeddings.parquet"
+    return f"{grid_name}_{table_name}_predictions.parquet"
+
+
 def _validate_dataset_wrapper(name: str | None) -> None:
     """Raise a helpful error if *name* is not registered in DATASET_WRAPPER_REGISTRY."""
     if name is None:
@@ -187,6 +201,7 @@ def main_cli(args):
         base_config = yaml.safe_load(f)
 
     config_args = NestedNamespace(**base_config)
+    config_args.get_embeddings = bool(getattr(args, "get_embeddings", False))
 
     L.seed_everything(config_args.seed, workers=True)
 
@@ -410,10 +425,9 @@ def main_cli(args):
                 df = _predictions_to_dataframe(
                     [batch[table_name] for batch in predictions],
                 )
-                suffix = "" if table_name == "bus" else f"_{table_name}"
                 out_path = os.path.join(
                     output_dir,
-                    f"{grid_name}{suffix}_predictions.parquet",
+                    _prediction_output_filename(grid_name, table_name),
                 )
                 df.to_parquet(out_path, index=False)
                 print(f"Saved {table_name} predictions to {out_path}")

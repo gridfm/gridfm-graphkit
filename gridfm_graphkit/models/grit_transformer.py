@@ -375,7 +375,7 @@ class GritHeteroAdapter(torch.nn.Module):
         else:
             self.gen_head = None
 
-    def forward(self, batch):
+    def forward(self, batch, return_embeddings: bool = False):
         """Forward pass on a heterogeneous power-grid batch.
 
         Args:
@@ -384,7 +384,11 @@ class GritHeteroAdapter(torch.nn.Module):
 
         Returns:
             dict with keys ``"bus"`` and ``"gen"``, each mapping to the
-            predicted output features.
+            predicted output features. When ``return_embeddings`` is ``True``,
+            also returns a ``{"bus": ...}`` embedding dictionary, where the bus
+            embedding is the latent tensor (``homo.x``) fed into the prediction
+            heads. This model does not expose a separate ``"gen"`` embedding, so
+            downstream gen-embedding export is skipped for GRIT.
         """
         # --- Extract bus-only homogeneous subgraph ---
         # Aggregate generator PG onto buses
@@ -428,4 +432,7 @@ class GritHeteroAdapter(torch.nn.Module):
             else batch["gen"].x
         )
 
-        return {"bus": bus_out, "gen": gen_out}
+        predictions = {"bus": bus_out, "gen": gen_out}
+        if not return_embeddings:
+            return predictions
+        return predictions, {"bus": homo.x}
