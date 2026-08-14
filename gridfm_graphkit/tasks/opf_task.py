@@ -32,6 +32,7 @@ from gridfm_graphkit.io.registries import TASK_REGISTRY
 from gridfm_graphkit.tasks.utils import (
     embedding_table_from_tensor,
     local_index_per_graph,
+    compute_angle_violation,
     plot_correlation_by_node_type,
     plot_residuals_histograms,
     residual_stats_by_type,
@@ -139,22 +140,13 @@ class OptimalPowerFlowTask(ReconstructionTask):
         mean_thermal_violation_reverse = torch.mean(reverse_excess)
 
         # Compute branch angle difference violation
-        angle_min = bus_edge_attr[:, ANG_MIN] * torch.pi / 180.0 # convert to radians for comparison
-        angle_max = bus_edge_attr[:, ANG_MAX] * torch.pi / 180.0 # convert to radians for comparison
-
-        bus_angles = output["bus"][:, VA_OUT]  # in radians
-        from_bus = bus_edge_index[0]
-        to_bus = bus_edge_index[1]
-        angle_diff = bus_angles[from_bus] - bus_angles[to_bus]  # keep sign
-        angle_diff = (angle_diff + torch.pi) % (
-            2 * torch.pi
-        ) - torch.pi  # wrap to [-pi, pi]
-        angle_excess_low = F.relu(angle_min - angle_diff)
-        angle_excess_high = F.relu(angle_diff - angle_max)
-
-        branch_angle_violation_mean = torch.mean(
-            angle_excess_low + angle_excess_high,
-        )  # mean of the abs violation
+        branch_angle_violation_mean = compute_angle_violation(
+            bus_edge_attr=bus_edge_attr,
+            bus_angles=output["bus"][:, VA_OUT],
+            bus_edge_index=bus_edge_index,
+            ang_min_col=ANG_MIN,
+            ang_max_col=ANG_MAX,
+        )
 
         P_in, Q_in = node_injection_layer(Pft, Qft, bus_edge_index, num_bus)
         residual_P, residual_Q = node_residuals_layer(
