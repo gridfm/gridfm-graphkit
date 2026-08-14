@@ -7,6 +7,8 @@ import lightning as L
 import torch
 from lightning.pytorch.loggers import MLFlowLogger
 from pytorch_lightning.utilities import rank_zero_only
+from gridfm_graphkit.io.param_handler import NestedNamespace
+
 
 from gridfm_graphkit.training.callbacks import DEFAULT_MONITOR
 
@@ -117,19 +119,28 @@ class BaseTask(L.LightningModule, ABC):
 
     def configure_optimizers(self):
         # if no optimizer has been specified, use AdamW optimizer
-        if self.args.optimizer.type is None:
-            self.args.optimizer.type = "AdamW"
-        optimizer = getattr(torch.optim, self.args.optimizer.type)
-        if not isinstance(self.args.optimizer.optimizer_params, Mapping):
-            self.args.optimizer.optimizer_params = (
-                self.args.optimizer.optimizer_params.to_dict()
+        optimizer_type = getattr(self.args.optimizer, "type", "AdamW")
+        optimizer = getattr(torch.optim, optimizer_type, None)
+        if optimizer is None:
+            raise ValueError(
+                f"Unknown optimizer type: '{optimizer_type}'. Must be a valid torch.optim class.",
             )
+
+        optimizer_params = getattr(self.args.optimizer, "optimizer_params", {})
+        if isinstance(optimizer_params, NestedNamespace) or isinstance(
+            optimizer_params,
+            Mapping,
+        ):
+            optimizer_params = optimizer_params.to_dict()
+
+        if self.args.optimizer.learning_rate is None:
+            raise ValueError("Learning rate has not been provided.")
 
         # initialize optimizer with config params
         self.optimizer = optimizer(
             self.model.parameters(),
             lr=self.args.optimizer.learning_rate,
-            **self.args.optimizer.optimizer_params,  # unpack all other optim parameters
+            **optimizer_params,  # unpack all other optim parameters
         )
 
         # if no scheduler has been specified, return optimizer only
@@ -137,21 +148,26 @@ class BaseTask(L.LightningModule, ABC):
         if scheduler_type is None:
             return {"optimizer": self.optimizer}
 
+        # initialize scheduler with config params
+        scheduler = getattr(torch.optim.lr_scheduler, scheduler_type, None)
+        if scheduler is None:
+            raise ValueError(
+                f"Unknown scheduler type: '{scheduler_type}'. Must be a valid torch.optim.lr_scheduler class.",
+            )
+
         lr_scheduler_monitor = getattr(
             self.args.callbacks,
             "lr_scheduler_monitor",
             DEFAULT_MONITOR,
         )
 
-        # initialize scheduler with config params
-        scheduler = getattr(torch.optim.lr_scheduler, scheduler_type)
-        if not isinstance(self.args.optimizer.scheduler_params, Mapping):
-            self.args.optimizer.scheduler_params = (
-                self.args.optimizer.scheduler_params.to_dict()
-            )
+        scheduler_params = getattr(self.args.optimizer, "scheduler_params", {})
+        if isinstance(scheduler_params, NestedNamespace):
+            scheduler_params = scheduler_params.to_dict()
+
         self.scheduler = scheduler(
             self.optimizer,
-            **self.args.optimizer.scheduler_params,
+            **scheduler_params,
         )
 
         return {
