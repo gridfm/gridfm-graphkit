@@ -162,7 +162,7 @@ class GNS_heterogeneous(nn.Module):
         # container for monitoring residual norms per layer and type
         self.layer_residuals = {}
 
-    def forward(self, batch):
+    def forward(self, batch, return_embeddings: bool = False):
         """
         Accepts a PyG HeteroData batch and extracts the required tensors.
 
@@ -171,6 +171,14 @@ class GNS_heterogeneous(nn.Module):
             edge_index_dict: keys like ("bus","connects","bus"), ("gen","connected_to","bus"), ("bus","connected_to","gen")
             edge_attr_dict: same keys -> edge attributes (bus-bus requires G,B)
             mask_dict: dict mapping node/bus types to mask tensors
+
+        When ``return_embeddings`` is ``True``, returns ``(predictions, embeddings)``
+        instead of ``predictions`` alone. Each embedding is the latent tensor fed
+        directly into the corresponding prediction head: ``embeddings["bus"]`` is
+        the ``h_bus`` consumed by ``mlp_bus`` and ``embeddings["gen"]`` is the
+        ``h_gen`` consumed by ``mlp_gen`` on the final layer. (Note the last-layer
+        ``physics_mlp`` update to ``h_bus`` is intentionally skipped, so the
+        returned bus embedding is exactly the head input, not a post-update state.)
         """
         x_dict = batch.x_dict
         edge_index_dict = batch.edge_index_dict
@@ -293,11 +301,22 @@ class GNS_heterogeneous(nn.Module):
 
                 bus_residuals = torch.stack([residual_P, residual_Q], dim=-1)
 
-                # Save and project residuals to latent space
+                # Save and project residuals to latent space.
+                # layer_residuals is consumed by LayeredWeightedPhysicsLoss for
+                # every layer, so it is recorded unconditionally.
                 self.layer_residuals[i] = torch.linalg.norm(
                     bus_residuals,
                     dim=-1,
                 ).mean()
-                h_bus = h_bus + self.physics_mlp(bus_residuals)
+                # On the last layer the updated h_bus is never read again: the
+                # loop ends, predictions come from output_temp/gen_temp, and the
+                # exported embedding is the tensor that fed mlp_bus. Skipping the
+                # update avoids a dead forward pass and makes h_bus itself the
+                # correct embedding to return (no snapshot/clone needed).
+                if i < self.num_layers - 1:
+                    h_bus = h_bus + self.physics_mlp(bus_residuals)
 
-        return {"bus": output_temp, "gen": gen_temp}
+        predictions = {"bus": output_temp, "gen": gen_temp}
+        if not return_embeddings:
+            return predictions
+        return predictions, {"bus": h_bus, "gen": h_gen}

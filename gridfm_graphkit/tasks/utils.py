@@ -6,6 +6,32 @@ import numpy as np
 import os
 
 
+def local_index_per_graph(batch_index: torch.Tensor) -> torch.Tensor:
+    """Return 0..N-1 local indices for each graph in a batched entity axis."""
+
+    return torch.cat(
+        [
+            torch.arange(int(count), device=batch_index.device)
+            for count in torch.bincount(batch_index)
+        ],
+    )
+
+
+def embedding_table_from_tensor(
+    embedding: torch.Tensor,
+    *,
+    id_columns: dict[str, np.ndarray],
+    prefix: str = "emb",
+) -> dict[str, np.ndarray]:
+    """Convert one embedding tensor into a parquet-ready table mapping."""
+
+    values = embedding.detach().cpu().numpy()
+    table = {key: value for key, value in id_columns.items()}
+    for index in range(values.shape[1]):
+        table[f"{prefix}_{index:03d}"] = values[:, index]
+    return table
+
+
 def residual_stats_by_type(residual, mask, bus_batch):
     """Return per-graph mean and max absolute residuals for a masked bus subset."""
     residual_masked = residual[mask]
