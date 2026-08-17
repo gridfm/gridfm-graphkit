@@ -186,6 +186,7 @@ jobs:
           # PYSEC-2026-139: torch pt2 deserialization, local-only, no fix released yet
           # CVE-2025-2999, CVE-2025-3000, CVE-2025-3001: torch 2.8.0 memory corruption bugs (local execution vector)
           # CVE-2026-69247: cryptography PKCS#7 EnvelopedData Bleichenbacher oracle; not reachable, this repo never does PKCS#7/S-MIME decryption
+          # PYSEC-2026-3624: lightning 2.6.5 RCE in _load_state via crafted checkpoint _instantiator hyperparameters (load_from_checkpoint). Only exploitable when loading UNTRUSTED checkpoints; our train/predict flows load our own. Temporary ignore (added 2026-08-17) to unblock all PRs; tracked in #103, to be replaced by the proper lightning upgrade (option 1) soon.
           ignore-vulns: |
             CVE-2026-4539
             PYSEC-2025-206
@@ -196,6 +197,7 @@ jobs:
             CVE-2025-3000
             CVE-2025-3001
             CVE-2026-69247
+            PYSEC-2026-3624
 
   trivy_repo:
       name: Trivy (repo scan)
