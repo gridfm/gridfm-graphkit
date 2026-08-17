@@ -2,6 +2,7 @@
 
 Thank you for your interest in contributing to GridFM. This document explains our contribution process and procedures:
 
+* [Scope: What Belongs in This Repository](#Scope-What-Belongs-in-This-Repository)
 * [How to Contribute a Bug Fix or Change](#How-to-Contribute-a-Bug-Fix-or-Change)
 * [Running the Integration Tests](#Running-the-Integration-Tests)
 * [Development Workflow](#Development-Workflow)
@@ -10,6 +11,28 @@ Thank you for your interest in contributing to GridFM. This document explains ou
 For a description of the roles and responsibilities of the various members of the GridFM community, see the [governance policies], and for further details, see the project's [Technical Charter]. Briefly, Contributors are anyone who submits content to the project, Committers review and approve such submissions, and the Technical Steering Committee provides general project oversight.
 
 If you just need help or have a question, refer to [SUPPORT.md](SUPPORT.md).
+
+## Scope: What Belongs in This Repository
+
+`gridfm-graphkit` is a **library** for training, finetuning, and interacting with a
+foundation model for the electric power grid. Contributions that extend or improve
+this core belong here — for example:
+
+* Model architectures, layers, and loss functions.
+* Training, finetuning, and evaluation logic.
+* Data loading, transforms, and shared utilities.
+* Bug fixes, performance improvements, tests, and documentation for the above.
+
+**Application-specific contributions belong in a companion GridFM applications
+repository, not here.** If your contribution is an end-to-end application, a
+deployment, or a pipeline/notebook/experiment tied to one specific use case or
+study, please contribute it to the relevant GridFM applications repository instead
+of adding it to the core library. Keeping application-specific code out of the core
+keeps this library focused, broadly reusable, and free of use-case-specific
+dependencies.
+
+If you are unsure whether a contribution is "core" or "application-specific", open
+an issue to discuss it before starting work.
 
 ## How to Contribute a Bug Fix or Change
 
