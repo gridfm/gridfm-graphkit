@@ -221,12 +221,13 @@ class RemovePFMask(BaseTransform):
     """
 
     def forward(self, data):
-        data.x_dict["bus"][:, [MIN_VM_H, MAX_VM_H, MIN_QG_H, MAX_QG_H, VN_KV]] = (
-            data["bus"].static
-        )
-        data.edge_attr_dict[("bus", "connects", "bus")][:, [ANG_MIN, ANG_MAX, RATE_A]] = (
-            data[("bus", "connects", "bus")].static
-        )
+        data.x_dict["bus"][:, [MIN_VM_H, MAX_VM_H, MIN_QG_H, MAX_QG_H, VN_KV]] = data[
+            "bus"
+        ].static
+        data.edge_attr_dict[("bus", "connects", "bus")][
+            :,
+            [ANG_MIN, ANG_MAX, RATE_A],
+        ] = data[("bus", "connects", "bus")].static
         return data
 
 
