@@ -1,3 +1,4 @@
+version: 1
 callbacks:
   patience: 100
   tol: 0

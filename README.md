@@ -104,6 +104,8 @@ gridfm_graphkit train --config path/to/config.yaml
 | `--profiler` | `str` | Enable Lightning profiler (`simple`, `advanced`, `pytorch`). | `None` |
 | `--compute_dc_ac_metrics` | `flag` | Compute ground-truth AC/DC power balance metrics on the test split. | `False` |
 | `--mp_context` | `str` | DataLoader multiprocessing start method (`spawn`, `fork`, `forkserver`). Defaults to PyTorch's automatic choice. On Linux, `spawn` is recommended for safety (CUDA + fork is unsafe); other choices emit a warning. | `None` |
+| `--config_conversion` | `str` | How to handle a config older than the required version (see [Config file versioning](#config-file-versioning)): `no` (fail with instructions), `auto_inline` (convert in memory), `auto_copy` (write an upgraded copy). | `no` |
+| `--converted_config_path` | `str` | Destination file for `--config_conversion auto_copy`. Defaults to a sibling `<config>.v<N>.yaml`. | `None` |
 ### Examples
 
 **Standard Training:**
@@ -111,6 +113,47 @@ gridfm_graphkit train --config path/to/config.yaml
 ```bash
 gridfm_graphkit train --config examples/config/case30_ieee_base.yaml --data_path examples/data
 ```
+
+---
+
+## Config file versioning
+
+Config files carry a top-level integer `version` key. The current schema version
+is **1** (`version: 1`); all shipped example configs are tagged accordingly.
+A config with **no** `version` key is treated as **v0** (the pre-versioning
+schema, before the configurable optimizer/scheduler landed in
+[#92](https://github.com/gridfm/gridfm-graphkit/pull/92)).
+
+**This version of gridfm-graphkit requires config version 1.** If you pass an
+older config, the CLI stops with instructions instead of silently mis-reading it.
+Choose how to migrate with `--config_conversion`:
+
+| Mode | Behaviour |
+| ---- | --------- |
+| `no` *(default)* | Fail with an explanation of the options. |
+| `auto_inline` | Convert to v1 in memory and run now; the file on disk is left unchanged. |
+| `auto_copy` | Convert, write an upgraded copy (`--converted_config_path`, or a derived `<config>.v1.yaml`), then run from it. |
+
+```bash
+# Migrate an old config in place in memory and train immediately
+gridfm_graphkit train --config old_v0.yaml --data_path data --config_conversion auto_inline
+
+# Or write an upgraded copy you can inspect and keep
+gridfm_graphkit train --config old_v0.yaml --data_path data \
+  --config_conversion auto_copy --converted_config_path config_v1.yaml
+```
+
+The **v0 → v1** conversion maps the old hard-coded `AdamW` + `ReduceLROnPlateau`
+optimizer block onto the explicit v1 schema:
+
+| v0 key | v1 location |
+| ------ | ----------- |
+| *(implicit AdamW)* | `optimizer.type: AdamW` |
+| `learning_rate` | `optimizer.learning_rate` |
+| `beta1`, `beta2` | `optimizer.optimizer_params.betas: [beta1, beta2]` |
+| *(implicit ReduceLROnPlateau, mode=min)* | `optimizer.scheduler_type` + `scheduler_params.mode: min` |
+| `lr_decay` | `optimizer.scheduler_params.factor` |
+| `lr_patience` | `optimizer.scheduler_params.patience` |
 
 ---
 

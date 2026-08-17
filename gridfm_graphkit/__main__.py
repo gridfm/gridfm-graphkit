@@ -155,6 +155,28 @@ def main():
             "On Linux, 'spawn' is recommended; other choices emit a warning."
         ),
     )
+    _config_conversion_kwargs = dict(
+        dest="config_conversion",
+        type=str,
+        default="no",
+        choices=["no", "auto_inline", "auto_copy"],
+        help=(
+            "How to handle a config whose 'version' is older than the version "
+            "this gridfm-graphkit requires. 'no' (default): fail with migration "
+            "instructions. 'auto_inline': convert in memory and run (file "
+            "unchanged). 'auto_copy': write an upgraded copy (see "
+            "--converted_config_path) and run from it."
+        ),
+    )
+    _converted_config_path_kwargs = dict(
+        dest="converted_config_path",
+        type=str,
+        default=None,
+        help=(
+            "Destination file for --config_conversion auto_copy. Defaults to a "
+            "sibling '<config>.v<N>.yaml' next to the original config."
+        ),
+    )
 
     # ---- TRAIN SUBCOMMAND ----
     train_parser = subparsers.add_parser("train", help="Run training")
@@ -209,6 +231,11 @@ def main():
     )
     train_parser.add_argument("--mp_context", **_mp_context_kwargs)
     train_parser.add_argument("--deterministic", **_deterministic_kwargs)
+    train_parser.add_argument("--config_conversion", **_config_conversion_kwargs)
+    train_parser.add_argument(
+        "--converted_config_path",
+        **_converted_config_path_kwargs,
+    )
 
     # ---- FINETUNE SUBCOMMAND ----
     finetune_parser = subparsers.add_parser("finetune", help="Run fine-tuning")
@@ -263,6 +290,11 @@ def main():
         help="Print the last training epoch time and a single test metric to stdout.",
     )
     finetune_parser.add_argument("--mp_context", **_mp_context_kwargs)
+    finetune_parser.add_argument("--config_conversion", **_config_conversion_kwargs)
+    finetune_parser.add_argument(
+        "--converted_config_path",
+        **_converted_config_path_kwargs,
+    )
 
     # ---- EVALUATE SUBCOMMAND ----
     evaluate_parser = subparsers.add_parser(
@@ -330,6 +362,11 @@ def main():
         action="store_true",
     )
     evaluate_parser.add_argument("--mp_context", **_mp_context_kwargs)
+    evaluate_parser.add_argument("--config_conversion", **_config_conversion_kwargs)
+    evaluate_parser.add_argument(
+        "--converted_config_path",
+        **_converted_config_path_kwargs,
+    )
 
     # ---- PREDICT SUBCOMMAND ----
     predict_parser = subparsers.add_parser("predict", help="Run prediction")
@@ -386,6 +423,11 @@ def main():
         choices=["simple", "advanced", "pytorch"],
     )
     predict_parser.add_argument("--mp_context", **_mp_context_kwargs)
+    predict_parser.add_argument("--config_conversion", **_config_conversion_kwargs)
+    predict_parser.add_argument(
+        "--converted_config_path",
+        **_converted_config_path_kwargs,
+    )
 
     # ---- BENCHMARK SUBCOMMAND ----
     benchmark_parser = subparsers.add_parser(
@@ -425,6 +467,11 @@ def main():
         help="Python packages to import for plugin registration.",
     )
     benchmark_parser.add_argument("--mp_context", **_mp_context_kwargs)
+    benchmark_parser.add_argument("--config_conversion", **_config_conversion_kwargs)
+    benchmark_parser.add_argument(
+        "--converted_config_path",
+        **_converted_config_path_kwargs,
+    )
 
     args = parser.parse_args()
 
