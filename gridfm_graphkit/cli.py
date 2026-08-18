@@ -1,4 +1,5 @@
 from gridfm_graphkit.datasets.hetero_powergrid_datamodule import LitGridHeteroDataModule
+from gridfm_graphkit.io.config_version import resolve_config
 from gridfm_graphkit.io.param_handler import NestedNamespace
 from gridfm_graphkit.io.registries import DATASET_WRAPPER_REGISTRY
 from gridfm_graphkit.training.callbacks import (
@@ -37,6 +38,25 @@ def _normalize_loaded_state_dict_keys(
         key.replace("model._orig_mod.", "model."): value
         for key, value in state_dict.items()
     }
+
+
+def _load_config(args) -> NestedNamespace:
+    """Load, version-check/migrate, and wrap the YAML config into a namespace.
+
+    Honours ``--config_conversion`` / ``--converted_config_path`` (see
+    :func:`gridfm_graphkit.io.config_version.resolve_config`).
+    """
+    with open(args.config, "r") as f:
+        base_config = yaml.safe_load(f)
+
+    base_config = resolve_config(
+        base_config,
+        config_path=args.config,
+        conversion_mode=getattr(args, "config_conversion", "no"),
+        converted_config_path=getattr(args, "converted_config_path", None),
+    )
+
+    return NestedNamespace(**base_config)
 
 
 def _load_plugins(plugins: list[str]) -> None:
@@ -89,10 +109,7 @@ def _validate_dataset_wrapper(name: str | None) -> None:
 
 def benchmark_cli(args):
     """Benchmark train-dataloader iteration speed over one or more epochs."""
-    with open(args.config, "r") as f:
-        base_config = yaml.safe_load(f)
-
-    config_args = NestedNamespace(**base_config)
+    config_args = _load_config(args)
 
     num_workers_override = getattr(args, "num_workers", None)
     if num_workers_override is not None:
@@ -197,10 +214,7 @@ def main_cli(args):
     # to be skipped gracefully instead of causing errors.
     torch._inductor.config.triton.cudagraph_skip_dynamic_graphs = True
 
-    with open(args.config, "r") as f:
-        base_config = yaml.safe_load(f)
-
-    config_args = NestedNamespace(**base_config)
+    config_args = _load_config(args)
     config_args.get_embeddings = bool(getattr(args, "get_embeddings", False))
 
     L.seed_everything(config_args.seed, workers=True)
