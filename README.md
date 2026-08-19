@@ -29,6 +29,7 @@ If you use `gridfm-graphkit` in your research, please cite:
   year={2026},
   url={https://arxiv.org/abs/2608.09921}
 }
+```
 
 ---
 
