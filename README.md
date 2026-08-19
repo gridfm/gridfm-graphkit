@@ -31,7 +31,7 @@ If you use `gridfm-graphkit` in your research, please cite:
 }
 ```
 
-If you use `gridfm-datakit-v1` for data generation, please also cite:
+If you also used `gridfm-datakit`, please also cite:
 
 ```bibtex
 @article{puech2025gridfmdatakitv1pythonlibraryscalable,
