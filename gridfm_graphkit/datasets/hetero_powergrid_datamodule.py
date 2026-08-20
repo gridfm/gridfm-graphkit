@@ -109,6 +109,7 @@ class LitGridHeteroDataModule(L.LightningDataModule):
         self.dataset_wrapper_cache_dir = dataset_wrapper_cache_dir
         self.multiprocessing_context = multiprocessing_context
         self.batch_size = int(args.training.batch_size)
+        self.stream_partitions = getattr(args.data, "stream_partitions", "auto")
         self.split_by_load_scenario_idx = getattr(
             args.data,
             "split_by_load_scenario_idx",
@@ -174,6 +175,7 @@ class LitGridHeteroDataModule(L.LightningDataModule):
                     root=data_path_network,
                     data_normalizer=data_normalizer,
                     transform=get_task_transforms(args=self.args),
+                    stream_partitions=self.stream_partitions,
                 )
 
             # All ranks wait here until rank 0 processing is done
@@ -185,6 +187,7 @@ class LitGridHeteroDataModule(L.LightningDataModule):
                     root=data_path_network,
                     data_normalizer=data_normalizer,
                     transform=get_task_transforms(args=self.args),
+                    stream_partitions=self.stream_partitions,
                 )
 
             if ("posenc_RRWP" in self.args.data) and self.args.data.posenc_RRWP.enable:

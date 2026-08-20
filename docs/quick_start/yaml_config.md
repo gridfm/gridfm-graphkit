@@ -132,6 +132,18 @@ Optional path to precomputed split files. When provided:
 - `data.scenarios` is ignored for split construction,
 - do **not** combine with `split_by_load_scenario_idx: true`.
 
+### `data.stream_partitions`
+
+Controls whether `process()` reads raw parquet data partition-by-partition (streaming) or all at once (legacy). Activated automatically when raw parquet is laid out as Hive partitions (`scenario_partition=<n>/` subdirectories).
+
+- `auto` (default): stream if Hive partitions are detected for all three tables (bus, gen, branch), otherwise fall back to the legacy flat-file path.
+- `on`: require Hive partitions; raises `RuntimeError` with a clear message if the raw directory is flat.
+- `off`: force the legacy flat-file path even if partitions exist.
+
+**Data layout requirements for streaming:** all three tables must expose the same set of `scenario_partition` values, and every scenario's rows must be fully contained within a single partition. Violations are caught early with a clear error.
+
+The CLI flag `--stream-partitions` overrides this YAML value.
+
 ## `model` section
 
 Current configs use the heterogeneous GNS model:

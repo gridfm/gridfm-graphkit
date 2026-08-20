@@ -177,6 +177,13 @@ def main():
             "sibling '<config>.v<N>.yaml' next to the original config."
         ),
     )
+    _stream_partitions_kwargs = dict(
+        dest="stream_partitions",
+        type=str,
+        default=None,
+        choices=["auto", "on", "off"],
+        help="Override data.stream_partitions from YAML. auto=detect, on=force+error, off=legacy.",
+    )
 
     # ---- TRAIN SUBCOMMAND ----
     train_parser = subparsers.add_parser("train", help="Run training")
@@ -236,6 +243,7 @@ def main():
         "--converted_config_path",
         **_converted_config_path_kwargs,
     )
+    train_parser.add_argument("--stream-partitions", **_stream_partitions_kwargs)
 
     # ---- FINETUNE SUBCOMMAND ----
     finetune_parser = subparsers.add_parser("finetune", help="Run fine-tuning")
@@ -295,6 +303,7 @@ def main():
         "--converted_config_path",
         **_converted_config_path_kwargs,
     )
+    finetune_parser.add_argument("--stream-partitions", **_stream_partitions_kwargs)
 
     # ---- EVALUATE SUBCOMMAND ----
     evaluate_parser = subparsers.add_parser(
@@ -367,6 +376,7 @@ def main():
         "--converted_config_path",
         **_converted_config_path_kwargs,
     )
+    evaluate_parser.add_argument("--stream-partitions", **_stream_partitions_kwargs)
 
     # ---- PREDICT SUBCOMMAND ----
     predict_parser = subparsers.add_parser("predict", help="Run prediction")
@@ -428,6 +438,7 @@ def main():
         "--converted_config_path",
         **_converted_config_path_kwargs,
     )
+    predict_parser.add_argument("--stream-partitions", **_stream_partitions_kwargs)
 
     # ---- BENCHMARK SUBCOMMAND ----
     benchmark_parser = subparsers.add_parser(

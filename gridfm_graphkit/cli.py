@@ -232,6 +232,11 @@ def main_cli(args):
     if batch_size_override is not None:
         config_args.training.batch_size = batch_size_override
 
+    # CLI --stream-partitions overrides data.stream_partitions from YAML
+    stream_partitions_override = getattr(args, "stream_partitions", None)
+    if stream_partitions_override is not None:
+        config_args.data.stream_partitions = stream_partitions_override
+
     _load_plugins(getattr(args, "plugins", []))
     _validate_dataset_wrapper(dataset_wrapper)
 
