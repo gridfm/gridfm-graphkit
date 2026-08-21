@@ -121,7 +121,10 @@ def test_remove_pf_mask_restores_limits(raw_data, args, normalizer):
     RemovePFMask()(data)
 
     restored_bus = data.x_dict["bus"][:, BUS_LIMIT_COLS]
-    restored_branch = data.edge_attr_dict[("bus", "connects", "bus")][:, BRANCH_LIMIT_COLS]
+    restored_branch = data.edge_attr_dict[("bus", "connects", "bus")][
+        :,
+        BRANCH_LIMIT_COLS,
+    ]
 
     assert restored_bus.abs().sum() > 0, (
         "Bus limit columns are still zero after RemovePFMask"
