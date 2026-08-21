@@ -379,13 +379,6 @@ class HeteroGridDatasetDisk(Dataset):
         data = HeteroData()
 
         # Bus nodes
-        bus_groups = bus_df.groupby("scenario")
-
-        bus_df = bus_groups.get_group(scenario)
-        # assert that the buses are in increasing order
-        assert (bus_df["bus"].values == torch.arange(len(bus_df))).all(), (
-            "Buses are not in increasing order"
-        )
         # todo: we should remove this assert and store the bus idx in the tensors
         # right now we need the increasing order for e.g. the predict step that uses torch.arange(n_nodes) to index the buses.
         data["bus"].x = torch.tensor(bus_df[bus_features].values, dtype=torch.float)
