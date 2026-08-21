@@ -378,20 +378,18 @@ class HeteroGridDatasetDisk(Dataset):
 
         data = HeteroData()
 
-            # Bus nodes
-            bus_df = bus_groups.get_group(scenario)
-            # assert that the buses are in increasing order
-            assert (bus_df["bus"].values == torch.arange(len(bus_df))).all(), (
-                "Buses are not in increasing order"
-            )
-            # todo: we should remove this assert and store the bus idx in the tensors
-            # right now we need the increasing order for e.g. the predict step that uses torch.arange(n_nodes) to index the buses.
-            data["bus"].x = torch.tensor(bus_df[bus_features].values, dtype=torch.float)
-            data["bus"].static = (
-                data["bus"]
-                .x[:, [MIN_VM_H, MAX_VM_H, MIN_QG_H, MAX_QG_H, VN_KV]]
-                .clone()
-            )
+        # Bus nodes
+        bus_df = bus_groups.get_group(scenario)
+        # assert that the buses are in increasing order
+        assert (bus_df["bus"].values == torch.arange(len(bus_df))).all(), (
+            "Buses are not in increasing order"
+        )
+        # todo: we should remove this assert and store the bus idx in the tensors
+        # right now we need the increasing order for e.g. the predict step that uses torch.arange(n_nodes) to index the buses.
+        data["bus"].x = torch.tensor(bus_df[bus_features].values, dtype=torch.float)
+        data["bus"].static = (
+            data["bus"].x[:, [MIN_VM_H, MAX_VM_H, MIN_QG_H, MAX_QG_H, VN_KV]].clone()
+        )
 
         # Generator nodes
         gen_df = gen_df.reset_index()
@@ -432,13 +430,13 @@ class HeteroGridDatasetDisk(Dataset):
         )
         edge_y = torch.cat([forward_targets, reverse_targets], dim=0)
 
-            data["bus", "connects", "bus"].edge_index = edge_index
-            data["bus", "connects", "bus"].edge_attr = edge_attr
-            data["bus", "connects", "bus"].static = edge_attr[
-                :,
-                [ANG_MIN, ANG_MAX, RATE_A],
-            ].clone()
-            data["bus", "connects", "bus"].y = edge_y
+        data["bus", "connects", "bus"].edge_index = edge_index
+        data["bus", "connects", "bus"].edge_attr = edge_attr
+        data["bus", "connects", "bus"].static = edge_attr[
+            :,
+            [ANG_MIN, ANG_MAX, RATE_A],
+        ].clone()
+        data["bus", "connects", "bus"].y = edge_y
 
         # Gen-Bus and Bus-Gen edges
         data["gen", "connected_to", "bus"].edge_index = torch.tensor(
