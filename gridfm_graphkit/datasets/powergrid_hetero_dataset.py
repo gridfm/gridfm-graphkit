@@ -379,6 +379,8 @@ class HeteroGridDatasetDisk(Dataset):
         data = HeteroData()
 
         # Bus nodes
+        bus_groups = bus_df.groupby("scenario")
+
         bus_df = bus_groups.get_group(scenario)
         # assert that the buses are in increasing order
         assert (bus_df["bus"].values == torch.arange(len(bus_df))).all(), (
