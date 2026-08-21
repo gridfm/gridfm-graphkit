@@ -37,7 +37,12 @@ def compute_angle_violation(
         ang_max_col: Column index of the maximum angle limit in ``bus_edge_attr``.
 
     Returns:
-        Scalar tensor: mean angle-difference violation across all branches (in radians).
+        Scalar tensor: mean angle-difference violation across all directed edges
+        (in radians). Note: each physical branch appears as two directed edges
+        (forward and reverse), so this averages over 2 × num_branches entries —
+        a different denominator from the per-direction thermal violation metrics
+        (``mean_thermal_violation_forward`` / ``mean_thermal_violation_reverse``)
+        which split forward and reverse separately.
     """
     angle_min = bus_edge_attr[:, ang_min_col] * torch.pi / 180.0  # degrees → radians
     angle_max = bus_edge_attr[:, ang_max_col] * torch.pi / 180.0  # degrees → radians
