@@ -1,0 +1,1317 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+        <link rel="canonical" href="https://gridfm.github.io/gridfm-graphkit/quick_start/yaml_config/">
+      
+      
+        <link rel="prev" href="../quick_start/">
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../figs/KIT.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>YAML configuration file - gridfm-graphkit</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+      <link rel="stylesheet" href="../../stylesheets/extra.css">
+    
+      <link rel="stylesheet" href="https://unpkg.com/katex@0/dist/katex.min.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="white" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#yaml-configuration-reference" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="gridfm-graphkit" class="md-header__button md-logo" aria-label="gridfm-graphkit" data-md-component="logo">
+      
+  <img src="../../figs/KIT.png" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            gridfm-graphkit
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              YAML configuration file
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+    
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/gridfm/gridfm-graphkit" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="gridfm-graphkit" class="md-nav__button md-logo" aria-label="gridfm-graphkit" data-md-component="logo">
+      
+  <img src="../../figs/KIT.png" alt="logo">
+
+    </a>
+    gridfm-graphkit
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/gridfm/gridfm-graphkit" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../install/installation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting started
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Getting started
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../quick_start/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI commands
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    YAML configuration file
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    YAML configuration file
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#full-example-current-style" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Full example (current style)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#top-level-keys" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Top-level keys
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#task-section" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        task section
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="task section">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#tasktask_name" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        task.task_name
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#data-section" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        data section
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="data section">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#datanetworks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        data.networks
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#datascenarios" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        data.scenarios
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#datanormalization" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        data.normalization
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#databasemva" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        data.baseMVA
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#datamask_value" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        data.mask_value
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#datatest_ratio-dataval_ratio" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        data.test_ratio, data.val_ratio
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#dataworkers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        data.workers
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#datasplit_by_load_scenario_idx" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        data.split_by_load_scenario_idx
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#datasplit_from_existing_files" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        data.split_from_existing_files
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#datastream_partitions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        data.stream_partitions
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#model-section" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        model section
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#training-section" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        training section
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="training section">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#core-training-controls" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Core training controls
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#multi-loss-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Multi-loss configuration
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#optimizer-section" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        optimizer section
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#callbacks-section" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        callbacks section
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="callbacks section">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#monitored-metrics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Monitored metrics
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#practical-validation-checklist" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Practical validation checklist
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#full-example-current-style" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Full example (current style)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#top-level-keys" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Top-level keys
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#task-section" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        task section
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="task section">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#tasktask_name" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        task.task_name
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#data-section" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        data section
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="data section">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#datanetworks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        data.networks
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#datascenarios" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        data.scenarios
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#datanormalization" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        data.normalization
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#databasemva" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        data.baseMVA
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#datamask_value" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        data.mask_value
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#datatest_ratio-dataval_ratio" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        data.test_ratio, data.val_ratio
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#dataworkers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        data.workers
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#datasplit_by_load_scenario_idx" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        data.split_by_load_scenario_idx
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#datasplit_from_existing_files" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        data.split_from_existing_files
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#datastream_partitions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        data.stream_partitions
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#model-section" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        model section
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#training-section" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        training section
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="training section">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#core-training-controls" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Core training controls
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#multi-loss-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Multi-loss configuration
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#optimizer-section" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        optimizer section
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#callbacks-section" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        callbacks section
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="callbacks section">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#monitored-metrics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Monitored metrics
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#practical-validation-checklist" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Practical validation checklist
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="yaml-configuration-reference">YAML configuration reference<a class="headerlink" href="#yaml-configuration-reference" title="Permanent link">&para;</a></h1>
+<p>Every experiment is driven by one YAML file in <code>examples/config/</code>.</p>
+<h2 id="full-example-current-style">Full example (current style)<a class="headerlink" href="#full-example-current-style" title="Permanent link">&para;</a></h2>
+<div class="language-yaml highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nt">task</span><span class="p">:</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">  </span><span class="nt">task_name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">OptimalPowerFlow</span>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="nt">data</span><span class="p">:</span>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">  </span><span class="nt">baseMVA</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">100</span>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">  </span><span class="nt">mask_value</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.0</span>
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w">  </span><span class="nt">normalization</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">HeteroDataMVANormalizer</span>
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="w">  </span><span class="nt">networks</span><span class="p">:</span>
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">case14_ieee</span>
+</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="w">  </span><span class="nt">scenarios</span><span class="p">:</span>
+</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">300000</span>
+</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="w">  </span><span class="nt">workers</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">32</span>
+</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="w">  </span><span class="nt">split_by_load_scenario_idx</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span>
+</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a><span class="w">  </span><span class="nt">split_from_existing_files</span><span class="p">:</span><span class="w"> </span><span class="s">"/dccstor/gridfm/march_opf_exp/opfdata_olay_splits/"</span>
+</span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a><span class="nt">model</span><span class="p">:</span>
+</span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a><span class="w">  </span><span class="nt">attention_head</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">8</span>
+</span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a><span class="w">  </span><span class="nt">edge_dim</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">10</span>
+</span><span id="__span-0-17"><a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a><span class="w">  </span><span class="nt">hidden_size</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">48</span>
+</span><span id="__span-0-18"><a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a><span class="w">  </span><span class="nt">input_bus_dim</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">15</span>
+</span><span id="__span-0-19"><a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a><span class="w">  </span><span class="nt">input_gen_dim</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">6</span>
+</span><span id="__span-0-20"><a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a><span class="w">  </span><span class="nt">output_bus_dim</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2</span>
+</span><span id="__span-0-21"><a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a><span class="w">  </span><span class="nt">output_gen_dim</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span>
+</span><span id="__span-0-22"><a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a><span class="w">  </span><span class="nt">num_layers</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">12</span>
+</span><span id="__span-0-23"><a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a><span class="w">  </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">GNS_heterogeneous</span>
+</span><span id="__span-0-24"><a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a><span class="nt">optimizer</span><span class="p">:</span>
+</span><span id="__span-0-25"><a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a><span class="w">  </span><span class="nt">beta1</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.9</span>
+</span><span id="__span-0-26"><a id="__codelineno-0-26" name="__codelineno-0-26" href="#__codelineno-0-26"></a><span class="w">  </span><span class="nt">beta2</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.999</span>
+</span><span id="__span-0-27"><a id="__codelineno-0-27" name="__codelineno-0-27" href="#__codelineno-0-27"></a><span class="w">  </span><span class="nt">learning_rate</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.0005</span>
+</span><span id="__span-0-28"><a id="__codelineno-0-28" name="__codelineno-0-28" href="#__codelineno-0-28"></a><span class="w">  </span><span class="nt">lr_decay</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.7</span>
+</span><span id="__span-0-29"><a id="__codelineno-0-29" name="__codelineno-0-29" href="#__codelineno-0-29"></a><span class="w">  </span><span class="nt">lr_patience</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">5</span>
+</span><span id="__span-0-30"><a id="__codelineno-0-30" name="__codelineno-0-30" href="#__codelineno-0-30"></a><span class="nt">training</span><span class="p">:</span>
+</span><span id="__span-0-31"><a id="__codelineno-0-31" name="__codelineno-0-31" href="#__codelineno-0-31"></a><span class="w">  </span><span class="nt">batch_size</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">64</span>
+</span><span id="__span-0-32"><a id="__codelineno-0-32" name="__codelineno-0-32" href="#__codelineno-0-32"></a><span class="w">  </span><span class="nt">epochs</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">200</span>
+</span><span id="__span-0-33"><a id="__codelineno-0-33" name="__codelineno-0-33" href="#__codelineno-0-33"></a><span class="w">  </span><span class="nt">loss_weights</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">0.1</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">0.1</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">0.75</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">0.001</span><span class="p p-Indicator">]</span>
+</span><span id="__span-0-34"><a id="__codelineno-0-34" name="__codelineno-0-34" href="#__codelineno-0-34"></a><span class="w">  </span><span class="nt">losses</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">LayeredWeightedPhysics</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">MaskedGenMSE</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">MaskedBusMSE</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">QgViolationPenalty</span><span class="p p-Indicator">]</span>
+</span><span id="__span-0-35"><a id="__codelineno-0-35" name="__codelineno-0-35" href="#__codelineno-0-35"></a><span class="w">  </span><span class="nt">loss_args</span><span class="p">:</span>
+</span><span id="__span-0-36"><a id="__codelineno-0-36" name="__codelineno-0-36" href="#__codelineno-0-36"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">base_weight</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.5</span>
+</span><span id="__span-0-37"><a id="__codelineno-0-37" name="__codelineno-0-37" href="#__codelineno-0-37"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{}</span>
+</span><span id="__span-0-38"><a id="__codelineno-0-38" name="__codelineno-0-38" href="#__codelineno-0-38"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{}</span>
+</span><span id="__span-0-39"><a id="__codelineno-0-39" name="__codelineno-0-39" href="#__codelineno-0-39"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="p p-Indicator">{}</span>
+</span><span id="__span-0-40"><a id="__codelineno-0-40" name="__codelineno-0-40" href="#__codelineno-0-40"></a><span class="w">  </span><span class="nt">accelerator</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">auto</span>
+</span><span id="__span-0-41"><a id="__codelineno-0-41" name="__codelineno-0-41" href="#__codelineno-0-41"></a><span class="w">  </span><span class="nt">devices</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">auto</span>
+</span><span id="__span-0-42"><a id="__codelineno-0-42" name="__codelineno-0-42" href="#__codelineno-0-42"></a><span class="w">  </span><span class="nt">strategy</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">auto</span>
+</span><span id="__span-0-43"><a id="__codelineno-0-43" name="__codelineno-0-43" href="#__codelineno-0-43"></a><span class="nt">seed</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0</span>
+</span><span id="__span-0-44"><a id="__codelineno-0-44" name="__codelineno-0-44" href="#__codelineno-0-44"></a><span class="nt">verbose</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+</span><span id="__span-0-45"><a id="__codelineno-0-45" name="__codelineno-0-45" href="#__codelineno-0-45"></a><span class="nt">callbacks</span><span class="p">:</span>
+</span><span id="__span-0-46"><a id="__codelineno-0-46" name="__codelineno-0-46" href="#__codelineno-0-46"></a><span class="w">  </span><span class="nt">patience</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">100</span>
+</span><span id="__span-0-47"><a id="__codelineno-0-47" name="__codelineno-0-47" href="#__codelineno-0-47"></a><span class="w">  </span><span class="nt">tol</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0</span>
+</span><span id="__span-0-48"><a id="__codelineno-0-48" name="__codelineno-0-48" href="#__codelineno-0-48"></a><span class="w">  </span><span class="nt">early_stopping_monitor</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Validation loss</span>
+</span><span id="__span-0-49"><a id="__codelineno-0-49" name="__codelineno-0-49" href="#__codelineno-0-49"></a><span class="w">  </span><span class="nt">checkpoint_monitor</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Validation layer_11_residual</span>
+</span><span id="__span-0-50"><a id="__codelineno-0-50" name="__codelineno-0-50" href="#__codelineno-0-50"></a><span class="w">  </span><span class="nt">lr_scheduler_monitor</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Validation loss</span>
+</span></code></pre></div>
+<hr />
+<h2 id="top-level-keys">Top-level keys<a class="headerlink" href="#top-level-keys" title="Permanent link">&para;</a></h2>
+<ul>
+<li><code>task</code>: task-specific settings (<code>OptimalPowerFlow</code> or <code>PowerFlow</code>).</li>
+<li><code>data</code>: dataset selection, normalization, splits, and loading behavior.</li>
+<li><code>model</code>: model architecture and dimensions.</li>
+<li><code>optimizer</code>: optimizer and scheduler parameters.</li>
+<li><code>training</code>: epochs, loss composition, and accelerator strategy.</li>
+<li><code>callbacks</code>: early stopping behavior and the validation metrics monitored by the training callbacks and the LR scheduler.</li>
+<li><code>seed</code>: random seed used for reproducible shuffling/splits.</li>
+<li><code>verbose</code>: enables extra outputs (for example additional test plots/log artifacts).</li>
+</ul>
+<hr />
+<h2 id="task-section"><code>task</code> section<a class="headerlink" href="#task-section" title="Permanent link">&para;</a></h2>
+<h3 id="tasktask_name"><code>task.task_name</code><a class="headerlink" href="#tasktask_name" title="Permanent link">&para;</a></h3>
+<p>Task name registered in the framework:</p>
+<ul>
+<li><code>OptimalPowerFlow</code></li>
+<li><code>PowerFlow</code></li>
+</ul>
+<hr />
+<h2 id="data-section"><code>data</code> section<a class="headerlink" href="#data-section" title="Permanent link">&para;</a></h2>
+<h3 id="datanetworks"><code>data.networks</code><a class="headerlink" href="#datanetworks" title="Permanent link">&para;</a></h3>
+<p>List of dataset folders under your data root.
+Examples: <code>case14_ieee</code>, <code>case118_ieee</code>, <code>case2000_goc</code>, <code>Texas2k_case1_2016summerpeak</code>.</p>
+<h3 id="datascenarios"><code>data.scenarios</code><a class="headerlink" href="#datascenarios" title="Permanent link">&para;</a></h3>
+<p>List of scenario counts, one value per network in <code>data.networks</code>.
+Example: with two networks, use two scenario entries in matching order.</p>
+<h3 id="datanormalization"><code>data.normalization</code><a class="headerlink" href="#datanormalization" title="Permanent link">&para;</a></h3>
+<p>Normalizer class name:</p>
+<ul>
+<li><code>HeteroDataMVANormalizer</code>: fit one normalization scale from training data.</li>
+<li><code>HeteroDataPerSampleMVANormalizer</code>: fit per-scenario scales across the selected dataset.</li>
+</ul>
+<h3 id="databasemva"><code>data.baseMVA</code><a class="headerlink" href="#databasemva" title="Permanent link">&para;</a></h3>
+<p>Base MVA reference value (default in examples: <code>100</code>). Used by normalizers for per-unit scaling.</p>
+<h3 id="datamask_value"><code>data.mask_value</code><a class="headerlink" href="#datamask_value" title="Permanent link">&para;</a></h3>
+<p>Fill value used when masking unavailable measurements/features (examples use <code>0.0</code>).</p>
+<h3 id="datatest_ratio-dataval_ratio"><code>data.test_ratio</code>, <code>data.val_ratio</code><a class="headerlink" href="#datatest_ratio-dataval_ratio" title="Permanent link">&para;</a></h3>
+<p>Fractions for validation and test splits when split files are not supplied.</p>
+<h3 id="dataworkers"><code>data.workers</code><a class="headerlink" href="#dataworkers" title="Permanent link">&para;</a></h3>
+<p>Number of dataloader workers.</p>
+<h3 id="datasplit_by_load_scenario_idx"><code>data.split_by_load_scenario_idx</code><a class="headerlink" href="#datasplit_by_load_scenario_idx" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>true</code>: split train/val/test by load scenario identifiers.</li>
+<li><code>false</code>: perform standard random split.</li>
+</ul>
+<h3 id="datasplit_from_existing_files"><code>data.split_from_existing_files</code><a class="headerlink" href="#datasplit_from_existing_files" title="Permanent link">&para;</a></h3>
+<p>Optional path to precomputed split files. When provided:</p>
+<ul>
+<li>split IDs are loaded from this folder,</li>
+<li><code>data.scenarios</code> is ignored for split construction,</li>
+<li>do <strong>not</strong> combine with <code>split_by_load_scenario_idx: true</code>.</li>
+</ul>
+<h3 id="datastream_partitions"><code>data.stream_partitions</code><a class="headerlink" href="#datastream_partitions" title="Permanent link">&para;</a></h3>
+<p>Controls whether <code>process()</code> reads raw parquet data partition-by-partition (streaming) or all at once (legacy). Activated automatically when raw parquet is laid out as Hive partitions (<code>scenario_partition=&lt;n&gt;/</code> subdirectories).</p>
+<ul>
+<li><code>auto</code> (default): stream if Hive partitions are detected for all three tables (bus, gen, branch), otherwise fall back to the legacy flat-file path.</li>
+<li><code>on</code>: require Hive partitions; raises <code>RuntimeError</code> with a clear message if the raw directory is flat.</li>
+<li><code>off</code>: force the legacy flat-file path even if partitions exist.</li>
+</ul>
+<p><strong>Data layout requirements for streaming:</strong> all three tables must expose the same set of <code>scenario_partition</code> values, and every scenario's rows must be fully contained within a single partition. Violations are caught early with a clear error.</p>
+<p>The CLI flag <code>--stream-partitions</code> overrides this YAML value.</p>
+<h2 id="model-section"><code>model</code> section<a class="headerlink" href="#model-section" title="Permanent link">&para;</a></h2>
+<p>Current configs use the heterogeneous GNS model:</p>
+<ul>
+<li><code>type</code>: model registry name (examples use <code>GNS_heterogeneous</code>).</li>
+<li><code>input_bus_dim</code>: bus-node input feature dimension.</li>
+<li><code>input_gen_dim</code>: generator-node input feature dimension.</li>
+<li><code>output_bus_dim</code>: bus-node output dimension.</li>
+<li><code>output_gen_dim</code>: generator-node output dimension.</li>
+<li><code>edge_dim</code>: edge feature dimension.</li>
+<li><code>hidden_size</code>: hidden feature width.</li>
+<li><code>num_layers</code>: number of stacked message-passing layers.</li>
+<li><code>attention_head</code>: attention head count per layer.</li>
+</ul>
+<hr />
+<h2 id="training-section"><code>training</code> section<a class="headerlink" href="#training-section" title="Permanent link">&para;</a></h2>
+<h3 id="core-training-controls">Core training controls<a class="headerlink" href="#core-training-controls" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>batch_size</code>: mini-batch size.</li>
+<li><code>epochs</code>: number of epochs.</li>
+<li><code>accelerator</code>: Lightning accelerator (<code>auto</code>, <code>mps</code>, <code>cpu</code>, <code>gpu</code>, etc.).</li>
+<li><code>devices</code>: Lightning device selection (<code>auto</code>, integer, list).</li>
+<li><code>strategy</code>: Lightning strategy (<code>auto</code>, <code>ddp</code>, etc.).</li>
+</ul>
+<h3 id="multi-loss-configuration">Multi-loss configuration<a class="headerlink" href="#multi-loss-configuration" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>losses</code>: list of registered loss names.</li>
+<li><code>loss_weights</code>: scalar weight per loss.</li>
+<li><code>loss_args</code>: list of argument objects matching <code>losses</code> by position.</li>
+</ul>
+<p>All three lists must be aligned (same length and same order).</p>
+<p>Registered loss names in current code:</p>
+<ul>
+<li><code>LayeredWeightedPhysics</code></li>
+<li><code>MaskedGenMSE</code></li>
+<li><code>MaskedBusMSE</code></li>
+<li><code>QgViolationPenalty</code></li>
+<li><code>LossPerDim</code></li>
+<li><code>MaskedMSE</code></li>
+<li><code>MSE</code></li>
+</ul>
+<p>Common <code>loss_args</code> patterns:</p>
+<ul>
+<li><code>LayeredWeightedPhysics</code>: <code>{base_weight: &lt;float&gt;}</code></li>
+<li><code>LossPerDim</code>: <code>{dim: VM|VA|P_in|Q_in, loss_str: MAE|MSE}</code></li>
+<li><code>MaskedGenMSE</code>, <code>MaskedBusMSE</code>, <code>QgViolationPenalty</code>, <code>MaskedMSE</code>, <code>MSE</code>: <code>{}</code></li>
+</ul>
+<hr />
+<h2 id="optimizer-section"><code>optimizer</code> section<a class="headerlink" href="#optimizer-section" title="Permanent link">&para;</a></h2>
+<ul>
+<li><code>learning_rate</code>: initial learning rate.</li>
+<li><code>beta1</code>, <code>beta2</code>: Adam betas.</li>
+<li><code>lr_decay</code>: scheduler decay factor (e.g., ReduceLROnPlateau factor).</li>
+<li><code>lr_patience</code>: epochs to wait before applying LR decay.</li>
+</ul>
+<hr />
+<h2 id="callbacks-section"><code>callbacks</code> section<a class="headerlink" href="#callbacks-section" title="Permanent link">&para;</a></h2>
+<ul>
+<li><code>patience</code>: early stopping patience (epochs without sufficient improvement).</li>
+<li><code>tol</code>: minimum required improvement threshold to reset patience.</li>
+</ul>
+<h3 id="monitored-metrics">Monitored metrics<a class="headerlink" href="#monitored-metrics" title="Permanent link">&para;</a></h3>
+<p>Three keys select which logged validation metric each callback and the LR
+scheduler tracks. Each names a metric that must appear in the validation logs
+(for example <code>Validation loss</code> or a per-layer physics residual such as
+<code>Validation layer_11_residual</code>). If a key is omitted it defaults to
+<code>Validation loss</code>.</p>
+<ul>
+<li><code>early_stopping_monitor</code>: metric watched by early stopping.</li>
+<li><code>checkpoint_monitor</code>: metric watched by best-model saving.</li>
+<li><code>lr_scheduler_monitor</code>: metric watched by the <code>ReduceLROnPlateau</code> scheduler.</li>
+</ul>
+<p>All of them are minimized: a <strong>lower</strong> value is always considered better
+(<code>mode="min"</code>). This direction is fixed and cannot be configured.</p>
+<p>Note: A monitored metric name must exactly match a logged validation metric.
+For example, <code>Validation layer_11_residual</code> is only produced by the
+<code>LayeredWeightedPhysics</code> loss and requires a model deep enough to have a
+layer index 11 (a 12-layer model). Pointing a monitor at a metric that is
+never logged aborts the run once training begins.</p>
+<hr />
+<h2 id="practical-validation-checklist">Practical validation checklist<a class="headerlink" href="#practical-validation-checklist" title="Permanent link">&para;</a></h2>
+<p>Before launching a run, verify:</p>
+<ul>
+<li><code>len(data.networks) == len(data.scenarios)</code>.</li>
+<li><code>len(training.losses) == len(training.loss_weights) == len(training.loss_args)</code>.</li>
+<li><code>split_by_load_scenario_idx</code> and <code>split_from_existing_files</code> are not both active.</li>
+<li>each <code>callbacks.*_monitor</code> value matches a metric that is actually logged during validation.</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+      <div class="md-progress" data-md-component="progress" role="progressbar"></div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.indexes", "navigation.tracking", "toc.follow", "search.suggest", "navigation.instant", "navigation.instant.progress", "content.code.copy", "content.code.select"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+        <script src="../../javascripts/katex.js"></script>
+      
+        <script src="https://unpkg.com/katex@0/dist/katex.min.js"></script>
+      
+        <script src="https://unpkg.com/katex@0/dist/contrib/auto-render.min.js"></script>
+      
+    
+  </body>
+</html>
