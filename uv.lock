@@ -1080,7 +1080,7 @@ wheels = [
 
 [[package]]
 name = "gridfm-datakit"
-version = "1.0.5"
+version = "1.1.0rc1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "ipyfilechooser" },
@@ -1091,8 +1091,6 @@ dependencies = [
     { name = "matplotlib", version = "3.11.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
     { name = "matpowercaseframes" },
     { name = "nbformat" },
-    { name = "networkx", version = "3.4.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
-    { name = "networkx", version = "3.6.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
     { name = "numba" },
     { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
@@ -1108,9 +1106,9 @@ dependencies = [
     { name = "tqdm" },
     { name = "urllib3" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/11/43/5a6b6ba923f3f8330e06c94bab35079a11e4b3e6e1a362a2eb9af6e2cee6/gridfm_datakit-1.0.5.tar.gz", hash = "sha256:bd1c910174aa3242eebb161a7f0e99c402bf00ee745a87e592b0817e680a7853", size = 458375, upload-time = "2026-07-06T07:29:52.565Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/94/20/68b07783ebd7e3cf1113163cb3d7d965694f0e4e442633afdec0e7fc9bde/gridfm_datakit-1.1.0rc1.tar.gz", hash = "sha256:677517ac6a4af6eb271681574d10fc9fd9e00f2eb98ddd0a1692e9b0ed96f0f3", size = 505326, upload-time = "2026-08-24T20:36:22.088Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/8f/07/766d942ed993767e24c910b6b15990198633d9c92e96e1ceed457d846ad2/gridfm_datakit-1.0.5-py3-none-any.whl", hash = "sha256:90493c61160d93d4351a5a097a9cbc08681d8155d4177e8199deb22d3609a421", size = 444748, upload-time = "2026-07-06T07:29:51.043Z" },
+    { url = "https://files.pythonhosted.org/packages/13/0a/1f7dd93145ffe1fc752a7f27bddb497265bb3430fe19d8d0dea8d78686b4/gridfm_datakit-1.1.0rc1-py3-none-any.whl", hash = "sha256:9238cfb4dd20b078ae1fc86ce46286f0ff9e80ce88f3dd5f6cc694d8fc312cc3", size = 490841, upload-time = "2026-08-24T20:36:20.764Z" },
 ]
 
 [[package]]
@@ -1158,7 +1156,7 @@ requires-dist = [
     { name = "bandit", marker = "extra == 'dev'" },
     { name = "build", marker = "extra == 'dev'" },
     { name = "gdown", specifier = ">=6.0.0" },
-    { name = "gridfm-datakit", specifier = "==1.0.5" },
+    { name = "gridfm-datakit", specifier = "==1.1.0rc1" },
     { name = "lightning" },
     { name = "mkdocs-material", marker = "extra == 'dev'" },
     { name = "mkdocstrings", extras = ["python"], marker = "extra == 'dev'" },
