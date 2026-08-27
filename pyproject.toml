@@ -74,6 +74,19 @@ test = [
   "pytest-cov"
 ]
 
+# Optional dependency for serving a trained GridFM model through vLLM's
+# /pooling endpoint. Aligned with the vLLM pin used downstream (algorithm-nexus
+# pins vllm==0.26.0). The plugin interfaces this integration targets are stable
+# across the 0.26 line; see gridfm_graphkit.vllm.utils.SUPPORTED_VLLM.
+vllm = [
+  "vllm>=0.26,<0.27",
+  "safetensors>=0.4.0",
+  # vLLM parses the served config.json through HuggingFace AutoConfig; a config
+  # that carries no `model_type` (see gridfm_graphkit.vllm.export.build_hf_config)
+  # is routed to TimmWrapperConfig, whose from_dict requires timm to be importable.
+  "timm>=1.0.0",
+]
+
 [tool.uv]
 # torch-scatter is not on PyPI — it requires a PyG wheel index matching your torch version.
 # The find-links URL below must be updated whenever the torch version in [project.dependencies] changes.
@@ -87,3 +100,11 @@ find-links = [
 
 [project.scripts]
 gridfm_graphkit = "gridfm_graphkit.__main__:main"
+
+# vLLM plugin entry points. These are inert unless vLLM is installed; vLLM
+# discovers them at startup. See gridfm_graphkit/vllm/plugins/.
+[project.entry-points."vllm.general_plugins"]
+gridfm_gns = "gridfm_graphkit.vllm.plugins.general:register_gridfm"
+
+[project.entry-points."vllm.io_processor_plugins"]
+gridfm_pf_reconstruction = "gridfm_graphkit.vllm.plugins.pf_reconstruction:register_pf_reconstruction"
