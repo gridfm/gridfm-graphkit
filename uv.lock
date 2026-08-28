@@ -1080,7 +1080,7 @@ wheels = [
 
 [[package]]
 name = "gridfm-datakit"
-version = "1.1.0rc1"
+version = "1.1.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "ipyfilechooser" },
@@ -1106,9 +1106,9 @@ dependencies = [
     { name = "tqdm" },
     { name = "urllib3" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/94/20/68b07783ebd7e3cf1113163cb3d7d965694f0e4e442633afdec0e7fc9bde/gridfm_datakit-1.1.0rc1.tar.gz", hash = "sha256:677517ac6a4af6eb271681574d10fc9fd9e00f2eb98ddd0a1692e9b0ed96f0f3", size = 505326, upload-time = "2026-08-24T20:36:22.088Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/f0/a2/54a9da588423a7f647abc9391402f35194935b2e9cfdf62d26b60c8da146/gridfm_datakit-1.1.0.tar.gz", hash = "sha256:378958d41d633c46a0aceb3a98b19d516d07c091955e65e72df42e7bb9833c41", size = 505240, upload-time = "2026-08-28T07:10:10.078892Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/13/0a/1f7dd93145ffe1fc752a7f27bddb497265bb3430fe19d8d0dea8d78686b4/gridfm_datakit-1.1.0rc1-py3-none-any.whl", hash = "sha256:9238cfb4dd20b078ae1fc86ce46286f0ff9e80ce88f3dd5f6cc694d8fc312cc3", size = 490841, upload-time = "2026-08-24T20:36:20.764Z" },
+    { url = "https://files.pythonhosted.org/packages/da/50/37efb8ffb370dff3bd8c9461f77f328592430cc43dc3d2894f4703bd1e5e/gridfm_datakit-1.1.0-py3-none-any.whl", hash = "sha256:043abde247f8eb7e0bd8761408a6b47d29aaf5451a0feeec9418f8006d65b5cc", size = 490800, upload-time = "2026-08-28T07:10:08.307762Z" },
 ]
 
 [[package]]
