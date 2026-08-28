@@ -1,5 +1,6 @@
 from gridfm_graphkit.training.loss import PBELoss
-from gridfm_graphkit.datasets.globals import PQ, PV, REF
+
+from types import SimpleNamespace
 
 import networkx as nx
 import matplotlib.pyplot as plt
@@ -7,84 +8,71 @@ from matplotlib.colors import LogNorm
 from scipy.stats import pearsonr
 import seaborn as sns
 import numpy as np
-import copy
 
 
-def visualize_error(data_point, output, node_normalizer):
-    """Plot node-wise active power residuals on the grid topology."""
-    loss = PBELoss(visualization=True)
+BUS_NODE_SHAPES = {"REF": "s", "PV": "H", "PQ": "o"}
 
-    loss_dict = loss(
-        output,
-        data_point.y,
-        data_point.edge_index,
-        data_point.edge_attr,
-        data_point.mask,
+
+def _bus_graph(data):
+    """Build the bus-level topology and per-bus type labels from a HeteroData sample.
+
+    Args:
+        data: A single (unbatched) ``HeteroData`` sample carrying a
+            ``("bus", "connects", "bus")`` edge type and a ``mask_dict`` with the
+            boolean ``PQ`` / ``PV`` / ``REF`` bus-type vectors.
+
+    Returns:
+        A ``(networkx.Graph, dict)`` pair: the undirected bus graph (isolated
+        buses included) and a mapping from bus index to ``"REF"``/``"PV"``/``"PQ"``.
+    """
+    num_bus = data["bus"].x.shape[0]
+    edge_index = data.edge_index_dict[("bus", "connects", "bus")]
+
+    graph = nx.Graph()
+    graph.add_nodes_from(range(num_bus))
+    graph.add_edges_from(
+        (u, v) for u, v in zip(edge_index[0].tolist(), edge_index[1].tolist()) if u != v
     )
-    active_loss = loss_dict["Nodal Active Power Loss in p.u."]
-    active_loss = active_loss.cpu() * node_normalizer.baseMVA
 
-    # Create a graph
-    G = nx.Graph()
-    edges = [
-        (u, v)
-        for u, v in zip(
-            data_point.edge_index[0].tolist(),
-            data_point.edge_index[1].tolist(),
-        )
-        if u != v
-    ]
-    G.add_edges_from(edges)
-
-    # Assign labels based on node type
-    node_shapes = {"REF": "s", "PV": "H", "PQ": "o"}
-    num_nodes = data_point.x.shape[0]
-    mask_PQ = data_point.x[:, PQ] == 1
-    mask_PV = data_point.x[:, PV] == 1
-    mask_REF = data_point.x[:, REF] == 1
+    mask_dict = data.mask_dict
+    is_ref, is_pv, is_pq = mask_dict["REF"], mask_dict["PV"], mask_dict["PQ"]
     node_labels = {}
-    for i in range(num_nodes):
-        if mask_REF[i]:
+    for i in range(num_bus):
+        if is_ref[i]:
             node_labels[i] = "REF"
-        elif mask_PV[i]:
+        elif is_pv[i]:
             node_labels[i] = "PV"
-        elif mask_PQ[i]:
+        elif is_pq[i]:
             node_labels[i] = "PQ"
+    return graph, node_labels
 
-    # Set node positions
-    pos = nx.spring_layout(G, seed=42)
 
-    # Define colormap
-    cmap = plt.cm.viridis
-    vmin = min(active_loss)
-    vmax = max(active_loss)
-    norm = plt.Normalize(vmin=vmin, vmax=vmax)
-
-    # Create a figure and axis
-    fig, ax = plt.subplots(figsize=(13, 7))
-
-    # Draw nodes with heatmap coloring
-    for node_type, shape in node_shapes.items():
+def _draw_bus_nodes(graph, pos, node_labels, values, ax, vmin, vmax, cmap, resize_ref):
+    """Draw bus nodes coloured by ``values``, using a distinct marker per bus type."""
+    for node_type, shape in BUS_NODE_SHAPES.items():
         nodes = [i for i in node_labels if node_labels[i] == node_type]
+        if not nodes:
+            continue
+        node_size = (390 if node_type == "REF" else 600) if resize_ref else 800
         nx.draw_networkx_nodes(
-            G,
+            graph,
             pos,
             nodelist=nodes,
-            node_color=[active_loss[i] for i in nodes],
+            node_color=[values[i] for i in nodes],
             cmap=cmap,
-            node_size=800,
+            node_size=node_size,
             ax=ax,
             vmin=vmin,
             vmax=vmax,
             node_shape=shape,
         )
 
-    # Draw edges
-    nx.draw_networkx_edges(G, pos, edge_color="gray", alpha=0.5, ax=ax)
 
-    # Draw labels (node types)
+def _label_bus_nodes(graph, pos, node_labels, ax, width=2):
+    """Draw the bus edges and overlay the bus-type label on each node."""
+    nx.draw_networkx_edges(graph, pos, edge_color="gray", alpha=0.5, ax=ax, width=width)
     nx.draw_networkx_labels(
-        G,
+        graph,
         pos,
         labels=node_labels,
         font_size=10,
@@ -92,196 +80,150 @@ def visualize_error(data_point, output, node_normalizer):
         font_weight="bold",
         ax=ax,
     )
+    for spine in ax.spines.values():
+        spine.set_linewidth(2)
 
-    # Add colorbar
+
+def visualize_error(data, output, baseMVA=1.0):
+    """Plot per-bus active power residuals of a prediction on the grid topology.
+
+    Residuals come from the power balance equations via
+    [`PBELoss`][gridfm_graphkit.training.loss.PBELoss] in visualization mode, which
+    returns the per-bus mismatch instead of only its mean.
+
+    Args:
+        data: A single (unbatched) ``HeteroData`` sample.
+        output: Model prediction dict, ``{"bus": Tensor[N_bus, 4], "gen": ...}``.
+        baseMVA: Power base used to convert the p.u. residuals to MW. Pass the
+            sample's ``baseMVA`` to get MW; leave at ``1.0`` to plot p.u.
+
+    Returns:
+        The per-bus active power residuals as a detached CPU tensor.
+    """
+    loss = PBELoss(SimpleNamespace(visualization=True), None)
+    loss_dict = loss(
+        output,
+        data.y_dict,
+        data.edge_index_dict,
+        data.edge_attr_dict,
+        data.mask_dict,
+        x_dict=data.x_dict,
+    )
+    active_loss = loss_dict["Nodal Active Power Loss in p.u."].detach().cpu() * baseMVA
+
+    graph, node_labels = _bus_graph(data)
+    pos = nx.spring_layout(graph, seed=42)
+
+    cmap = plt.cm.viridis
+    vmin, vmax = float(active_loss.min()), float(active_loss.max())
+    norm = plt.Normalize(vmin=vmin, vmax=vmax)
+
+    fig, ax = plt.subplots(figsize=(13, 7))
+    _draw_bus_nodes(
+        graph,
+        pos,
+        node_labels,
+        active_loss,
+        ax,
+        vmin,
+        vmax,
+        cmap,
+        resize_ref=False,
+    )
+    _label_bus_nodes(graph, pos, node_labels, ax, width=1)
+
     cbar = plt.colorbar(plt.cm.ScalarMappable(cmap=cmap, norm=norm), ax=ax)
-    cbar.set_label("Active Power Residuals (MW)", fontsize=12)
+    unit = "MW" if baseMVA != 1.0 else "p.u."
+    cbar.set_label(f"Active Power Residuals ({unit})", fontsize=12)
     cbar.ax.tick_params(labelsize=12)
 
-    for spine in ax.spines.values():
-        spine.set_linewidth(2)  # Adjust thickness here (e.g., 2 or any value)
-
-    # Show plot
     plt.title("Nodal Active Power Residuals", fontsize=14, fontweight="bold")
     plt.show()
+    return active_loss
 
 
 def visualize_quantity_heatmap(
-    data_point,
+    data,
     output,
-    quantity,
+    pred_col,
+    target_col,
     quantity_name,
     unit,
-    node_normalizer,
+    scale=1.0,
 ):
+    """Compare ground truth, masked input and reconstruction for one bus quantity.
+
+    Draws three panels on the bus topology: the ground truth, the same values with
+    the masked (unknown) buses greyed out, and the model's reconstruction. Buses
+    the model was *given* are clamped back to ground truth in the third panel, so
+    only the masked buses show reconstruction error.
+
+    Bus predictions and bus targets use different column layouts, hence the two
+    separate indices: ``pred_col`` indexes the 4-column model output
+    (``VM_OUT``/``VA_OUT``/``PG_OUT``/``QG_OUT``) while ``target_col`` indexes the
+    bus feature layout (``VM_H``/``VA_H``/``QG_H``/…), which ``data["bus"].y`` and
+    ``mask_dict["bus"]`` share.
+
+    Args:
+        data: A single (unbatched) ``HeteroData`` sample.
+        output: Model prediction dict, ``{"bus": Tensor[N_bus, 4], "gen": ...}``.
+        pred_col: Column of ``output["bus"]`` holding the quantity.
+        target_col: Column of ``data["bus"].y`` / ``mask_dict["bus"]`` holding it.
+        quantity_name: Human-readable name, used in the titles.
+        unit: Unit shown on the colourbar.
+        scale: Factor applied to both prediction and target before plotting, to
+            convert from the normalized representation (e.g. ``baseMVA`` for
+            powers, ``180 / pi`` for voltage angles).
     """
-    Visualizes a heatmap of a specified quantity (VM, PD, QD, PG, QG, VA) for a given dataset and model.
+    gt_values = (data["bus"].y[:, target_col].detach().cpu() * scale).clone()
+    predicted_values = (output["bus"][:, pred_col].detach().cpu() * scale).clone()
 
-    Parameters:
-        data_point: Power grid data.
-        model: The trained model used for inference.
-        quantity: The quantity to visualize (e.g., VM, PD, QD, PG, QG, VA).
-    """
-    data_point = copy.deepcopy(data_point)
-    output = copy.deepcopy(output)
-    mask_PQ = data_point.x[:, PQ] == 1
-    mask_PV = data_point.x[:, PV] == 1
-    mask_REF = data_point.x[:, REF] == 1
+    # Only masked buses are actually reconstructed; the rest were model inputs.
+    mask = data.mask_dict["bus"][:, target_col].detach().cpu()
+    predicted_values[~mask] = gt_values[~mask]
+    masked_node_indices = np.where(mask.numpy())[0]
 
-    output = node_normalizer.inverse_transform(output)
-    denormalized_gt = node_normalizer.inverse_transform(data_point.y)
+    graph, node_labels = _bus_graph(data)
+    pos = nx.spring_layout(graph, seed=42)
 
-    gt_values = denormalized_gt[:, quantity]
-    predicted_values = output[:, quantity]
-    predicted_values[~data_point.mask[:, quantity]] = denormalized_gt[
-        ~data_point.mask[:, quantity],
-        quantity,
-    ]
-
-    num_nodes = data_point.x.shape[0]
-
-    node_shapes = {"REF": "s", "PV": "H", "PQ": "o"}
-
-    # Create graph
-    G = nx.Graph()
-    edges = [
-        (u, v)
-        for u, v in zip(
-            data_point.edge_index[0].tolist(),
-            data_point.edge_index[1].tolist(),
-        )
-        if u != v
-    ]
-    G.add_edges_from(edges)
-
-    node_labels = {}
-    for i in range(num_nodes):
-        if mask_REF[i]:
-            node_labels[i] = "REF"
-        elif mask_PV[i]:
-            node_labels[i] = "PV"
-        elif mask_PQ[i]:
-            node_labels[i] = "PQ"
-
-    pos = nx.spring_layout(G, seed=42)
     cmap = plt.cm.viridis
-    vmin = min(predicted_values)
-    vmax = max(predicted_values)
+    # Share one colour scale across all three panels so they are comparable.
+    vmin = float(min(gt_values.min(), predicted_values.min()))
+    vmax = float(max(gt_values.max(), predicted_values.max()))
     norm = plt.Normalize(vmin=vmin, vmax=vmax)
 
-    masked_node_indices = np.where(data_point.mask[:, quantity].cpu())[0]
-
-    # Create subplots for side-by-side layout (3 plots)
     fig, axes = plt.subplots(1, 3, figsize=(22, 8))
 
-    # First plot (ground truth values)
-    ax = axes[0]
-    for node_type, shape in node_shapes.items():
-        nodes = [i for i in node_labels if node_labels[i] == node_type]
-        node_size = 390 if node_type == "REF" else 600
-        nx.draw_networkx_nodes(
-            G,
+    panels = (
+        (axes[0], gt_values, f"Ground truth {quantity_name}"),
+        (axes[1], gt_values, f"Masked {quantity_name}"),
+        (axes[2], predicted_values, f"Reconstructed {quantity_name}"),
+    )
+    for ax, values, title in panels:
+        _draw_bus_nodes(
+            graph,
             pos,
-            nodelist=nodes,
-            node_color=[gt_values[i] for i in nodes],
-            cmap=cmap,
-            node_size=node_size,
-            ax=ax,
-            vmin=vmin,
-            vmax=vmax,
-            node_shape=shape,
+            node_labels,
+            values,
+            ax,
+            vmin,
+            vmax,
+            cmap,
+            resize_ref=True,
         )
+        if ax is axes[1]:
+            # Grey out the buses whose value was hidden from the model.
+            nx.draw_networkx_nodes(
+                graph,
+                pos,
+                nodelist=masked_node_indices,
+                node_color="#D3D3D3",
+                node_size=750,
+                ax=ax,
+            )
+        _label_bus_nodes(graph, pos, node_labels, ax)
+        ax.set_title(title, fontsize=14, fontweight="bold")
 
-    nx.draw_networkx_edges(G, pos, edge_color="gray", alpha=0.5, ax=ax, width=2)
-    nx.draw_networkx_labels(
-        G,
-        pos,
-        labels=node_labels,
-        font_size=10,
-        font_color="white",
-        font_weight="bold",
-        ax=ax,
-    )
-    ax.set_title(f"Ground truth {quantity_name}", fontsize=14, fontweight="bold")
-
-    for spine in ax.spines.values():
-        spine.set_linewidth(2)  # Adjust thickness
-
-    # Second plot (with masked nodes in gray)
-    ax = axes[1]
-    for node_type, shape in node_shapes.items():
-        nodes = [i for i in node_labels if node_labels[i] == node_type]
-        node_size = 390 if node_type == "REF" else 600
-        nx.draw_networkx_nodes(
-            G,
-            pos,
-            nodelist=nodes,
-            node_color=[gt_values[i] for i in nodes],
-            cmap=cmap,
-            node_size=node_size,
-            ax=ax,
-            vmin=vmin,
-            vmax=vmax,
-            node_shape=shape,
-        )
-
-    nx.draw_networkx_nodes(
-        G,
-        pos,
-        nodelist=masked_node_indices,
-        node_color="#D3D3D3",
-        node_size=750,
-        ax=ax,
-    )
-    nx.draw_networkx_edges(G, pos, edge_color="gray", alpha=0.5, ax=ax, width=2)
-    nx.draw_networkx_labels(
-        G,
-        pos,
-        labels=node_labels,
-        font_size=10,
-        font_color="white",
-        font_weight="bold",
-        ax=ax,
-    )
-    ax.set_title(f"Masked {quantity_name}", fontsize=14, fontweight="bold")
-
-    for spine in ax.spines.values():
-        spine.set_linewidth(2)  # Adjust thickness
-
-    # Third plot (predicted values without masking)
-    ax = axes[2]
-    for node_type, shape in node_shapes.items():
-        nodes = [i for i in node_labels if node_labels[i] == node_type]
-        node_size = 390 if node_type == "REF" else 600
-        nx.draw_networkx_nodes(
-            G,
-            pos,
-            nodelist=nodes,
-            node_color=[predicted_values[i] for i in nodes],
-            cmap=cmap,
-            node_size=node_size,
-            ax=ax,
-            vmin=vmin,
-            vmax=vmax,
-            node_shape=shape,
-        )
-
-    nx.draw_networkx_edges(G, pos, edge_color="gray", alpha=0.5, ax=ax, width=2)
-    nx.draw_networkx_labels(
-        G,
-        pos,
-        labels=node_labels,
-        font_size=10,
-        font_color="white",
-        font_weight="bold",
-        ax=ax,
-    )
-    ax.set_title(f"Reconstructed {quantity_name}", fontsize=14, fontweight="bold")
-
-    for spine in ax.spines.values():
-        spine.set_linewidth(2)  # Adjust thickness
-
-    # Colorbar placement
     cbar_ax = fig.add_axes([0.93, 0.1, 0.02, 0.8])
     cbar = plt.colorbar(plt.cm.ScalarMappable(cmap=cmap, norm=norm), cax=cbar_ax)
     cbar.set_label(f"{quantity_name} ({unit})", fontsize=12)
