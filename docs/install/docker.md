@@ -47,13 +47,14 @@ It finishes in well under a minute on CPU and is meant purely to prove the pipel
 model is not trained to convergence.
 
 The two config files live in the repo under
-[`examples/config/`](https://github.com/gridfm/gridfm-graphkit/tree/main/examples/config).
+[`examples/config/`](https://github.com/gridfm/gridfm-graphkit/tree/main/examples/config)
+(the datakit *generate* config sits in the `datakit/` subfolder).
 Copy them into a working directory that we will mount into the container as `/work`:
 
 ```bash
 mkdir -p work
-cp examples/config/hello_world_datagen_case14.yaml work/
-cp examples/config/hello_world_train_case14.yaml   work/
+cp examples/config/datakit/hello_world_datagen_case14.yaml work/
+cp examples/config/hello_world_train_case14.yaml           work/
 ```
 
 > **SELinux note (Fedora/RHEL):** the `:Z` suffix on the volume relabels it so the container
@@ -127,7 +128,7 @@ your editor, terminal, and debugger all run against the exact same pinned enviro
    step at the same location — the two stay consistent as a copy-paste run:
 
     ```bash
-    gridfm_datakit generate examples/config/hello_world_datagen_case14.yaml
+    gridfm_datakit generate examples/config/datakit/hello_world_datagen_case14.yaml
     gridfm_graphkit train \
         --config examples/config/hello_world_train_case14.yaml \
         --data_path /work/data \
