@@ -122,18 +122,22 @@ your editor, terminal, and debugger all run against the exact same pinned enviro
    the command palette (`F1`). VS Code builds the image (first time only) and drops you into a
    shell inside it, with your working copy live-mounted.
 
-4. Inside the container everything from the hello-world above is on `PATH`. Because your
-   checkout is mounted, generated data and MLflow runs land in your workspace:
+4. Inside the container everything from the hello-world above is on `PATH`. The shipped
+   datagen config writes to its `settings.data_dir` (`/work/data`), so point the `train`
+   step at the same location — the two stay consistent as a copy-paste run:
 
     ```bash
     gridfm_datakit generate examples/config/hello_world_datagen_case14.yaml
     gridfm_graphkit train \
         --config examples/config/hello_world_train_case14.yaml \
-        --data_path data
+        --data_path /work/data \
+        --log_dir /work/mlruns
     ```
 
-    (The datagen config writes to `/work/data`; either create that path, point `data_dir` at a
-    workspace-relative directory, or pass `--data_path` to wherever you generated the data.)
+    Data and MLflow runs land under `/work` **inside the container**, not in your mounted
+    workspace. To keep them in the workspace instead, copy the config and set
+    `settings.data_dir` to a workspace-relative path (e.g. `data`), then use a matching
+    `--data_path data`.
 
 To iterate on the GridFM source itself rather than the released wheels, add an editable install
 as a `postCreateCommand` in `devcontainer.json`, e.g.
