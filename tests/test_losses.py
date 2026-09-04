@@ -1,7 +1,8 @@
 import pytest
 import torch
 from gridfm_graphkit.datasets.hetero_powergrid_datamodule import LitGridHeteroDataModule
-from gridfm_graphkit.io.param_handler import NestedNamespace
+from gridfm_graphkit.io.param_handler import NestedNamespace, get_loss_function
+from gridfm_graphkit.training.loss import MixedLoss
 from gridfm_graphkit.datasets.globals import VM_H, VA_H, QG_H
 from torch_scatter import scatter_add
 from gridfm_graphkit.models.utils import (
@@ -75,3 +76,92 @@ def test_pbe_loss_zero_with_real_data(small_grid_data_module):
     assert torch.max(torch.abs(residual_Q)) < 1e-4, (
         f"Reactive Residuals not zero! {torch.max(torch.abs(residual_Q))}"
     )
+
+
+class ConstantLoss(torch.nn.Module):
+    """Loss stub returning a fixed value, to check how MixedLoss weights terms."""
+
+    def __init__(self, value):
+        super().__init__()
+        self.value = value
+
+    def forward(self, pred, target, *args, **kwargs):
+        return {"loss": torch.tensor(self.value)}
+
+
+def test_mixed_loss_weights_constant_without_warmup():
+    loss_fn = MixedLoss(
+        loss_functions=[ConstantLoss(1.0), ConstantLoss(2.0)],
+        weights=[0.1, 0.9],
+    )
+
+    for epoch in range(5):
+        loss_fn.set_epoch(epoch)
+        assert loss_fn.weights == [0.1, 0.9]
+
+
+def test_mixed_loss_warmup_ramps_linearly_then_clamps():
+    loss_fn = MixedLoss(
+        loss_functions=[ConstantLoss(1.0), ConstantLoss(2.0)],
+        weights=[1.0, 0.5],
+        warmup_indices=[0],
+        warmup_epochs=4,
+    )
+
+    # alpha = (epoch + 1) / warmup_epochs, so the ramp starts at one step of the
+    # ramp rather than at 0 and reaches its target on the last warmup epoch.
+    expected = [0.25, 0.5, 0.75, 1.0]
+    for epoch, target in enumerate(expected):
+        loss_fn.set_epoch(epoch)
+        assert loss_fn.weights[0] == pytest.approx(target)
+        # weights outside warmup_indices are never touched
+        assert loss_fn.weights[1] == pytest.approx(0.5)
+
+    # past the warmup window the weight stays at its target value
+    for epoch in (4, 10, 200):
+        loss_fn.set_epoch(epoch)
+        assert loss_fn.weights[0] == pytest.approx(1.0)
+
+
+def test_mixed_loss_warmup_scales_total_loss():
+    loss_fn = MixedLoss(
+        loss_functions=[ConstantLoss(4.0), ConstantLoss(1.0)],
+        weights=[1.0, 2.0],
+        warmup_indices=[0],
+        warmup_epochs=2,
+    )
+
+    loss_fn.set_epoch(0)  # alpha = 0.5 -> 0.5 * 4.0 + 2.0 * 1.0
+    assert loss_fn(None, None)["loss"].item() == pytest.approx(4.0)
+
+    loss_fn.set_epoch(1)  # alpha = 1.0 -> 1.0 * 4.0 + 2.0 * 1.0
+    assert loss_fn(None, None)["loss"].item() == pytest.approx(6.0)
+
+
+@pytest.fixture
+def loss_config():
+    import yaml
+
+    with open("tests/config/datamodule_test_base_config.yaml") as f:
+        return yaml.safe_load(f)
+
+
+def test_get_loss_function_ramps_physics_terms(loss_config):
+    # config declares losses [LayeredWeightedPhysics, MaskedBusMSE]
+    loss_config["training"]["physics_warmup_epochs"] = 10
+    loss_fn = get_loss_function(NestedNamespace(**loss_config))
+
+    assert loss_fn.warmup_indices == [0]
+    assert loss_fn.warmup_epochs == 10
+
+    loss_fn.set_epoch(4)
+    assert loss_fn.weights[0] == pytest.approx(0.1 * 0.5)
+    assert loss_fn.weights[1] == pytest.approx(0.9)
+
+
+def test_get_loss_function_without_warmup_key_is_unchanged(loss_config):
+    loss_fn = get_loss_function(NestedNamespace(**loss_config))
+
+    assert loss_fn.warmup_epochs == 0
+    loss_fn.set_epoch(3)
+    assert loss_fn.weights == loss_fn.target_weights
