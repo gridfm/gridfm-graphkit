@@ -1,9 +1,61 @@
 import torch
+import torch.nn.functional as F
 from torch_scatter import scatter_mean, scatter_max
 import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
 import os
+
+
+def compute_angle_violation(
+    bus_edge_attr: torch.Tensor,
+    bus_angles: torch.Tensor,
+    bus_edge_index: torch.Tensor,
+    ang_min_col: int,
+    ang_max_col: int,
+) -> torch.Tensor:
+    """Compute the mean branch angle-difference violation.
+
+    Assumes ``bus_angles`` is in **radians**, while ``ang_min_col`` and ``ang_max_col`` are in **degrees**
+    This function converts the limits (``ang_min_col`` and ``ang_max_col``) to radians before comparison so that both
+    sides of the inequality are in the same unit.
+
+    The signed angle difference for each branch is wrapped to ``[-π, π]`` before
+    checking against the limits.  Any exceedance on either side is accumulated
+    with ``ReLU`` and the result is averaged across all branches.
+
+    Args:
+        bus_edge_attr: Edge-attribute tensor of shape ``(num_edges, num_edge_features)``.
+            Columns ``ang_min_col`` and ``ang_max_col`` hold the per-branch angle
+            limits in **degrees**.
+        bus_angles: Bus voltage-angle tensor of shape ``(num_buses,)`` in **radians**,
+            typically taken from ``output["bus"][:, VA_OUT]``.
+        bus_edge_index: COO edge-index tensor of shape ``(2, num_edges)`` where
+            ``bus_edge_index[0]`` are the from-bus indices and ``bus_edge_index[1]``
+            are the to-bus indices.
+        ang_min_col: Column index of the minimum angle limit in ``bus_edge_attr``.
+        ang_max_col: Column index of the maximum angle limit in ``bus_edge_attr``.
+
+    Returns:
+        Scalar tensor: mean angle-difference violation across all directed edges
+        (in radians). Note: each physical branch appears as two directed edges
+        (forward and reverse), so this averages over 2 × num_branches entries —
+        a different denominator from the per-direction thermal violation metrics
+        (``mean_thermal_violation_forward`` / ``mean_thermal_violation_reverse``)
+        which split forward and reverse separately.
+    """
+    angle_min = bus_edge_attr[:, ang_min_col] * torch.pi / 180.0  # degrees → radians
+    angle_max = bus_edge_attr[:, ang_max_col] * torch.pi / 180.0  # degrees → radians
+
+    from_bus = bus_edge_index[0]
+    to_bus = bus_edge_index[1]
+    angle_diff = bus_angles[from_bus] - bus_angles[to_bus]
+    angle_diff = (angle_diff + torch.pi) % (2 * torch.pi) - torch.pi  # wrap to [-π, π]
+
+    angle_excess_low = F.relu(angle_min - angle_diff)
+    angle_excess_high = F.relu(angle_diff - angle_max)
+
+    return torch.mean(angle_excess_low + angle_excess_high)
 
 
 def local_index_per_graph(batch_index: torch.Tensor) -> torch.Tensor:
