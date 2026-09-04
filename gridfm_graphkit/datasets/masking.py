@@ -210,6 +210,27 @@ class AddOPFHeteroMask(BaseTransform):
         return data
 
 
+class RemovePFMask(BaseTransform):
+    """Restore static limit columns that were zeroed by AddPFHeteroMask.
+
+    Call this after inverse_transform() and inverse_output() so that bus and
+    branch limit values (MIN_VM, MAX_VM, MIN_QG, MAX_QG, VN_KV, ANG_MIN,
+    ANG_MAX, RATE_A) are correct for post-inference constraint evaluation.
+    The values are sourced from the ``.static`` attribute saved at dataset
+    build time, before any masking or normalisation ran.
+    """
+
+    def forward(self, data):
+        data.x_dict["bus"][:, [MIN_VM_H, MAX_VM_H, MIN_QG_H, MAX_QG_H, VN_KV]] = data[
+            "bus"
+        ].static
+        data.edge_attr_dict[("bus", "connects", "bus")][
+            :,
+            [ANG_MIN, ANG_MAX, RATE_A],
+        ] = data[("bus", "connects", "bus")].static
+        return data
+
+
 class BusToGenBroadcaster(MessagePassing):
     """Broadcast per-bus values to connected generators via graph propagation."""
 

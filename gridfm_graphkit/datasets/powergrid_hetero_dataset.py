@@ -8,7 +8,18 @@ import pandas as pd
 from tqdm import tqdm
 from typing import Optional, Callable
 from torch_geometric.data import HeteroData
-from gridfm_graphkit.datasets.globals import VA_H, PG_H
+from gridfm_graphkit.datasets.globals import (
+    VA_H,
+    PG_H,
+    MIN_VM_H,
+    MAX_VM_H,
+    MIN_QG_H,
+    MAX_QG_H,
+    VN_KV,
+    ANG_MIN,
+    ANG_MAX,
+    RATE_A,
+)
 
 
 class HeteroGridDatasetDisk(Dataset):
@@ -368,7 +379,12 @@ class HeteroGridDatasetDisk(Dataset):
         data = HeteroData()
 
         # Bus nodes
+        # todo: we should remove this assert and store the bus idx in the tensors
+        # right now we need the increasing order for e.g. the predict step that uses torch.arange(n_nodes) to index the buses.
         data["bus"].x = torch.tensor(bus_df[bus_features].values, dtype=torch.float)
+        data["bus"].static = (
+            data["bus"].x[:, [MIN_VM_H, MAX_VM_H, MIN_QG_H, MAX_QG_H, VN_KV]].clone()
+        )
 
         # Generator nodes
         gen_df = gen_df.reset_index()
@@ -411,6 +427,10 @@ class HeteroGridDatasetDisk(Dataset):
 
         data["bus", "connects", "bus"].edge_index = edge_index
         data["bus", "connects", "bus"].edge_attr = edge_attr
+        data["bus", "connects", "bus"].static = edge_attr[
+            :,
+            [ANG_MIN, ANG_MAX, RATE_A],
+        ].clone()
         data["bus", "connects", "bus"].y = edge_y
 
         # Gen-Bus and Bus-Gen edges
