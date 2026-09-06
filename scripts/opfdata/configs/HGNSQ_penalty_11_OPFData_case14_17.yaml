@@ -1,0 +1,70 @@
+task:
+  task_name: OptimalPowerFlow
+data:
+  baseMVA: 100
+  mask_value: 0.0
+  normalization: HeteroDataMVANormalizer
+  networks:
+  - case14_ieee
+  scenarios:
+  - 300000
+  test_ratio: 0.05
+  val_ratio: 0.05
+  workers: 32
+  # split_by_load_scenario_idx: true
+  split_from_existing_files: "scripts/opfdata/splits/"
+
+model:
+  attention_head: 8
+  edge_dim: 10
+  hidden_size: 48
+  input_bus_dim: 15
+  input_gen_dim: 6
+  output_bus_dim: 2
+  output_gen_dim: 1
+  num_layers: 12
+  type: GNS_heterogeneous
+# optimizer:
+#   beta1: 0.9
+#   beta2: 0.999
+#   learning_rate: 0.0005
+#   lr_decay: 0.7
+#   lr_patience: 5
+optimizer:
+  type: AdamW
+  learning_rate: 0.0005
+  optimizer_params: 
+    betas: [0.9, 0.999]
+  scheduler_type:  ReduceLROnPlateau
+  scheduler_params:
+    mode: "min"
+    factor: 0.7
+    patience: 5
+training:
+  batch_size: 64
+  epochs: 200
+  loss_weights:
+  - 0.1
+  - 0.1
+  - 0.75
+  - 0.001
+  losses:
+  - LayeredWeightedPhysics
+  - MaskedGenMSE
+  - MaskedBusMSE
+  - QgViolationPenalty
+  loss_args:
+  - base_weight: 0.5
+  - {}
+  - {}
+  - {}
+  accelerator: auto
+  devices: auto
+  strategy: auto
+seed: 17
+verbose: true
+callbacks:
+  patience: 100
+  tol: 0
+  optuna_early_prune: False
+

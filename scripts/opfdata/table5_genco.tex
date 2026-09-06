@@ -1,0 +1,51 @@
+\begin{table*}
+\caption{%
+  Constraint violations and optimality gap comparison between GENCO Base and HH-MPNN.
+  \textbf{Bold} indicates the better result per metric per system.
+  $Q_g$ violations are structurally zero for HH-MPNN (reactive limits enforced via sigmoid activation).%
+}
+\label{tab:opf_results}
+\centering
+\small
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{@{}llllllll@{}}
+\toprule
+& & Optimality & \multicolumn{2}{c}{Thermal limits} & \multicolumn{2}{c}{Power balance} & React.\ gen. bounds \\
+\cmidrule(lr){3-3}\cmidrule(lr){4-6}\cmidrule(lr){6-7}\cmidrule(lr){8-8}
+System & Model
+  & Gap (\%)
+  & $S_{ij}(+)$ [MVA]
+  & $S_{ij}(-)$ [MVA]
+  & $\mathrm{PBRes}_{P}$ [MW]
+  & $\mathrm{PBRes}_{Q}$ [MVar]
+  & $Q_g$ [MVar] \\
+\midrule
+\multirow{2}{*}{IEEE 14}
+  & HH-MPNN & \G{0.01} & 0.00 & 0.00 & \G{2.00e-4} & 2.70e-2 & \G{0.00} \\
+  & GENCO Base   & 0.05\std{0.01} & 0.00 & 0.00 & 8.27e-4\std{1.13e-4} & \G{3.83e-4}\std{5.24e-5} & 9.18e-3\std{3.36e-4} \\
+\midrule
+\multirow{2}{*}{IEEE 30}
+  & HH-MPNN & 0.18 & 5.20e-3 & \G{3.00e-4} & 1.31e-2 & 7.60e-3 & \G{0.00} \\
+  & GENCO Base   & \G{0.03}\std{0.00} & \G{1.30e-3}\std{2.14e-4} & 1.28e-3\std{2.05e-4} & \G{1.05e-3}\std{7.22e-5} & \G{7.29e-4}\std{2.19e-5} & 2.68e-3\std{3.03e-4} \\
+\midrule
+\multirow{2}{*}{IEEE 57}
+  & HH-MPNN & \G{0.00} & \G{0.00} & \G{0.00} & \G{2.10e-2} & 1.21e-1 & \G{0.00} \\
+  & GENCO Base   & 0.12\std{0.02} & 5.01e-7\std{2.66e-7} & 1.14e-6\std{1.06e-6} & 5.15e-2\std{1.32e-2} & \G{2.98e-2}\std{6.67e-3} & 1.23e-2\std{4.95e-3} \\
+\midrule
+\multirow{2}{*}{IEEE 118}
+  & HH-MPNN & 0.24 & 1.37e-1 & 1.38e-1 & 5.11e-2 & 1.99e-1 & \G{0.00} \\
+  & GENCO Base   & \G{0.16}\std{0.02} & \G{4.37e-3}\std{7.11e-4} & \G{4.39e-3}\std{7.03e-4} & \G{2.19e-2}\std{1.31e-2} & \G{5.14e-3}\std{2.70e-3} & 2.02e-3\std{4.03e-4} \\
+\midrule
+\multirow{2}{*}{GOC 500}
+  & HH-MPNN & \G{0.02} & 5.80e-2 & 5.60e-2 & \G{1.72e-2} & 1.09e-1 & \G{0.00} \\
+  & GENCO Base   & 0.30\std{0.04} & \G{1.91e-3}\std{2.52e-4} & \G{1.88e-3}\std{2.55e-4} & 7.02e-2\std{8.35e-3} & \G{2.60e-2}\std{1.60e-3} & 4.57e-4\std{1.06e-4} \\
+\midrule
+\multirow{2}{*}{GOC 2000}
+  & HH-MPNN & \G{0.00} & 2.80e-3 & 2.80e-3 & \G{1.03e-2} & 2.65e-2 & \G{0.00} \\
+  & GENCO Base   & 0.17\std{0.01} & \G{2.17e-5}\std{1.09e-6} & \G{2.45e-5}\std{1.43e-6} & 5.87e-2\std{6.04e-3} & \G{2.23e-2}\std{2.78e-3} & 1.64e-3\std{3.33e-4} \\
+\bottomrule
+\end{tabular}
+\\
+\raggedright\footnotesize
+$\pm$ denotes standard deviation over three seeds.
+\end{table*}

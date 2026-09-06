@@ -1,0 +1,11 @@
+Metric,Value
+Avg. active res. (MW),0.03642617166042328
+Avg. reactive res. (MVar),0.00811777263879776
+RMSE PG generators (MW),1.9721150175099342
+Mean optimality gap (%),0.18214885890483856
+Mean branch thermal violation from (MVA),0.005062632728368044
+Mean branch thermal violation to (MVA),0.00507196644321084
+Mean branch angle difference violation (radians),0.0
+Mean Qg violation PV buses,0.0021554548293352127
+Mean Qg violation REF buses,0.0
+Mean Qg violation,0.0021155388094484806

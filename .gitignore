@@ -30,3 +30,6 @@ experiments/
 job_resources/
 scripts/*
 !scripts/process_hetero_dataset_parallel.py
+!scripts/opfdata/
+!scripts/opfdata/**
+!scripts/opfdata/splits/*.pt
