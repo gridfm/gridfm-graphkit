@@ -48,6 +48,24 @@ def load_metrics(path: Path) -> dict[str, float]:
     return out
 
 
+def write_metrics_summary() -> Path:
+    """Flatten results/<grid>/seed*/metrics.csv into one row per grid/seed."""
+    rows: list[dict[str, str | int | float]] = []
+    metric_order: list[str] | None = None
+    for grid, _label in GRIDS:
+        for seed in SEEDS:
+            m = load_metrics(RESULTS / grid / f"seed{seed}" / "metrics.csv")
+            if metric_order is None:
+                metric_order = list(m)
+            rows.append({"grid": grid, "seed": seed, **m})
+    path = RESULTS / "metrics_summary.csv"
+    with path.open("w", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=["grid", "seed", *(metric_order or [])])
+        writer.writeheader()
+        writer.writerows(rows)
+    return path
+
+
 def mean_std(values: list[float]) -> tuple[float, float]:
     n = len(values)
     mean = sum(values) / n
@@ -179,6 +197,8 @@ def main() -> None:
     out = ROOT / "table5_genco.tex"
     out.write_text("\n".join(lines))
     print(f"wrote {out}")
+    summary = write_metrics_summary()
+    print(f"wrote {summary}")
 
 
 if __name__ == "__main__":
