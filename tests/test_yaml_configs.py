@@ -12,7 +12,7 @@ from gridfm_graphkit.io.param_handler import (
 )
 
 
-@pytest.mark.parametrize("yaml_path", glob.glob("scripts/config/*.yaml"))
+@pytest.mark.parametrize("yaml_path", glob.glob("scripts/pfdelta/config/*.yaml"))
 def test_yaml_config_valid(yaml_path):
     with open(yaml_path) as f:
         config_dict = yaml.safe_load(f)

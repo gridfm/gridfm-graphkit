@@ -6,12 +6,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parent
-_repo_results = ROOT.parents[1] / "results"
-RESULTS_DIR = (
-    _repo_results
-    if (_repo_results / "1.1" / "metrics_summary.csv").exists()
-    else ROOT / "results"
-)
+RESULTS_DIR = ROOT / "results"
 
 COLUMNS = ["N", "N-1", "N-2", "Close-to- infeasible"]
 COLUMN_TO_ROW = {
@@ -636,7 +631,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(
         description=(
             "Build PF-Delta LaTeX tables with GENCO Base rows from "
-            "results/*/metrics_summary.csv."
+            "scripts/pfdelta/results/*/metrics_summary.csv."
         )
     )
     parser.add_argument(

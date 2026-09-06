@@ -5,7 +5,7 @@ import re
 import argparse
 
 MLFLOW_BASE = Path("/dccstor/gridfm/mlflow_alban_pfdelta")
-CONFIG_DIR = Path("/u/apu/gridfm_model_evaluation/scripts/config")
+CONFIG_DIR = Path("/u/apu/gridfm_model_evaluation/scripts/pfdelta/config")
 DATA_BASE = Path("/dccstor/gridfm/pfdelta_converted_split_tasks")
 VENV_ACTIVATE = "/u/apu/gridfm_model_evaluation/venv/bin/activate"
 GRIDFM_DIR = "/u/apu/gridfm_model_evaluation"
