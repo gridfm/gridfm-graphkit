@@ -1,0 +1,96 @@
+\begin{table}[h!]
+    \centering
+    \small
+    \renewcommand{\arraystretch}{1.2}
+    \begin{tabular}{c|c|c|c|c|c} \hline 
+        
+        \multicolumn{2}{c|}{\textbf{Experiment}} & \multicolumn{4}{|c}{\textbf{Power Balance Loss (Mean)}}\\ \hline 
+        
+        \textbf{Case} & 
+        \textbf{Model} & \textbf{N} & \textbf{N-1} 
+        & \textbf{N-2} & \textbf{Close-to-infeasible} \\ \hline
+
+        \multirow{5}{*}{57} 
+        & GENCO Base
+        & \G{4.9e-1}\std{1.9e-1}
+        & \G{5.0e-1}\std{2.07e-1}
+        & \G{4.8e-1}\std{1.7e-1}
+        & \G{5.8e-1}\std{2.2e-1} \\
+        & PFNet
+        & 2.3\std{0.4}
+        & 2.3\std{0.4}
+        & 2.3\std{0.4}
+        & 2.4\std{0.4} \\
+        & CANOS-PF
+        & 1.7\std{0.2}
+        & 1.8\std{0.2}
+        & 1.8\std{0.2}
+        & 1.8\std{0.2} \\
+        & GNS
+        & 3.3e1\std{1.4e1}
+        & 8.8e1\std{3.9e1}
+        & 1.5e2\std{0.7e2}
+        & 8.0e-1\std{2.0e-1} \\
+        & \textcolor{gray}{NR}
+        & \textcolor{gray}{1.1e-6\std{0.0e-6}}
+        & \textcolor{gray}{1.2e-6\std{0.0e-6}}
+        & \textcolor{gray}{1.1e-6\std{0.0e-6}}
+        & \textcolor{gray}{1.3e-6\std{0.0e-6}} \\ \hline
+
+        \multirow{5}{*}{118} 
+        & GENCO Base
+        & \G{2.7e-3}\std{2.1e-3}
+        & \G{4.5e-3}\std{3.4e-3}
+        & \G{5.8e-3}\std{4.3e-3}
+        & \G{2.2e-1}\std{0.8e-1} \\
+        & PFNet
+        & 3.4e-1\std{0.08e-1}
+        & 4.0e-1\std{0.05e-1}
+        & 4.2e-1\std{0.09e-1}
+        & 1.1\std{0.03} \\
+        & CANOS-PF
+        & 4.0e-2\std{0.4e-2}
+        & 5.6e-2\std{0.5e-2}
+        & 6.3e-2\std{0.5e-2}
+        & 7.2e-1\std{0.9e-1} \\
+        & GNS
+        & 3.5e-1\std{0.4e-1}
+        & 3.8e-1\std{0.4e-1}
+        & 3.9e-1\std{0.4e-1}
+        & 7.7e-1\std{0.5e-1} \\
+        & \textcolor{gray}{NR}
+        & \textcolor{gray}{3.7e-6\std{0.0e-6}}
+        & \textcolor{gray}{3.2e-6\std{0.0e-6}}
+        & \textcolor{gray}{3.3e-6\std{0.0e-6}}
+        & \textcolor{gray}{4.6e-6\std{0.0e-6}} \\ \hline
+
+        \multirow{5}{*}{500} 
+        & GENCO Base
+        & \G{8.7}\std{5.9}
+        & \G{8.7}\std{5.9}
+        & \G{8.7}\std{5.9}
+        & \G{8.7}\std{5.8} \\
+        & PFNet
+        & 8.3e1\std{3.9e1}
+        & 8.1e1\std{3.8e1}
+        & 8.4e1\std{4.0e1}
+        & 8.9e1\std{3.8e1} \\
+        & CANOS-PF
+        & 2.3e1\std{0.6e1}
+        & 2.3e1\std{0.6e1}
+        & 2.3e1\std{0.6e1}
+        & 2.6e1\std{0.6e1} \\
+        & GNS
+        & 2.4e1\std{0.7e1}
+        & 2.4e1\std{0.7e1}
+        & 2.4e1\std{0.7e1}
+        & 2.4e1\std{0.7e1} \\
+        & \textcolor{gray}{NR}
+        & \textcolor{gray}{1.4e-5\std{0.0e-5}}
+        & \textcolor{gray}{1.4e-5\std{0.0e-5}}
+        & \textcolor{gray}{1.3e-5\std{0.0e-5}}
+        & \textcolor{gray}{1.6e-5\std{0.0e-5}} \\ \hline
+    \end{tabular}
+    \caption{Power Balance Loss (Mean) across different bus sizes and grid conditions.}
+    \label{table:all-cases-mean}
+\end{table}

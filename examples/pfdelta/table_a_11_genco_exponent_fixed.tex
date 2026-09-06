@@ -1,0 +1,81 @@
+\begin{table}[h!]
+    \centering
+    \small
+    \renewcommand{\arraystretch}{1.2}
+    \begin{tabular}{c|c|c|c|c|c} \hline 
+        
+        \multicolumn{2}{c|}{\textbf{Experiment}} & \multicolumn{4}{|c}{\textbf{Power Balance Loss (Max)}}\\ \hline 
+        
+        \textbf{Case} & 
+        \textbf{Model} & \textbf{N} & \textbf{N-1} 
+        & \textbf{N-2} & \textbf{Close-to-infeasible} \\ \hline
+
+        \multirow{4}{*}{57} 
+        & GENCO Base
+        & \G{1.2e1}\std{1.0e1}
+        & \G{1.4e1}\std{0.8e1}
+        & 1.6e1\std{0.7e1}
+        & \G{1.9e1}\std{0.5e1} \\
+        & PFNet
+        & 1.2e1\std{0.2e1}
+        & 1.6e1\std{0.2e1}
+        & \G{1.5e1}\std{0.2e1}
+        & 2.1e1\std{0.2e1} \\
+        & CANOS-PF
+        & 4.5e1\std{0.5e1}
+        & 4.6e1\std{0.4e1}
+        & 4.7e1\std{0.4e1}
+        & 4.6e1\std{0.3e1} \\
+        & GNS
+        & 3.0e5\std{1.3e5}
+        & 4.4e5\std{2.2e5}
+        & 5.2e5\std{2.4e5}
+        & 4.3e1\std{1.8e1} \\ \hline
+
+        \multirow{4}{*}{118} 
+        & GENCO Base
+        & \G{6.5e-2}\std{4.08e-2}
+        & \G{1.2}\std{0.7}
+        & \G{2.0}\std{1.8}
+        & 3.9e1\std{2.6e1} \\
+        & PFNet
+        & 1.0e1\std{0.2e1}
+        & 3.5e1\std{0.3e1}
+        & 3.5e1\std{0.4e1}
+        & 3.5e1\std{0.6e1} \\
+        & CANOS-PF
+        & 1.0\std{0.1}
+        & 6.9\std{2.6}
+        & 4.5\std{0.7}
+        & 4.0e1\std{0.09e1} \\
+        & GNS
+        & 1.1e1\std{0.3e1}
+        & 2.1e1\std{0.3e1}
+        & 1.8e1\std{0.2e1}
+        & \G{1.9e1}\std{0.5e1} \\ \hline
+
+        \multirow{4}{*}{500} 
+        & GENCO Base
+        & \G{1.9e2}\std{1.6e2}
+        & \G{2.0e2}\std{1.6e2}
+        & \G{2.0e2}\std{1.6e2}
+        & \G{1.9e2}\std{1.6e2} \\
+        & PFNet
+        & 1.9e3\std{0.6e3}
+        & 1.9e3\std{0.6e3}
+        & 1.9e3\std{0.6e3}
+        & 1.9e3\std{0.6e3} \\
+        & CANOS-PF
+        & 7.0e2\std{1.7e2}
+        & 7.5e2\std{1.8e2}
+        & 7.2e2\std{1.5e2}
+        & 7.8e2\std{0.3e2} \\
+        & GNS
+        & 5.9e2\std{2.3e2}
+        & 5.9e2\std{2.3e2}
+        & 6.1e2\std{2.2e2}
+        & 5.8e2\std{2.1e2} \\ \hline
+    \end{tabular}
+    \caption{Power Balance Loss (Max) across different bus sizes and grid conditions.}
+    \label{table:all-cases-max}
+\end{table}
