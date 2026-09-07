@@ -1,0 +1,67 @@
+# Minimal gridfm-graphkit "hello world" training config, paired with
+# hello_world_datagen_case14.yaml. Trains a tiny GNS model for 1 epoch on the 20-scenario
+# case14 dataset so the Docker quick-start finishes in under a minute on CPU.
+# Used by docs/install/docker.md. Not tuned for accuracy.
+#   gridfm_graphkit train --config hello_world_train_case14.yaml --data_path /work/data
+version: 1
+callbacks:
+  patience: 100
+  tol: 0
+  early_stopping_monitor: Validation loss
+  checkpoint_monitor: Validation layer_11_residual
+  lr_scheduler_monitor: Validation loss
+task:
+  task_name: PowerFlow
+data:
+  baseMVA: 100
+  mask_value: 0.0
+  normalization: HeteroDataMVANormalizer
+  networks:
+  - case14_ieee          # must match the datagen network.name
+  scenarios:
+  - 20                   # must match datagen load.scenarios
+  test_ratio: 0.1
+  val_ratio: 0.1
+  workers: 0             # 0 = no dataloader subprocesses; simplest inside a container
+  split_by_load_scenario_idx: true
+  stream_partitions: auto
+model:
+  attention_head: 8
+  edge_dim: 10
+  hidden_size: 12
+  input_bus_dim: 15
+  input_gen_dim: 6
+  output_bus_dim: 2
+  output_gen_dim: 1
+  num_layers: 12
+  type: GNS_heterogeneous
+optimizer:
+  type: AdamW
+  learning_rate: 0.0005
+  optimizer_params:
+    betas:
+    - 0.9
+    - 0.999
+  scheduler_type: ReduceLROnPlateau
+  scheduler_params:
+    mode: min
+    factor: 0.7
+    patience: 5
+seed: 0
+training:
+  batch_size: 8
+  epochs: 1              # one epoch is enough to prove the pipeline runs
+  loss_weights:
+  - 0.1
+  - 0.9
+  losses:
+  - LayeredWeightedPhysics
+  - MaskedBusMSE
+  loss_args:
+  - base_weight: 0.5
+  - {}
+  base_weight: 0.5
+  accelerator: auto
+  devices: auto
+  strategy: auto
+verbose: true

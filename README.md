@@ -47,6 +47,11 @@ If you also used `gridfm-datakit`, please also cite:
 
 # Installation
 
+> **Prefer Docker?** A ready-to-use [`Containerfile`](Containerfile) installs the latest
+> gridfm-datakit and gridfm-graphkit (plus the Julia toolchain) on a CPU-only PyTorch stack.
+> See [docs/install/docker.md](docs/install/docker.md) for a build + `datagen → train`
+> hello-world and VS Code Dev Container setup.
+
 Create and activate a virtual environment (make sure you use the right python version = 3.10, 3.11 or 3.12. I highly recommend 3.12)
 ```bash
 python -m venv venv

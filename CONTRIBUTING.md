@@ -132,28 +132,56 @@ pytest integrationtests --calibrate -s
 Before opening a PR, make sure you complete all steps:
 
 ### 1. Development setup
-- [ ] Install dev and test dependencies:
+
+- [ ] Install dev, test, and torch-scatter dependencies.
+
+  `torch-scatter` is not on PyPI — it needs a prebuilt wheel from `data.pyg.org`
+  that matches **both** your PyTorch version and your compute backend. Pick the
+  right `CUDA_TAG` from the table below:
+
+  | Hardware | `CUDA_TAG` |
+  |----------|-----------|
+  | CPU only | `cpu` |
+  | CUDA 11.8 | `cu118` |
+  | CUDA 12.1 | `cu121` |
+  | CUDA 12.6 | `cu126` |
+
+  Not sure which tag to use? If you don't have an NVIDIA GPU (including Apple
+  Silicon and CPU-only machines), use `cpu`. For NVIDIA GPUs, check your CUDA
+  version with `nvidia-smi` (top-right corner) or `nvcc --version`.
+
+  Replace `<CUDA_TAG>` in the command below:
+
   ```bash
-  pip install -e ".[dev,test]"
+  pip install -e ".[dev,test]" \
+      --find-links https://data.pyg.org/whl/torch-2.12.0+<CUDA_TAG>.html
   ```
 
-* [ ] Install `torch-scatter` and `torch-sparse` separately (the correct wheel depends on your PyTorch and CUDA versions):
+  For example, CPU-only:
   ```bash
-  TORCH_CUDA_VERSION=$(python -c "import torch; print(torch.__version__ + ('+cpu' if torch.version.cuda is None else ''))")
-  pip install torch-scatter -f https://data.pyg.org/whl/torch-${TORCH_CUDA_VERSION}.html
-  pip install torch-sparse -f https://data.pyg.org/whl/torch-${TORCH_CUDA_VERSION}.html
+  pip install -e ".[dev,test]" \
+      --find-links https://data.pyg.org/whl/torch-2.12.0+cpu.html
   ```
 
-  If `data.pyg.org` has no prebuilt wheel for your PyTorch version, build from source instead (this
-  compiles against your installed torch, so it works with any version):
+  Or CUDA 12.6:
   ```bash
+  pip install -e ".[dev,test]" \
+      --find-links https://data.pyg.org/whl/torch-2.12.0+cu126.html
+  ```
+  > **Note:** The PyTorch version (`2.12.0`) in the URL must match what is
+  > installed. If you change the `torch` pin in `pyproject.toml`, update this
+  > URL and regenerate the lock file with `uv lock`.
+
+  **No prebuilt wheel for your combination?** If `data.pyg.org` has no prebuilt wheel for your combination, build from source instead. This compiles against your installed torch, so it works with any version — but torch must already be installed first:
+  ```bash
+  pip install torch==2.12.0
   pip install torch-scatter torch-sparse --no-build-isolation
   ```
   Building from source requires a C++ compiler (and a matching CUDA toolkit with
   `nvcc` for GPU builds).
 
 * [ ] Install the git hooks (this repo runs pre-commit hooks at the **pre-push** stage):
-  ```bash
+  ```pipbash
   pre-commit install
   ```
 

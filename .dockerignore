@@ -1,0 +1,11 @@
+# The image installs everything from PyPI, so the build context needs no repo files.
+# Keep the context tiny and avoid shipping large/local artifacts to the build daemon.
+.git
+**/__pycache__/
+*.pyc
+data/
+**/mlruns/
+examples/data/
+uv.lock
+.venv/
+*.egg-info/

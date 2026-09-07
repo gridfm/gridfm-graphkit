@@ -6,6 +6,14 @@ on:
   pull_request:
     branches:
       - main
+# torch-scatter publishes no PyPI wheels, and its sdist imports torch at
+# build time with no build isolation, so a source build fails with
+# "No module named 'torch'". Point pip at the PyG wheel index so every job
+# installs the prebuilt wheel instead of building. (find-links under
+# [tool.uv] in pyproject.toml is honoured only by uv, not by pip.)
+env:
+  PIP_FIND_LINKS: "https://data.pyg.org/whl/torch-2.12.0+cpu.html"
+
 jobs:
   pre-commit-run:
     runs-on: ubuntu-latest
@@ -173,8 +181,11 @@ jobs:
           python-version: "3.11"
       - name: Install package (editable) and dev/test extras if present
         run: |
-          # setuptools>=83.0.0 clears PYSEC-2026-3447
-          python -m pip install --upgrade pip "setuptools>=83.0.0"
+          # NOTE: torch<2.13 pins setuptools<82, so a setuptools>=83 upgrade is
+          # downgraded back to 81 at install time -> PYSEC-2026-3447 cannot be
+          # resolved by upgrading and is ignored below (build-time sdist issue,
+          # macOS-only NFC/NFD MANIFEST.in bypass; not reachable in CI/runtime).
+          python -m pip install --upgrade pip
           pip install -e .[dev,test] || pip install -e .
       - name: Run pip-audit
         uses: pypa/gh-action-pip-audit@v1.1.0
@@ -198,6 +209,7 @@ jobs:
             CVE-2025-3001
             CVE-2026-69247
             PYSEC-2026-3624
+            PYSEC-2026-3447
 
   trivy_repo:
       name: Trivy (repo scan)

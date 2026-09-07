@@ -9,7 +9,7 @@ namespaces = false
 [project]
 name = "gridfm-graphkit"
 description = "Grid Foundation Model"
-version = "0.8.1"
+version = "0.9.0"
 readme = "README.md"
 license = "Apache-2.0"
 requires-python = ">=3.10,<3.13"
@@ -48,15 +48,16 @@ dependencies = [
     "pandas>=2.3.0",
     "plotly>=6.1.2",
     "pyyaml>=6.0.2",
-    "torch>=2.10",
+    "torch>=2.10,<2.13", # add upper bound
     "torch-geometric>=2.6.1",
+    "torch-scatter>=2.1.2",
     "torchaudio>=2.10",
     "torchvision>=0.25",
     "lightning",
     "seaborn",
     "urllib3>=2.6.0",
     "gdown>=6.0.0",
-    "gridfm-datakit==1.1.0rc1",
+    "gridfm-datakit==1.1.0",
 ]
 
 [project.optional-dependencies]
@@ -71,6 +72,17 @@ dev = [
 test = [
   "pytest",
   "pytest-cov"
+]
+
+[tool.uv]
+# torch-scatter is not on PyPI — it requires a PyG wheel index matching your torch version.
+# The find-links URL below must be updated whenever the torch version in [project.dependencies] changes.
+# CPU:  https://data.pyg.org/whl/torch-X.Y.Z+cpu.html
+# CUDA: https://data.pyg.org/whl/torch-X.Y.Z+cuNNN.html
+# After updating, regenerate the lock file with: uv lock
+find-links = [
+    "https://data.pyg.org/whl/torch-2.12.0+cpu.html",
+    "https://data.pyg.org/whl/torch-2.12.0+cu126.html",
 ]
 
 [project.scripts]
