@@ -53,6 +53,7 @@ training:
   loss_args:
   - base_weight: 0.5
   - {}
+  physics_warmup_epochs: 0 # set >0 to ramp LayeredWeightedPhysics in linearly
   accelerator: auto
   devices: auto
   strategy: auto
