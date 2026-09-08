@@ -197,19 +197,23 @@ def _compute_branch_violations(branch_df: pd.DataFrame, bus_df: pd.DataFrame) ->
     br = branch_df.merge(from_angles, on=["scenario", "from_bus"], how="left")
     br = br.merge(to_angles, on=["scenario", "to_bus"], how="left")
 
+    # ang_min / ang_max are in degrees in the parquet (MATPOWER ANGMIN/ANGMAX).
+    # Va_from/Va_to are already in radians (converted above).
+    # Convert limits to radians to match the contract of compute_angle_violation().
+    ang_min_rad = br["ang_min"].to_numpy(dtype=float) * np.pi / 180.0
+    ang_max_rad = br["ang_max"].to_numpy(dtype=float) * np.pi / 180.0
+
     # AC angle
     ac_angle_diff = br["Va_from"] - br["Va_to"]
-    ac_angle_diff = (ac_angle_diff + np.pi) % (
-        2 * np.pi
-    ) - np.pi  # wrap    to [-pi, pi]
-    ac_angle_excess_low = np.maximum(br["ang_min"] - ac_angle_diff, 0.0)
-    ac_angle_excess_high = np.maximum(ac_angle_diff - br["ang_max"], 0.0)
+    ac_angle_diff = (ac_angle_diff + np.pi) % (2 * np.pi) - np.pi  # wrap to [-pi, pi]
+    ac_angle_excess_low = np.maximum(ang_min_rad - ac_angle_diff, 0.0)
+    ac_angle_excess_high = np.maximum(ac_angle_diff - ang_max_rad, 0.0)
     mean_ac_angle_violation = np.mean(ac_angle_excess_low + ac_angle_excess_high)
     # DC angle
     dc_angle_diff = br["Va_dc_from"] - br["Va_dc_to"]
     dc_angle_diff = (dc_angle_diff + np.pi) % (2 * np.pi) - np.pi
-    dc_angle_excess_low = np.maximum(br["ang_min"] - dc_angle_diff, 0.0)
-    dc_angle_excess_high = np.maximum(dc_angle_diff - br["ang_max"], 0.0)
+    dc_angle_excess_low = np.maximum(ang_min_rad - dc_angle_diff, 0.0)
+    dc_angle_excess_high = np.maximum(dc_angle_diff - ang_max_rad, 0.0)
     mean_dc_angle_violation = np.mean(dc_angle_excess_low + dc_angle_excess_high)
 
     return {
