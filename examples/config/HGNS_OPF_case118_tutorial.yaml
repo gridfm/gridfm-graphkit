@@ -1,0 +1,115 @@
+version: 1
+# MPS/laptop-friendly optimal power flow config used by
+# examples/notebooks/Tutorial_opf_surrogate_case118.ipynb.
+# Trains on a 5,000-scenario slice of the gridfm/opf_small_case118_ieee dataset
+# (the notebook builds the slice); 50 epochs at batch 64 takes ~1625 s on Apple M-series
+# MPS (~33 s/epoch), for ~27 min end-to-end including data prep and analysis.
+# This is a demo budget, not a reference training recipe. It differs from
+# HGNS_OPF_datakit_case118.yaml only in budget knobs (network, scenarios, epochs, workers,
+# devices) -- the model and loss are unchanged, deliberately.
+# OPF needs this budget. At 15 epochs the run has not converged and is not reproducible:
+# repeated runs of an identical config disagreed on the cost gap by +-20%, sign included
+# (63 optimizer steps/epoch x 15 = 945 steps for a 20.1 M-parameter model). At 50 epochs four
+# runs gave mean absolute cost gaps of 8.0%, 9.0%, 10.8% and 11.3% -- still a ~3-point spread, but
+# all of the same sign, so the qualitative conclusion survives a re-run. Quote this model as roughly
+# 10% above the economic optimum and do not treat a 1-point difference between configs as a
+# result. (The first two of those runs landed half a point apart, which looked far tighter than
+# it is; n=2 is not evidence of a +-1% error bar. Each run added since has widened at least one
+# figure below, so read every range here as a lower bound on the real spread.)
+# Note also that the criterion is run-to-run agreement, NOT a flat curve. Do not use the tail of
+# the validation curve to judge this budget: over the last 10 epochs it has improved ~10% in some
+# runs and drifted ~6% back off its best in others, so its slope is not reproducible even in sign.
+# Measured test accuracy over four runs, three of them via the notebook and one via the CLI; rows
+# the CLI does not report span the three notebook runs only and are marked (nb):
+# generator dispatch MAE 15.3-16.7 MW (nb) / RMSE 49.3-53.5 MW against a mean |Pg| of 81.7 MW.
+# The gap is positive in every run, i.e. the predicted dispatch is more expensive than optimal --
+# the honest failure mode. Bus RMSE Vm 0.020-0.025 p.u., Va 0.130-0.138 rad.
+# The slack generator has by far the largest per-unit error (MAE 174-185 MW on a mean of 602 MW,
+# nb) because it absorbs network losses; non-slack units are at MAE 12.3-13.5 MW (nb). In cost
+# terms, though, the aggregate of the many small units dominates: making the slack exact only moves
+# the gap to 8.7-9.6%, while making all non-slack units exact moves it to 5.0-5.5% (nb). That
+# ordering holds in every run even though the individual figures move. The notebook quantifies
+# this, because the per-unit table on its own points at the wrong fix.
+# Generator and voltage box limits are exact here for free: for OptimalPowerFlow,
+# GNS_heterogeneous squashes Pg and Vm through bound_with_sigmoid at every layer. What is
+# not free is AC feasibility -- power-balance residual averages 5.2-6.1 MVA/bus and 19-24% of
+# generator buses violate their Qg limits (Qg is not sigmoid-bounded). The mean Qg violation is
+# the least stable figure measured here, 2.6-5.2 MVar across the four runs.
+# Inference is 1.91-1.95 ms/scenario on MPS at batch 64 vs the dataset's measured 157 ms AC OPF
+# solve, i.e. ~81x -- the durable result, since OPF sits inside outer loops that call it
+# thousands of times.
+# Negative result worth recording (measured at the earlier 15-epoch budget, so read it as a
+# direction rather than as a level): raising the MaskedGenMSE weight to 0.5 and dropping
+# MaskedBusMSE to 0.35 does improve the headline (dispatch MAE 16.9 vs 19.1 MW, gap 14.0 vs
+# 16.0%) but degrades feasibility (residual 9.3 vs 7.8 MVA/bus, 33 vs 27% Qg violations,
+# Vm RMSE 0.033 vs 0.028), so the reference weights are kept.
+# Validation loss falls roughly 0.062-0.067 -> 0.020-0.023 over the 50 epochs, so this budget is
+# sufficient for a stable conclusion rather than saturated. More epochs would probably still help a
+# little, but the tail of the curve is too run-dependent to say so from one run (see above);
+# num_layers and the scenario count are the bigger levers -- and measure any change over at least
+# three runs, since the spread above is the resolution at which an improvement is visible at all.
+# All figures are approximate: MPS kernels are not bit-deterministic, so seed 0 pins the split
+# and initialisation but not the arithmetic -- hence the ranges above rather than point values.
+task:
+  task_name: OptimalPowerFlow
+data:
+  baseMVA: 100
+  mask_value: 0.0
+  normalization: HeteroDataMVANormalizer
+  networks:
+  - nb_opf_case118
+  scenarios:
+  - 5000
+  test_ratio: 0.1
+  val_ratio: 0.1
+  workers: 0
+  split_by_load_scenario_idx: true
+model:
+  attention_head: 8
+  edge_dim: 10
+  hidden_size: 48
+  input_bus_dim: 15
+  input_gen_dim: 6
+  output_bus_dim: 2
+  output_gen_dim: 1
+  num_layers: 12
+  type: GNS_heterogeneous
+optimizer:
+  type: AdamW
+  learning_rate: 0.0005
+  optimizer_params:
+    betas: [0.9, 0.999]
+  scheduler_type: ReduceLROnPlateau
+  scheduler_params:
+    mode: min
+    factor: 0.7
+    patience: 5
+seed: 0
+training:
+  batch_size: 64
+  epochs: 50
+  losses:
+  - LayeredWeightedPhysics
+  - MaskedGenMSE
+  - MaskedBusMSE
+  - QgViolationPenalty
+  loss_weights:
+  - 0.1
+  - 0.1
+  - 0.75
+  - 0.001
+  loss_args:
+  - base_weight: 0.5
+  - {}
+  - {}
+  - {}
+  accelerator: auto
+  devices: 1
+  strategy: auto
+callbacks:
+  patience: 100
+  tol: 0
+  early_stopping_monitor: Validation loss
+  checkpoint_monitor: Validation loss
+  lr_scheduler_monitor: Validation loss
+verbose: true
