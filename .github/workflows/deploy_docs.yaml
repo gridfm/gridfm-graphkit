@@ -6,14 +6,6 @@ on:
       - main
 permissions:
   contents: write
-# torch-scatter publishes no PyPI wheels, and its sdist imports torch at
-# build time with no build isolation, so a source build fails with
-# "No module named 'torch'". Point pip at the PyG wheel index so every job
-# installs the prebuilt wheel instead of building. (find-links under
-# [tool.uv] in pyproject.toml is honoured only by uv, not by pip.)
-env:
-  PIP_FIND_LINKS: "https://data.pyg.org/whl/torch-2.12.0+cpu.html"
-
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -33,5 +25,5 @@ jobs:
           path: .cache
           restore-keys: |
             mkdocs-material-
-      - run: pip install -e .[dev]
+      - run: pip install mkdocs-material "mkdocstrings[python]"
       - run: mkdocs gh-deploy --force
