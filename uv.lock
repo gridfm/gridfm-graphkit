@@ -1113,7 +1113,7 @@ wheels = [
 
 [[package]]
 name = "gridfm-graphkit"
-version = "0.9.0"
+version = "0.9.0.1"
 source = { editable = "." }
 dependencies = [
     { name = "gdown" },
