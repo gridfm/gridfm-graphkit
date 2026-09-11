@@ -184,6 +184,16 @@ def main():
         choices=["auto", "on", "off"],
         help="Override data.stream_partitions from YAML. auto=detect, on=force+error, off=legacy.",
     )
+    _log_every_n_steps_kwargs = dict(
+        dest="log_every_n_steps",
+        type=int,
+        default=None,
+        help=(
+            "Override Lightning Trainer log_every_n_steps (default 1000, or "
+            "training.log_every_n_steps from YAML if set). Smaller values log "
+            "training metrics more often."
+        ),
+    )
 
     # ---- TRAIN SUBCOMMAND ----
     train_parser = subparsers.add_parser("train", help="Run training")
@@ -213,6 +223,7 @@ def main():
         default=None,
         help="Override data.workers from the YAML config. Use 0 to debug worker crashes.",
     )
+    train_parser.add_argument("--log_every_n_steps", **_log_every_n_steps_kwargs)
     train_parser.add_argument(
         "--dataset_wrapper_cache_dir",
         type=str,
@@ -274,6 +285,7 @@ def main():
         default=None,
         help="Override data.workers from the YAML config. Use 0 to debug worker crashes.",
     )
+    finetune_parser.add_argument("--log_every_n_steps", **_log_every_n_steps_kwargs)
     finetune_parser.add_argument(
         "--dataset_wrapper_cache_dir",
         type=str,

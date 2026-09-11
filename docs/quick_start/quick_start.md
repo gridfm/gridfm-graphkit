@@ -37,6 +37,7 @@ gridfm_graphkit train --config path/to/config.yaml
 | `--dataset_wrapper` | `str` | Registered dataset wrapper name (see `DATASET_WRAPPER_REGISTRY`), e.g. `SharedMemoryCacheDataset`. | `None` |
 | `--plugins` | `list[str]` | Python packages to import for plugin registration, e.g. `gridfm_graphkit_ee`. | `[]` |
 | `--num_workers` | `int` | Override `data.workers` from YAML. Use `0` to debug worker crashes. | `None` |
+| `--log_every_n_steps` | `int` | Override Lightning `Trainer(log_every_n_steps=...)`. Falls back to `training.log_every_n_steps` in YAML, then `1000`. | `None` |
 | `--dataset_wrapper_cache_dir` | `str` | Disk cache directory for dataset wrapper; cache is loaded from here when present and saved after first population. | `None` |
 | `--profiler` | `str` | Enable Lightning profiler (`simple`, `advanced`, `pytorch`). | `None` |
 | `--compute_dc_ac_metrics` | `flag` | Compute ground-truth AC/DC power balance metrics on the test split. | `False` |
@@ -74,6 +75,7 @@ gridfm_graphkit finetune --config path/to/config.yaml --model_path path/to/model
 | `--dataset_wrapper` | `str` | Registered dataset wrapper name (see `DATASET_WRAPPER_REGISTRY`), e.g. `SharedMemoryCacheDataset`. | `None` |
 | `--plugins` | `list[str]` | Python packages to import for plugin registration, e.g. `gridfm_graphkit_ee`. | `[]` |
 | `--num_workers` | `int` | Override `data.workers` from YAML. Use `0` to debug worker crashes. | `None` |
+| `--log_every_n_steps` | `int` | Override Lightning `Trainer(log_every_n_steps=...)`. Falls back to `training.log_every_n_steps` in YAML, then `1000`. | `None` |
 | `--dataset_wrapper_cache_dir` | `str` | Disk cache directory for dataset wrapper; cache is loaded from here when present and saved after first population. | `None` |
 | `--profiler` | `str` | Enable Lightning profiler (`simple`, `advanced`, `pytorch`). | `None` |
 | `--compute_dc_ac_metrics` | `flag` | Compute ground-truth AC/DC power balance metrics on the test split. | `False` |
@@ -105,6 +107,7 @@ gridfm_graphkit evaluate --config path/to/eval.yaml --model_path path/to/model.p
 | `--dataset_wrapper` | `str` | Registered dataset wrapper name (see `DATASET_WRAPPER_REGISTRY`), e.g. `SharedMemoryCacheDataset`. | `None` |
 | `--plugins` | `list[str]` | Python packages to import for plugin registration, e.g. `gridfm_graphkit_ee`. | `[]` |
 | `--num_workers` | `int` | Override `data.workers` from YAML. Use `0` to debug worker crashes. | `None` |
+| `--log_every_n_steps` | `int` | Override Lightning `Trainer(log_every_n_steps=...)`. Falls back to `training.log_every_n_steps` in YAML, then `1000`. | `None` |
 | `--dataset_wrapper_cache_dir` | `str` | Disk cache directory for dataset wrapper; cache is loaded from here when present and saved after first population. | `None` |
 | `--profiler` | `str` | Enable Lightning profiler (`simple`, `advanced`, `pytorch`). | `None` |
 | `--compute_dc_ac_metrics` | `flag` | Compute ground-truth AC/DC power balance metrics on the test split. | `False` |
@@ -147,6 +150,7 @@ gridfm_graphkit predict --config path/to/config.yaml --model_path path/to/model.
 | `--dataset_wrapper` | `str` | Registered dataset wrapper name (see `DATASET_WRAPPER_REGISTRY`), e.g. `SharedMemoryCacheDataset`. | `None` |
 | `--plugins` | `list[str]` | Python packages to import for plugin registration, e.g. `gridfm_graphkit_ee`. | `[]` |
 | `--num_workers` | `int` | Override `data.workers` from YAML. Use `0` to debug worker crashes. | `None` |
+| `--log_every_n_steps` | `int` | Override Lightning `Trainer(log_every_n_steps=...)`. Falls back to `training.log_every_n_steps` in YAML, then `1000`. | `None` |
 | `--dataset_wrapper_cache_dir` | `str` | Disk cache directory for dataset wrapper; cache is loaded from here when present and saved after first population. | `None` |
 | `--output_path` | `str` | Directory where predictions are saved as `<grid_name>_predictions.parquet`. | `data` |
 | `--get_embeddings` | `flag` | Export final hidden embeddings to `<grid_name>_bus_embeddings.parquet` (and `<grid_name>_gen_embeddings.parquet` for OPF models that expose gen embeddings) in `--output_path`. | `False` |

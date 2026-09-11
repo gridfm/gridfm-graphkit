@@ -237,6 +237,12 @@ def main_cli(args):
     if stream_partitions_override is not None:
         config_args.data.stream_partitions = stream_partitions_override
 
+    log_every_n_steps = getattr(args, "log_every_n_steps", None)
+    if log_every_n_steps is None:
+        log_every_n_steps = getattr(config_args.training, "log_every_n_steps", None)
+    if log_every_n_steps is None:
+        log_every_n_steps = 1000
+
     _load_plugins(getattr(args, "plugins", []))
     _validate_dataset_wrapper(dataset_wrapper)
 
@@ -304,7 +310,7 @@ def main_cli(args):
         accelerator=config_args.training.accelerator,
         devices=config_args.training.devices,
         strategy=_strategy,
-        log_every_n_steps=1000,
+        log_every_n_steps=log_every_n_steps,
         default_root_dir=args.log_dir,
         max_epochs=config_args.training.epochs,
         callbacks=training_callbacks,

@@ -15,6 +15,7 @@ __pycache__/
 gridfm_graphkit.egg-info
 mlruns
 *.pt
+!examples/notebooks/models/*.pt
 .DS_Store
 .julia
 *logs*
@@ -32,3 +33,10 @@ dist/
 
 # Machine-specific calibration baseline (each machine calibrates its own; see CONTRIBUTING.md)
 integrationtests/calibration_baseline.json
+
+# Local arXiv paper sources (not part of the package)
+arXiv-2608.09921v2/
+
+# Notebook run leftovers
+examples/notebooks/{LOG}/
+pf_small_case118_ieee/

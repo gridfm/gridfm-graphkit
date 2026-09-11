@@ -1,0 +1,69 @@
+version: 1
+# GENCO Small (H=24, ~5M params) for IEEE 118. Architecture matches the
+# opf_2seeds run HGNS_OPF_datakit_case118_small_seed1. Point data_path at a
+# directory that contains case118_ieee/ (same name as in that run's
+# normalizer_stats.pt). The tutorial slice can be used via a symlink.
+task:
+  task_name: OptimalPowerFlow
+data:
+  baseMVA: 100
+  mask_value: 0.0
+  normalization: HeteroDataMVANormalizer
+  networks:
+  - case118_ieee
+  scenarios:
+  - 5000
+  test_ratio: 0.1
+  val_ratio: 0.1
+  workers: 16
+  split_by_load_scenario_idx: true
+  stream_partitions: auto
+model:
+  attention_head: 8
+  edge_dim: 10
+  hidden_size: 24
+  input_bus_dim: 15
+  input_gen_dim: 6
+  output_bus_dim: 2
+  output_gen_dim: 1
+  num_layers: 12
+  type: GNS_heterogeneous
+optimizer:
+  type: AdamW
+  learning_rate: 0.0005
+  optimizer_params:
+    betas: [0.9, 0.999]
+  scheduler_type: ReduceLROnPlateau
+  scheduler_params:
+    mode: min
+    factor: 0.7
+    patience: 5
+seed: 0
+training:
+  batch_size: 64
+  epochs: 200
+  losses:
+  - LayeredWeightedPhysics
+  - MaskedGenMSE
+  - MaskedBusMSE
+  - QgViolationPenalty
+  loss_weights:
+  - 0.1
+  - 0.1
+  - 0.75
+  - 0.001
+  loss_args:
+  - base_weight: 0.5
+  - {}
+  - {}
+  - {}
+  accelerator: auto
+  devices: 1
+  strategy: auto
+callbacks:
+  patience: 100
+  tol: 0
+  early_stopping_monitor: Validation loss
+  checkpoint_monitor: Validation loss
+  lr_scheduler_monitor: Validation loss
+verbose: true
