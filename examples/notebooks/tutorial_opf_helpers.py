@@ -1,4 +1,4 @@
-"""Helpers for ``Tutorial_opf.ipynb`` (not part of the graphkit package)."""
+"""Helpers for the OPF tutorial notebooks (not part of the graphkit package)."""
 
 from functools import lru_cache
 from pathlib import Path
@@ -19,6 +19,38 @@ from gridfm_graphkit.io.registries import DATASET_WRAPPER_REGISTRY
 
 # Processed ``data_index_*.pt`` copies, keyed by (processed_dir, idx).
 _RAM_GRAPH_DICTS: dict[tuple[str, int], dict] = {}
+
+# Paper checkpoints shipped in ``examples/notebooks/models/``.
+_PAPER_WEIGHT_FILES = (
+    (
+        "465594abc8eb4c96b908363afc84a0e1/artifacts/model/best_model_state_dict.pt",
+        "case118_small_best_model_state_dict.pt",
+    ),
+    (
+        "465594abc8eb4c96b908363afc84a0e1/artifacts/stats/normalizer_stats.pt",
+        "case118_small_normalizer_stats.pt",
+    ),
+    (
+        "f227514415974447befc64513a758432/artifacts/model/best_model_state_dict.pt",
+        "case2000_small_best_model_state_dict.pt",
+    ),
+)
+
+
+def link_paper_weights(repo: Path, experiments_root: Path) -> Path:
+    """Symlink shipped ``.pt`` files into the MLflow-style paths the notebook expects."""
+    models = Path(repo) / "examples" / "notebooks" / "models"
+    experiments_root = Path(experiments_root)
+    missing = [str(models / name) for _, name in _PAPER_WEIGHT_FILES if not (models / name).is_file()]
+    if missing:
+        raise FileNotFoundError("Paper weights missing from clone: " + ", ".join(missing))
+    for rel, name in _PAPER_WEIGHT_FILES:
+        dest = experiments_root / rel
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        if dest.exists() or dest.is_symlink():
+            continue
+        dest.symlink_to((models / name).resolve())
+    return experiments_root
 
 
 def enable_ram_graph_cache():
@@ -1271,7 +1303,7 @@ def copy_hf_hive_partitions(src_raw: Path, dst_raw: Path, n_partitions: int) -> 
 def prepare_tutorial_opf_raw(
     data_root: Path,
     network: str = "nb_opf_case118",
-    n_scenarios: int = 5_000,
+    n_scenarios: int = 1_000,
     hf_repo: str = "gridfm/opf_small_case118_ieee",
     hf_dirname: str = "opf_small_case118_ieee",
 ) -> Path:

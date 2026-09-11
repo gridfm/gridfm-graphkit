@@ -11,7 +11,7 @@ data:
   networks:
   - case118_ieee
   scenarios:
-  - 5000
+  - 1000
   test_ratio: 0.1
   val_ratio: 0.1
   workers: 8
