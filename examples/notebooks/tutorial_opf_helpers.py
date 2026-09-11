@@ -1271,22 +1271,33 @@ def copy_hf_hive_partitions(src_raw: Path, dst_raw: Path, n_partitions: int) -> 
 def prepare_tutorial_opf_raw(
     data_root: Path,
     network: str = "nb_opf_case118",
-    n_scenarios: int = 20_000,
+    n_scenarios: int = 5_000,
     hf_repo: str = "gridfm/opf_small_case118_ieee",
     hf_dirname: str = "opf_small_case118_ieee",
 ) -> Path:
-    """Download the HF dump if needed and copy Hive partitions into ``data/<network>/raw``."""
+    """Download only the Hive partitions needed for ``n_scenarios`` (200 per partition)."""
     from huggingface_hub import snapshot_download
 
     data_root = Path(data_root)
-    n_partitions = n_scenarios // _SCEN_PER_PARTITION
+    if n_scenarios <= 0:
+        raise ValueError("n_scenarios must be positive")
+    n_partitions = (n_scenarios + _SCEN_PER_PARTITION - 1) // _SCEN_PER_PARTITION
     hf_raw = data_root / hf_dirname / "raw"
-    if not _is_hive_table(hf_raw / "bus_data.parquet"):
+    needed = [
+        hf_raw / tbl / f"scenario_partition={p}"
+        for tbl in _HIVE_TABLES
+        for p in range(n_partitions)
+    ]
+    if not all(part.is_dir() for part in needed):
         snapshot_download(
             repo_id=hf_repo,
             repo_type="dataset",
             local_dir=str(hf_raw),
-            allow_patterns=[f"{tbl}/scenario_partition=*/*" for tbl in _HIVE_TABLES],
+            allow_patterns=[
+                f"{tbl}/scenario_partition={p}/*"
+                for tbl in _HIVE_TABLES
+                for p in range(n_partitions)
+            ],
         )
     dst_raw = data_root / network / "raw"
     copy_hf_hive_partitions(hf_raw, dst_raw, n_partitions)
