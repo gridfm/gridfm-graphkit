@@ -22,7 +22,7 @@ import os
 
 import numpy as np
 import pandas as pd
-from gridfm_datakit.utils.power_balance import (
+from gridfm_graphkit.utils.power_balance import (
     compute_branch_powers_vectorized,
     compute_bus_balance,
 )

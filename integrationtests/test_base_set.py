@@ -56,7 +56,7 @@ def environment_fingerprint() -> dict:
         "cuda": None,
         "cudnn": None,
     }
-    for pkg in ("torch", "numpy", "scipy", "gridfm_graphkit", "gridfm_datakit"):
+    for pkg in ("torch", "numpy", "scipy", "gridfm_graphkit"):
         try:
             fp[f"{pkg}_version"] = importlib_metadata.version(pkg.replace("_", "-"))
         except importlib_metadata.PackageNotFoundError:

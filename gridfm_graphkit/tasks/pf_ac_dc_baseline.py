@@ -131,7 +131,7 @@ def compute_pf_ac_dc_metrics(
 
     bus_df, branch_df, runtime_df = _load_test_data(data_dir, test_ids)
 
-    from gridfm_datakit.utils.power_balance import (
+    from gridfm_graphkit.utils.power_balance import (
         compute_branch_powers_vectorized,
         compute_bus_balance,
     )

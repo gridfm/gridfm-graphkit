@@ -12,7 +12,7 @@
 ![Coverage](https://img.shields.io/badge/coverage-83%25-yellowgreen)
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/12802/badge)](https://www.bestpractices.dev/projects/12802)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/gridfm/gridfm-graphkit/badge)](https://scorecard.dev/viewer/?uri=github.com/gridfm/gridfm-graphkit)
-![Python](https://img.shields.io/badge/python-3.10%20%E2%80%93%203.12-blue)
+![Python](https://img.shields.io/badge/python-3.10%20%E2%80%93%203.13-blue)
 ![License](https://img.shields.io/badge/license-Apache%202.0-blue)
 
 This library is brought to you by the GridFM team to train, finetune and interact with a foundation model for the electric power grid.
@@ -52,7 +52,7 @@ If you also used `gridfm-datakit`, please also cite:
 > See [docs/install/docker.md](docs/install/docker.md) for a build + `datagen → train`
 > hello-world and VS Code Dev Container setup.
 
-Create and activate a virtual environment (make sure you use the right python version = 3.10, 3.11 or 3.12. I highly recommend 3.12)
+Create and activate a virtual environment (Python 3.10–3.13; 3.12 is a good default)
 ```bash
 python -m venv venv
 source venv/bin/activate

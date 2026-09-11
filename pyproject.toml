@@ -12,7 +12,7 @@ description = "Grid Foundation Model"
 version = "0.9.0.1"
 readme = "README.md"
 license = "Apache-2.0"
-requires-python = ">=3.10,<3.13"
+requires-python = ">=3.10,<3.14"
 
 authors = [
   {name = "Matteo Mazzonelli", email = "matteo.mazzonelli1@ibm.com"},
@@ -35,6 +35,7 @@ classifiers = [
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
   "Topic :: Scientific/Engineering :: Artificial Intelligence"
 ]
 
@@ -57,7 +58,6 @@ dependencies = [
     "seaborn",
     "urllib3>=2.6.0",
     "gdown>=6.0.0",
-    "gridfm-datakit==1.1.0",
 ]
 
 [project.optional-dependencies]

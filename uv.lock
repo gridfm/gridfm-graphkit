@@ -1,6 +1,6 @@
 version = 1
 revision = 3
-requires-python = ">=3.10, <3.13"
+requires-python = ">=3.10, <3.14"
 resolution-markers = [
     "python_full_version >= '3.12'",
     "python_full_version == '3.11.*'",
@@ -1117,7 +1117,6 @@ version = "0.9.0.1"
 source = { editable = "." }
 dependencies = [
     { name = "gdown" },
-    { name = "gridfm-datakit" },
     { name = "lightning" },
     { name = "mlflow" },
     { name = "nbformat" },
@@ -1156,7 +1155,6 @@ requires-dist = [
     { name = "bandit", marker = "extra == 'dev'" },
     { name = "build", marker = "extra == 'dev'" },
     { name = "gdown", specifier = ">=6.0.0" },
-    { name = "gridfm-datakit", specifier = "==1.1.0rc1" },
     { name = "lightning" },
     { name = "mkdocs-material", marker = "extra == 'dev'" },
     { name = "mkdocstrings", extras = ["python"], marker = "extra == 'dev'" },
