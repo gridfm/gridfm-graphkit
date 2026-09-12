@@ -1300,6 +1300,23 @@ def copy_hf_hive_partitions(src_raw: Path, dst_raw: Path, n_partitions: int) -> 
             shutil.copytree(src_part, dst_part)
 
 
+def link_case118_ieee_alias(data_root: Path, network: str = "nb_opf_case118") -> Path:
+    """Point ``data/case118_ieee`` at the tutorial slice so paper YAMLs resolve."""
+    data_root = Path(data_root)
+    target = (data_root / network).resolve()
+    if not target.is_dir():
+        raise FileNotFoundError(
+            f"Tutorial slice missing: {target}. Run the Hugging Face download cell first."
+        )
+    alias = data_root / "case118_ieee"
+    if alias.is_symlink() or alias.exists():
+        if alias.resolve() != target:
+            raise FileExistsError(f"{alias} exists and is not {target}")
+    else:
+        alias.symlink_to(target, target_is_directory=True)
+    return alias
+
+
 def prepare_tutorial_opf_raw(
     data_root: Path,
     network: str = "nb_opf_case118",
@@ -1334,5 +1351,6 @@ def prepare_tutorial_opf_raw(
     dst_raw = data_root / network / "raw"
     copy_hf_hive_partitions(hf_raw, dst_raw, n_partitions)
     write_runtime_hive_from_bus(dst_raw)
+    link_case118_ieee_alias(data_root, network)
     return dst_raw
 

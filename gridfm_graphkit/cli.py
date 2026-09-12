@@ -295,9 +295,13 @@ def main_cli(args):
 
     _accelerator = config_args.training.accelerator
     _strategy = config_args.training.strategy
+    _devices = config_args.training.devices
     # if mps is available and accelerator is auto, explicitely set accelerator to mps to select the right strategy in the next block
     if _accelerator == "auto" and torch.backends.mps.is_available():
         _accelerator = "mps"
+    _single_device = _devices in (1, "1") or (
+        isinstance(_devices, (list, tuple)) and len(_devices) == 1
+    )
     if (
         _accelerator not in ("mps", "cpu")
         and isinstance(_strategy, str)
@@ -306,7 +310,8 @@ def main_cli(args):
             "auto",
             "ddp",
         )
-    ):  # when using mps, we don't want to use ddp.
+        and not (_strategy == "auto" and _single_device)
+    ):  # when using mps or a single device, we don't want to use ddp.
         _strategy = DDPStrategy(find_unused_parameters=False)
 
     trainer = L.Trainer(
