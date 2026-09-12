@@ -26,6 +26,10 @@ from lightning.pytorch.loggers import MLFlowLogger
 from lightning.pytorch.strategies import DDPStrategy
 import lightning as L
 
+# MLflow 3+ rejects the local file store unless this is set. Tutorials and the
+# default `--log_dir mlruns` path are file-backed.
+os.environ.setdefault("MLFLOW_ALLOW_FILE_STORE", "true")
+
 
 def _normalize_loaded_state_dict_keys(
     state_dict: dict[str, torch.Tensor],
