@@ -1038,7 +1038,6 @@ def plot_scratch_vs_finetune_val_curves(
 
     fig.tight_layout()
     plt.show()
-    return fig
 
 
 def compare_scratch_vs_finetune(mlflow_client, scratch_run_id, finetune_run_id):
@@ -1242,7 +1241,6 @@ def plot_scratch_vs_finetune_pf_val_curves(
 
     fig.tight_layout()
     plt.show()
-    return fig
 
 
 _HIVE_TABLES = ("bus_data.parquet", "gen_data.parquet", "branch_data.parquet")
