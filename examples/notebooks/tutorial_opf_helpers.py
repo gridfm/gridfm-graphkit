@@ -202,13 +202,13 @@ def plot_val_residual_boxplot(
         _style_boxes(bp_r, "#F58518")
         ax.legend(
             [bp_t["boxes"][0], bp_r["boxes"][0]],
-            ["best checkpoint", "random init"],
+            ["trained model", "untrained model"],
         )
         ax.set_xticks(layers)
         ax.set_xticklabels([str(i) for i in range(n_layers)])
-        ax.set_xlabel("layer")
-        ax.set_ylabel(r"$|\Delta S_k|$ (p.u.)")
-        ax.set_title(r"Validation set: per-bus $|\Delta S|$ by layer")
+        ax.set_xlabel("correction step")
+        ax.set_ylabel("power-balance residual (p.u.)")
+        ax.set_title("Validation set: per-bus residual by correction step")
         plt.show()
         return
 
@@ -227,12 +227,12 @@ def plot_val_residual_boxplot(
     data = _layer_mags(task, batches, n_layers)
     fig, ax = plt.subplots(figsize=(8, 4.5))
     ax.boxplot(data, tick_labels=[str(i) for i in range(n_layers)], showfliers=False)
-    ax.set_xlabel("layer")
-    ax.set_ylabel(r"$|\Delta S_k|$ (p.u.)")
+    ax.set_xlabel("correction step")
+    ax.set_ylabel("power-balance residual (p.u.)")
     ax.set_title(
-        r"Validation set, random init: per-bus $|\Delta S|$ by layer"
+        "Validation set, untrained model: per-bus residual by correction step"
         if random_init
-        else r"Validation set, best checkpoint: per-bus $|\Delta S|$ by layer",
+        else "Validation set, trained model: per-bus residual by correction step",
     )
     plt.show()
 
@@ -346,9 +346,16 @@ def solve_one_opf(
 
     from gridfm_graphkit.datasets.globals import (
         MAX_PG,
+        MAX_QG_H,
+        MAX_VM_H,
         MIN_PG,
+        MIN_QG_H,
+        MIN_VM_H,
+        PD_H,
         PG_OUT,
+        QD_H,
         QG_OUT,
+        RATE_A,
         VA_OUT,
         VM_H,
         VM_OUT,
@@ -417,7 +424,6 @@ def solve_one_opf(
         num_bus,
     )
     rP, rQ = ComputeNodeResiduals()(P_in, Q_in, pred["bus"], bus_x)
-    pbe = torch.sqrt(rP**2 + rQ**2)
 
     cost_pred = float(_quadratic_cost(gen_pred, gen_x).detach().cpu())
     cost_ipopt = float(_quadratic_cost(gen_y, gen_x).detach().cpu())
@@ -459,25 +465,92 @@ def solve_one_opf(
     rP_dc, rQ_dc = ComputeNodeResiduals()(P_in_dc, Q_in_dc, dc_bus, bus_x)
     rP_g = rP.detach().cpu().numpy()
     rP_d = rP_dc.detach().cpu().numpy()
+    rQ_g = rQ.detach().cpu().numpy()
+    rQ_d = rQ_dc.detach().cpu().numpy()
     kind = np.where(
         batch.mask_dict["REF"].cpu().numpy(),
         "REF",
         np.where(batch.mask_dict["PV"].cpu().numpy(), "PV", "PQ"),
     )
 
+    def _rel(num, den):
+        m = np.abs(den) > 1e-8
+        if not np.any(m):
+            return float("nan")
+        return float(100.0 * np.mean(np.abs(num[m]) / np.abs(den[m])))
+
+    def _bound_pct(val, lo, hi):
+        parts = []
+        hi_m = np.abs(hi) > 1e-8
+        lo_m = np.abs(lo) > 1e-8
+        if np.any(hi_m):
+            parts.append(np.maximum(val[hi_m] - hi[hi_m], 0.0) / np.abs(hi[hi_m]))
+        if np.any(lo_m):
+            parts.append(np.maximum(lo[lo_m] - val[lo_m], 0.0) / np.abs(lo[lo_m]))
+        if not parts:
+            return float("nan")
+        return float(100.0 * np.mean(np.concatenate(parts)))
+
+    pd_b = bus_x[:, PD_H].detach().cpu().numpy()
+    qd_b = bus_x[:, QD_H].detach().cpu().numpy()
+    vm_g = pred["bus"][:, VM_OUT].detach().cpu().numpy()
+    vm_dc = dc_bus[:, VM_OUT].detach().cpu().numpy()
+    vmin = bus_x[:, MIN_VM_H].detach().cpu().numpy()
+    vmax = bus_x[:, MAX_VM_H].detach().cpu().numpy()
+    qg_g = pred["bus"][:, QG_OUT].detach().cpu().numpy()
+    qg_dc = dc_bus[:, QG_OUT].detach().cpu().numpy()
+    qmin = bus_x[:, MIN_QG_H].detach().cpu().numpy()
+    qmax = bus_x[:, MAX_QG_H].detach().cpu().numpy()
+    s_g = torch.sqrt(Pft**2 + Qft**2).detach().cpu().numpy()
+    s_dc = torch.sqrt(Pft_dc**2 + Qft_dc**2).detach().cpu().numpy()
+    rate = (
+        batch.edge_attr_dict[("bus", "connects", "bus")][:, RATE_A]
+        .detach()
+        .cpu()
+        .numpy()
+    )
+    pg_g = gen_pred.detach().cpu().numpy()
+    pmin = gen_x[:, MIN_PG].detach().cpu().numpy()
+    pmax = gen_x[:, MAX_PG].detach().cpu().numpy()
+
     print(f"Validation scenario {sid}  (one GENCO forward pass)")
     display(
         pd.DataFrame(
             [
                 {
-                    "cost GENCO": cost_pred,
-                    "cost IPOPT": cost_ipopt,
-                    "cost DC": cost_dc,
-                    "gap GENCO %": 100.0 * (cost_pred - cost_ipopt) / cost_ipopt,
-                    "gap DC %": 100.0 * (cost_dc - cost_ipopt) / cost_ipopt,
-                    "mean |ΔS| GENCO (MVA)": float(pbe.mean().detach().cpu()),
-                    "mean |ΔP| GENCO (MW)": float(np.mean(np.abs(rP_g))),
-                    "mean |ΔP| DC (MW)": float(np.mean(np.abs(rP_d))),
+                    "metric": "Optimality gap (%)",
+                    "GENCO": 100.0 * (cost_pred - cost_ipopt) / cost_ipopt,
+                    "DC-OPF": 100.0 * (cost_dc - cost_ipopt) / cost_ipopt,
+                },
+                {
+                    "metric": "Active power-balance viol. (%)",
+                    "GENCO": _rel(rP_g, pd_b),
+                    "DC-OPF": _rel(rP_d, pd_b),
+                },
+                {
+                    "metric": "Reactive power-balance viol. (%)",
+                    "GENCO": _rel(rQ_g, qd_b),
+                    "DC-OPF": _rel(rQ_d, qd_b),
+                },
+                {
+                    "metric": "Voltage bound viol. (%)",
+                    "GENCO": _bound_pct(vm_g, vmin, vmax),
+                    "DC-OPF": _bound_pct(vm_dc, vmin, vmax),
+                },
+                {
+                    "metric": "Thermal viol. (%)",
+                    "GENCO": _rel(np.maximum(s_g - rate, 0.0), rate),
+                    "DC-OPF": _rel(np.maximum(s_dc - rate, 0.0), rate),
+                },
+                {
+                    "metric": "Pg bound viol. (%)",
+                    "GENCO": _bound_pct(pg_g, pmin, pmax),
+                    "DC-OPF": _bound_pct(pg_dc_gen, pmin, pmax),
+                },
+                {
+                    "metric": "Qg bound viol. (%)",
+                    "GENCO": _bound_pct(qg_g, qmin, qmax),
+                    "DC-OPF": _bound_pct(qg_dc, qmin, qmax),
                 },
             ],
         ).round(4),
@@ -922,12 +995,12 @@ def plot_scratch_vs_finetune_val_curves(
     finetune_run_id,
     metrics=("Validation loss", "Validation layer_11_residual"),
 ):
-    """Overlay scratch vs finetune validation histories; bar chart of test opt. gap vs DC."""
+    """Overlay scratch vs finetune validation histories."""
     import matplotlib.pyplot as plt
 
     ylabels = {
         "Validation loss": "validation loss",
-        "Validation layer_11_residual": r"mean $|\Delta S|$ (p.u.)",
+        "Validation layer_11_residual": "power-balance residual (p.u.)",
     }
     curve_metric = metrics[0]
     series = (
@@ -948,7 +1021,7 @@ def plot_scratch_vs_finetune_val_curves(
             "finetune",
         ),
     )
-    n_panels = len(metrics) + 1
+    n_panels = len(metrics)
     fig, axes = plt.subplots(1, n_panels, figsize=(5.2 * n_panels, 4))
     if n_panels == 1:
         axes = [axes]
@@ -968,27 +1041,6 @@ def plot_scratch_vs_finetune_val_curves(
         ax.set_ylabel(ylabels.get(name, name))
         ax.set_title(name)
         ax.legend()
-
-    scratch, dc, _, _ = _genco_dc_series(
-        mlflow_client,
-        latest_matching_run_id(mlflow_client, scratch_run_id, has_dc_metrics=True),
-    )
-    ft, _, _, _ = _genco_dc_series(
-        mlflow_client,
-        latest_matching_run_id(mlflow_client, finetune_run_id, has_dc_metrics=True),
-    )
-    labels = ("scratch", "finetune", "DC-OPF")
-    gaps = (
-        float(scratch["Mean optimality gap (%)"]),
-        float(ft["Mean optimality gap (%)"]),
-        float(dc["DC Mean optimality gap (%)"]),
-    )
-    ax = axes[-1]
-    bars = ax.bar(labels, gaps, color=("C0", "C1", "C2"))
-    ax.bar_label(bars, fmt="%.2f", padding=3)
-    ax.set_ylabel("mean optimality gap (%)")
-    ax.set_title("Test set vs DC-OPF")
-    ax.set_ylim(0, max(gaps) * 1.15 if max(gaps) > 0 else 1)
 
     fig.tight_layout()
     plt.show()

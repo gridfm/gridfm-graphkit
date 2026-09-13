@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1120 430" font-family="Arial, Helvetica, sans-serif">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0 0 L10 5 L0 10 z" fill="#111"/>
+    </marker>
+    <pattern id="hatch" patternUnits="userSpaceOnUse" width="5" height="5">
+      <path d="M0 5 L5 0" stroke="#111" stroke-width="0.7"/>
+    </pattern>
+  </defs>
+
+  <text x="16" y="32" font-size="20" font-weight="700" fill="#111">(a) Classical solver</text>
+  <text x="16" y="56" font-size="14.5" fill="#333">Physics and grid parameters; iterative updates at inference</text>
+
+  <rect x="16" y="84" width="168" height="46" fill="#fff" stroke="#111" stroke-width="1.15"/>
+  <text x="100" y="112" text-anchor="middle" font-size="13" fill="#111">grid parameters</text>
+
+  <line x1="184" y1="107" x2="230" y2="107" stroke="#111" stroke-width="1.3" marker-end="url(#arrow)"/>
+
+  <rect x="230" y="72" width="168" height="70" fill="#fff" stroke="#111" stroke-width="1.15"/>
+  <text x="314" y="96" text-anchor="middle" font-size="13" fill="#111">iterate Newton / IPOPT</text>
+  <text x="314" y="116" text-anchor="middle" font-size="12.5" fill="#111">solve J&#x394;x = &#x2212;F</text>
+  <text x="314" y="134" text-anchor="middle" font-size="11.5" fill="#444">sparse linear solves</text>
+  <path d="M258 142 v20 h112 v-20" fill="none" stroke="#111" stroke-width="1.15" marker-end="url(#arrow)"/>
+  <text x="314" y="178" text-anchor="middle" font-size="12" fill="#444">until convergence</text>
+
+  <line x1="398" y1="107" x2="440" y2="107" stroke="#111" stroke-width="1.3" marker-end="url(#arrow)"/>
+
+  <rect x="448" y="84" width="70" height="46" fill="#fff" stroke="#111" stroke-width="1.15"/>
+  <text x="483" y="113" text-anchor="middle" font-size="16" fill="#111">x*</text>
+
+  <text x="16" y="230" font-size="14" font-weight="700" fill="#111">Compute</text>
+  <text x="16" y="278" font-size="13" fill="#333">inference</text>
+  <rect x="108" y="262" width="400" height="20" fill="#111" stroke="#111" stroke-width="1"/>
+  <text x="16" y="368" font-size="15" font-weight="700" fill="#111">No training necessary, slow inference</text>
+
+  <line x1="560" y1="12" x2="560" y2="416" stroke="#111" stroke-width="1"/>
+
+  <text x="580" y="32" font-size="20" font-weight="700" fill="#111">(b) Neural solver</text>
+  <text x="580" y="56" font-size="14.5" fill="#333">Learning-based; exploits past patterns</text>
+
+  <rect x="580" y="76" width="132" height="46" fill="#fff" stroke="#111" stroke-width="1.15"/>
+  <text x="646" y="95" text-anchor="middle" font-size="13" fill="#111">past solutions</text>
+  <text x="646" y="112" text-anchor="middle" font-size="12" fill="#444">dataset</text>
+
+  <line x1="712" y1="99" x2="758" y2="99" stroke="#111" stroke-width="1.3" marker-end="url(#arrow)"/>
+
+  <rect x="766" y="76" width="118" height="46" fill="#fff" stroke="#111" stroke-width="1.15"/>
+  <text x="825" y="104" text-anchor="middle" font-size="13" fill="#111">train (once)</text>
+
+  <line x1="884" y1="99" x2="932" y2="99" stroke="#111" stroke-width="1.3" marker-end="url(#arrow)"/>
+
+  <rect x="940" y="76" width="54" height="46" fill="#fff" stroke="#111" stroke-width="1.15"/>
+  <text x="967" y="105" text-anchor="middle" font-size="16" fill="#111">&#952;</text>
+
+  <rect x="580" y="148" width="132" height="42" fill="#fff" stroke="#111" stroke-width="1.15"/>
+  <text x="646" y="174" text-anchor="middle" font-size="13" fill="#111">grid parameters</text>
+
+  <line x1="712" y1="169" x2="758" y2="169" stroke="#111" stroke-width="1.3" marker-end="url(#arrow)"/>
+
+  <rect x="766" y="144" width="118" height="50" fill="#fff" stroke="#111" stroke-width="1.15"/>
+  <text x="825" y="166" text-anchor="middle" font-size="14" fill="#111">f<tspan baseline-shift="sub" font-size="11">&#952;</tspan></text>
+  <text x="825" y="184" text-anchor="middle" font-size="11" fill="#444">matrix multiplication</text>
+
+  <line x1="884" y1="169" x2="928" y2="169" stroke="#111" stroke-width="1.3" marker-end="url(#arrow)"/>
+
+  <rect x="936" y="148" width="54" height="42" fill="#fff" stroke="#111" stroke-width="1.15"/>
+  <text x="963" y="174" text-anchor="middle" font-size="16" fill="#111">x'</text>
+
+  <text x="580" y="230" font-size="14" font-weight="700" fill="#111">Compute</text>
+  <text x="580" y="262" font-size="13" fill="#333">data gen.</text>
+  <rect x="688" y="246" width="400" height="20" fill="url(#hatch)" stroke="#111" stroke-width="1"/>
+  <text x="580" y="300" font-size="13" fill="#333">training</text>
+  <rect x="688" y="284" width="280" height="20" fill="url(#hatch)" stroke="#111" stroke-width="1"/>
+  <text x="580" y="338" font-size="13" fill="#333">inference</text>
+  <rect x="688" y="322" width="48" height="20" fill="#111" stroke="#111" stroke-width="1"/>
+  <text x="580" y="390" font-size="15" font-weight="700" fill="#111">Slow data acquisition and training, fast inference</text>
+</svg>
