@@ -357,7 +357,6 @@ def solve_one_opf(
         QG_OUT,
         RATE_A,
         VA_OUT,
-        VM_H,
         VM_OUT,
     )
     from gridfm_graphkit.models.utils import (
@@ -405,7 +404,6 @@ def solve_one_opf(
     task.data_normalizers[0].inverse_output(pred, batch)
 
     bus_x = batch.x_dict["bus"]
-    bus_y = batch.y_dict["bus"]
     gen_x = batch.x_dict["gen"]
     gen_y = batch.y_dict["gen"].reshape(-1)
     gen_pred = pred["gen"].reshape(-1)
@@ -528,14 +526,22 @@ def solve_one_opf(
                     "DC-OPF": _rel(rP_d, pd_b),
                 },
                 {
+                    "metric": "Total active imbalance (%)",
+                    "GENCO": _rel(np.array([np.sum(rP_g)]), np.array([np.sum(pg_g)])),
+                    "DC-OPF": _rel(
+                        np.array([np.sum(rP_d)]),
+                        np.array([np.sum(pg_dc_gen)]),
+                    ),
+                },
+                {
                     "metric": "Reactive power-balance viol. (%)",
                     "GENCO": _rel(rQ_g, qd_b),
-                    "DC-OPF": _rel(rQ_d, qd_b),
+                    "DC-OPF": float("nan"),
                 },
                 {
                     "metric": "Voltage bound viol. (%)",
                     "GENCO": _bound_pct(vm_g, vmin, vmax),
-                    "DC-OPF": _bound_pct(vm_dc, vmin, vmax),
+                    "DC-OPF": float("nan"),
                 },
                 {
                     "metric": "Thermal viol. (%)",
@@ -550,7 +556,7 @@ def solve_one_opf(
                 {
                     "metric": "Qg bound viol. (%)",
                     "GENCO": _bound_pct(qg_g, qmin, qmax),
-                    "DC-OPF": _bound_pct(qg_dc, qmin, qmax),
+                    "DC-OPF": float("nan"),
                 },
             ],
         ).round(4),
@@ -573,27 +579,15 @@ def solve_one_opf(
     )
     print("Generator dispatch (dispatchable only)")
     display(dispatch.round(3))
-    gt = dispatch["Pg IPOPT (MW)"].to_numpy()
-    d_genco = np.abs(dispatch["Pg GENCO (MW)"].to_numpy() - gt)
-    d_dc = np.abs(dispatch["Pg DC (MW)"].to_numpy() - gt)
-    nz = np.abs(gt) > 1.0
-    pct_genco = 100.0 * np.mean(d_genco[nz] / np.abs(gt[nz]))
-    pct_dc = 100.0 * np.mean(d_dc[nz] / np.abs(gt[nz]))
-    print(
-        f"Average abs. Pg deviation: GENCO {pct_genco:.2f}%, DC {pct_dc:.2f}% "
-        f"(vs |Pg_IPOPT|, dispatchable gens with |Pg| > 1 MW)",
-    )
     bus_df = pd.DataFrame(
         {
             "bus": np.arange(num_bus),
             "type": kind,
-            "Vm GENCO": pred["bus"][:, VM_OUT].detach().cpu().numpy(),
-            "Vm IPOPT": bus_y[:, VM_H].detach().cpu().numpy(),
             "|ΔP| GENCO (MW)": np.abs(rP_g),
             "|ΔP| DC (MW)": np.abs(rP_d),
         },
     )
-    print("Bus voltages and injections")
+    print("Bus active residuals")
     display(bus_df.round(3))
 
 
@@ -1372,7 +1366,7 @@ def link_case118_ieee_alias(data_root: Path, network: str = "nb_opf_case118") ->
 def prepare_tutorial_opf_raw(
     data_root: Path,
     network: str = "nb_opf_case118",
-    n_scenarios: int = 1_000,
+    n_scenarios: int = 5_000,
     hf_repo: str = "gridfm/opf_small_case118_ieee",
     hf_dirname: str = "opf_small_case118_ieee",
 ) -> Path:
