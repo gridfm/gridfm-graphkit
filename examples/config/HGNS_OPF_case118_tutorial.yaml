@@ -1,5 +1,5 @@
 version: 1
-# Tutorial OPF config: 5,000-scenario slice of gridfm/opf_small_case118_ieee.
+# Tutorial OPF config: 1,000-scenario slice of gridfm/opf_small_case118_ieee.
 # Model and loss match HGNS_OPF_datakit_case118.yaml; only budget knobs differ.
 task:
   task_name: OptimalPowerFlow
@@ -10,7 +10,7 @@ data:
   networks:
   - nb_opf_case118
   scenarios:
-  - 5000
+  - 1000
   test_ratio: 0.1
   val_ratio: 0.1
   workers: 16

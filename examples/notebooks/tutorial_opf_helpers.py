@@ -477,6 +477,11 @@ def solve_one_opf(
             return float("nan")
         return float(100.0 * np.mean(np.abs(num[m]) / np.abs(den[m])))
 
+    def _signed_pct(num_sum, den_sum):
+        if abs(den_sum) < 1e-8:
+            return float("nan")
+        return float(100.0 * num_sum / den_sum)
+
     def _bound_pct(val, lo, hi):
         parts = []
         hi_m = np.abs(hi) > 1e-8
@@ -527,10 +532,10 @@ def solve_one_opf(
                 },
                 {
                     "metric": "Total active imbalance (%)",
-                    "GENCO": _rel(np.array([np.sum(rP_g)]), np.array([np.sum(pg_g)])),
-                    "DC-OPF": _rel(
-                        np.array([np.sum(rP_d)]),
-                        np.array([np.sum(pg_dc_gen)]),
+                    "GENCO": _signed_pct(float(np.sum(rP_g)), float(np.sum(pg_g))),
+                    "DC-OPF": _signed_pct(
+                        float(np.sum(rP_d)),
+                        float(np.sum(pg_dc_gen)),
                     ),
                 },
                 {
@@ -1364,7 +1369,7 @@ def link_case118_ieee_alias(data_root: Path, network: str = "nb_opf_case118") ->
 def prepare_tutorial_opf_raw(
     data_root: Path,
     network: str = "nb_opf_case118",
-    n_scenarios: int = 5_000,
+    n_scenarios: int = 1_000,
     hf_repo: str = "gridfm/opf_small_case118_ieee",
     hf_dirname: str = "opf_small_case118_ieee",
 ) -> Path:

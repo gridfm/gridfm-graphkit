@@ -1,5 +1,5 @@
 version: 1
-# Low-data OPF: 5,000 scenarios, 20 epochs. Architecture matches the
+# Low-data OPF: 1,000 scenarios, 20 epochs. Architecture matches the
 # case2000 Small checkpoint (hidden_size: 24). Point data_path at a
 # directory that contains case118_ieee/.
 task:
@@ -11,7 +11,7 @@ data:
   networks:
   - case118_ieee
   scenarios:
-  - 5000
+  - 1000
   test_ratio: 0.1
   val_ratio: 0.1
   workers: 8
