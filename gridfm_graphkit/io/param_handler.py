@@ -103,7 +103,19 @@ def get_loss_function(args):
         except KeyError:
             raise ValueError(f"Unknown loss: {loss_name}")
 
-    return MixedLoss(loss_functions=loss_functions, weights=args.training.loss_weights)
+    warmup_epochs = getattr(args.training, "physics_warmup_epochs", 0)
+    warmup_indices = [
+        i
+        for i, loss_name in enumerate(args.training.losses)
+        if loss_name == "LayeredWeightedPhysics"
+    ]
+
+    return MixedLoss(
+        loss_functions=loss_functions,
+        weights=args.training.loss_weights,
+        warmup_indices=warmup_indices,
+        warmup_epochs=warmup_epochs,
+    )
 
 
 def load_model(args) -> torch.nn.Module:
