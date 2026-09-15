@@ -101,8 +101,11 @@ def build_hetero_data(
     data["gen"].y = data["gen"].x[:, : (PG_H + 1)].clone()
 
     # Bus-Bus edges (branches added in both directions)
+    # `.copy()` forces a contiguous array: selecting columns in reverse
+    # order and transposing can yield a negatively-strided view, which
+    # torch.tensor / torch.from_numpy does not support.
     forward_edges = torch.tensor(
-        branch_df[["from_bus", "to_bus"]].values.T,
+        branch_df[["from_bus", "to_bus"]].values.T.copy(),
         dtype=torch.long,
     )
     forward_edge_attr = torch.tensor(
@@ -110,7 +113,7 @@ def build_hetero_data(
         dtype=torch.float,
     )
     reverse_edges = torch.tensor(
-        branch_df[["to_bus", "from_bus"]].values.T,
+        branch_df[["to_bus", "from_bus"]].values.T.copy(),
         dtype=torch.long,
     )
     reverse_edge_attr = torch.tensor(
@@ -131,11 +134,11 @@ def build_hetero_data(
 
     # Gen-Bus and Bus-Gen edges
     data["gen", "connected_to", "bus"].edge_index = torch.tensor(
-        gen_df[["gen_index", "bus"]].values.T,
+        gen_df[["gen_index", "bus"]].values.T.copy(),
         dtype=torch.long,
     )
     data["bus", "connected_to", "gen"].edge_index = torch.tensor(
-        gen_df[["bus", "gen_index"]].values.T,
+        gen_df[["bus", "gen_index"]].values.T.copy(),
         dtype=torch.long,
     )
 

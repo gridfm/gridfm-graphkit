@@ -274,9 +274,16 @@ class MixedLoss(BaseLoss):
     Args:
         loss_functions (list[nn.Module]): List of loss functions.
         weights (list[float]): Corresponding weights for each loss function.
+        warmup_indices (list[int], optional): Indices into `loss_functions` whose
+            weight should ramp linearly from 0 up to its target value over
+            `warmup_epochs` epochs, instead of being constant. Used to delay
+            physics-loss terms until the model has learned a stable supervised
+            baseline. Defaults to no warmup (all weights constant at their target).
+        warmup_epochs (int, optional): Number of epochs over which `warmup_indices`
+            weights ramp up. 0 disables warmup (default, unchanged behavior).
     """
 
-    def __init__(self, loss_functions, weights):
+    def __init__(self, loss_functions, weights, warmup_indices=None, warmup_epochs=0):
         super(MixedLoss, self).__init__()
 
         if len(loss_functions) != len(weights):
@@ -285,7 +292,18 @@ class MixedLoss(BaseLoss):
             )
 
         self.loss_functions = nn.ModuleList(loss_functions)
-        self.weights = weights
+        self.target_weights = list(weights)
+        self.weights = list(weights)
+        self.warmup_indices = warmup_indices or []
+        self.warmup_epochs = warmup_epochs
+
+    def set_epoch(self, epoch):
+        """Update ramped weights for the given (0-indexed) training epoch."""
+        if not self.warmup_indices or self.warmup_epochs <= 0:
+            return
+        alpha = min(1.0, (epoch + 1) / self.warmup_epochs)
+        for i in self.warmup_indices:
+            self.weights[i] = self.target_weights[i] * alpha
 
     def forward(
         self,
