@@ -90,7 +90,10 @@ def _mm_fields_config(*, is_shared: bool) -> Mapping[str, MultiModalFieldConfig]
 
 
 def _dummy_graph_fields(
-    *, bus_feat: int, gen_feat: int, edge_feat: int
+    *,
+    bus_feat: int,
+    gen_feat: int,
+    edge_feat: int,
 ) -> dict[str, torch.Tensor]:
     """A minimal, well-typed graph for vLLM memory profiling.
 
@@ -131,18 +134,23 @@ def _dummy_graph_fields(
         graph_codec.FIELD_MASK_BUS: torch.zeros(n_bus, bus_feat, dtype=torch.bool),
         graph_codec.FIELD_MASK_GEN: torch.zeros(n_gen, gen_feat, dtype=torch.bool),
         graph_codec.FIELD_MASK_BRANCH: torch.zeros(
-            n_branch, edge_feat, dtype=torch.bool
+            n_branch,
+            edge_feat,
+            dtype=torch.bool,
         ),
         # One REF bus, one PV bus (with a generator), the rest PQ — a valid
         # single-slack topology.
         graph_codec.FIELD_MASK_PQ: torch.tensor(
-            [i > 1 for i in range(n_bus)], dtype=torch.bool
+            [i > 1 for i in range(n_bus)],
+            dtype=torch.bool,
         ),
         graph_codec.FIELD_MASK_PV: torch.tensor(
-            [i == 1 for i in range(n_bus)], dtype=torch.bool
+            [i == 1 for i in range(n_bus)],
+            dtype=torch.bool,
         ),
         graph_codec.FIELD_MASK_REF: torch.tensor(
-            [i == 0 for i in range(n_bus)], dtype=torch.bool
+            [i == 0 for i in range(n_bus)],
+            dtype=torch.bool,
         ),
     }
 
@@ -222,8 +230,10 @@ class GridFMDummyInputsBuilder(BaseDummyInputsBuilder[GridFMProcessingInfo]):
         bus_feat, gen_feat, edge_feat = self.info.get_input_dims()
         return {
             _MODALITY: _dummy_graph_fields(
-                bus_feat=bus_feat, gen_feat=gen_feat, edge_feat=edge_feat
-            )
+                bus_feat=bus_feat,
+                gen_feat=gen_feat,
+                edge_feat=edge_feat,
+            ),
         }
 
 
@@ -372,7 +382,7 @@ class GridFMForPooling(nn.Module, IsAttentionFree, SupportsMultiModal):
                     gen_pred=predictions["gen"],
                     bus_emb=embeddings["bus"],
                     gen_emb=embeddings["gen"],
-                )
+                ),
             )
 
         return torch.stack(packed_rows, dim=0)
