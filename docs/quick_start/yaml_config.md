@@ -194,6 +194,28 @@ Common `loss_args` patterns:
 - `LossPerDim`: `{dim: VM|VA|P_in|Q_in, loss_str: MAE|MSE}`
 - `MaskedGenMSE`, `MaskedBusMSE`, `QgViolationPenalty`, `MaskedMSE`, `MSE`: `{}`
 
+### Physics loss warmup
+
+- `physics_warmup_epochs`: number of epochs over which the weight of every
+  `LayeredWeightedPhysics` term ramps linearly up to its value in `loss_weights`,
+  instead of being applied at full strength from the first epoch. The weight at
+  epoch `e` (0-indexed) is `loss_weight * min(1, (e + 1) / physics_warmup_epochs)`,
+  so it reaches its target on the last warmup epoch. Defaults to `0`, which
+  disables the ramp and keeps all weights constant.
+
+Ramping the physics term in is useful when it dominates the gradient early in
+training, before the supervised reconstruction terms have settled:
+
+```yaml
+training:
+  losses: [LayeredWeightedPhysics, MaskedBusMSE]
+  loss_weights: [0.2, 0.8]
+  loss_args:
+  - base_weight: 0.5
+  - {}
+  physics_warmup_epochs: 20
+```
+
 ---
 
 ## `optimizer` section
