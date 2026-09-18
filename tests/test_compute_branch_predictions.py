@@ -1,7 +1,6 @@
 """Tests for compute_branch_predictions in gridfm_graphkit.tasks.utils."""
 
 import numpy as np
-import pytest
 import torch
 import yaml
 from torch_geometric.data import HeteroData
@@ -67,8 +66,8 @@ def _make_inputs(
     """Return (eval_bus, target, bus_edge_index, bus_edge_attr, scenario_ids, local_bus_idx)."""
     # bus state: [VM, VA, PG, QG]
     bus = torch.zeros(num_bus, 4)
-    bus[:, 0] = vm   # VM_OUT = 0
-    bus[:, 1] = va   # VA_OUT = 1
+    bus[:, 0] = vm  # VM_OUT = 0
+    bus[:, 1] = va  # VA_OUT = 1
 
     # simple directed edges: 0->1, 1->2, 2->0, 1->0
     src = torch.tensor([0, 1, 2, 1])[:num_edges]
@@ -93,12 +92,26 @@ def _make_inputs(
 # ---------------------------------------------------------------------------
 
 EXPECTED_KEYS = {
-    "scenario", "from_bus", "to_bus",
-    "Pft", "Qft", "Pft_target", "Qft_target",
-    "angle_diff", "angle_excess_low", "angle_excess_high",
-    "angle_diff_target", "angle_excess_low_target", "angle_excess_high_target",
-    "thermal_excess", "thermal_excess_target",
-    "rate_a", "Yff_r", "Yff_i", "Yft_r", "Yft_i",
+    "scenario",
+    "from_bus",
+    "to_bus",
+    "Pft",
+    "Qft",
+    "Pft_target",
+    "Qft_target",
+    "angle_diff",
+    "angle_excess_low",
+    "angle_excess_high",
+    "angle_diff_target",
+    "angle_excess_low_target",
+    "angle_excess_high_target",
+    "thermal_excess",
+    "thermal_excess_target",
+    "rate_a",
+    "Yff_r",
+    "Yff_i",
+    "Yft_r",
+    "Yft_i",
 }
 
 
@@ -111,26 +124,33 @@ def test_output_keys():
 # Test 2 — all values are numpy arrays
 # ---------------------------------------------------------------------------
 
+
 def test_all_values_are_numpy():
     result = compute_branch_predictions(*_make_inputs())
     for key, val in result.items():
-        assert isinstance(val, np.ndarray), f"{key!r} is {type(val)}, expected np.ndarray"
+        assert isinstance(val, np.ndarray), (
+            f"{key!r} is {type(val)}, expected np.ndarray"
+        )
 
 
 # ---------------------------------------------------------------------------
 # Test 3 — all arrays have length == num_edges
 # ---------------------------------------------------------------------------
 
+
 def test_array_lengths():
     num_edges = 4
     result = compute_branch_predictions(*_make_inputs(num_edges=num_edges))
     for key, val in result.items():
-        assert len(val) == num_edges, f"{key!r} has length {len(val)}, expected {num_edges}"
+        assert len(val) == num_edges, (
+            f"{key!r} has length {len(val)}, expected {num_edges}"
+        )
 
 
 # ---------------------------------------------------------------------------
 # Test 4 — thermal excess is non-negative everywhere
 # ---------------------------------------------------------------------------
+
 
 def test_thermal_excess_non_negative():
     result = compute_branch_predictions(*_make_inputs())
@@ -141,6 +161,7 @@ def test_thermal_excess_non_negative():
 # ---------------------------------------------------------------------------
 # Test 5 — angle excess is non-negative everywhere
 # ---------------------------------------------------------------------------
+
 
 def test_angle_excess_non_negative():
     result = compute_branch_predictions(*_make_inputs())
@@ -154,6 +175,7 @@ def test_angle_excess_non_negative():
 # Test 6 — angle_diff is wrapped to [-pi, pi]
 # ---------------------------------------------------------------------------
 
+
 def test_angle_diff_wrapped():
     result = compute_branch_predictions(*_make_inputs())
     assert (result["angle_diff"] >= -np.pi).all()
@@ -166,20 +188,31 @@ def test_angle_diff_wrapped():
 # Test 7 — when eval_bus == target, predicted fields equal ground-truth fields
 # ---------------------------------------------------------------------------
 
+
 def test_perfect_prediction_equals_target():
     args = _make_inputs()
     result = compute_branch_predictions(*args)
     np.testing.assert_array_equal(result["Pft"], result["Pft_target"])
     np.testing.assert_array_equal(result["Qft"], result["Qft_target"])
-    np.testing.assert_array_equal(result["thermal_excess"], result["thermal_excess_target"])
+    np.testing.assert_array_equal(
+        result["thermal_excess"],
+        result["thermal_excess_target"],
+    )
     np.testing.assert_array_equal(result["angle_diff"], result["angle_diff_target"])
-    np.testing.assert_array_equal(result["angle_excess_low"], result["angle_excess_low_target"])
-    np.testing.assert_array_equal(result["angle_excess_high"], result["angle_excess_high_target"])
+    np.testing.assert_array_equal(
+        result["angle_excess_low"],
+        result["angle_excess_low_target"],
+    )
+    np.testing.assert_array_equal(
+        result["angle_excess_high"],
+        result["angle_excess_high_target"],
+    )
 
 
 # ---------------------------------------------------------------------------
 # Test 8 — thermal excess is zero when apparent flow is well below rate_a
 # ---------------------------------------------------------------------------
+
 
 def test_no_thermal_excess_when_within_limits():
     # VM=0.001 -> very small flows -> well below rate_a=100
@@ -191,6 +224,7 @@ def test_no_thermal_excess_when_within_limits():
 # ---------------------------------------------------------------------------
 # Test 9 — branch flows match stored P_E/Q_E on real case14 data
 # ---------------------------------------------------------------------------
+
 
 def test_branch_flows_match_stored_values():
     data_dict = torch.load(

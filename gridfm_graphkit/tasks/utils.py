@@ -258,7 +258,7 @@ def compute_branch_predictions(
     branch_flow_layer = ComputeBranchFlow()
 
     from_bus_idx = bus_edge_index[0]
-    to_bus_idx   = bus_edge_index[1]
+    to_bus_idx = bus_edge_index[1]
 
     # Branch limits — ANG_MIN/ANG_MAX restored to degrees by inverse_transform;
     # convert to radians to match VA_OUT which stays in radians.
@@ -284,31 +284,33 @@ def compute_branch_predictions(
 
     # Ground truth
     Pft_target, Qft_target, thermal_excess_target = _branch_flows(target)
-    angle_diff_target, angle_excess_low_target, angle_excess_high_target = _angle_violations(target)
+    angle_diff_target, angle_excess_low_target, angle_excess_high_target = (
+        _angle_violations(target)
+    )
 
     def _np(t):
         return t.detach().cpu().numpy()
 
     return {
-        "scenario":                  scenario_ids[from_bus_idx].cpu().numpy(),
-        "from_bus":                  local_bus_idx[from_bus_idx].cpu().numpy(),
-        "to_bus":                    local_bus_idx[to_bus_idx].cpu().numpy(),
-        "Pft":                       _np(Pft),
-        "Qft":                       _np(Qft),
-        "Pft_target":                _np(Pft_target),
-        "Qft_target":                _np(Qft_target),
-        "angle_diff":                _np(angle_diff),
-        "angle_excess_low":          _np(angle_excess_low),
-        "angle_excess_high":         _np(angle_excess_high),
-        "angle_diff_target":         _np(angle_diff_target),
-        "angle_excess_low_target":   _np(angle_excess_low_target),
-        "angle_excess_high_target":  _np(angle_excess_high_target),
-        "thermal_excess":            _np(thermal_excess),
-        "thermal_excess_target":     _np(thermal_excess_target),
+        "scenario": scenario_ids[from_bus_idx].cpu().numpy(),
+        "from_bus": local_bus_idx[from_bus_idx].cpu().numpy(),
+        "to_bus": local_bus_idx[to_bus_idx].cpu().numpy(),
+        "Pft": _np(Pft),
+        "Qft": _np(Qft),
+        "Pft_target": _np(Pft_target),
+        "Qft_target": _np(Qft_target),
+        "angle_diff": _np(angle_diff),
+        "angle_excess_low": _np(angle_excess_low),
+        "angle_excess_high": _np(angle_excess_high),
+        "angle_diff_target": _np(angle_diff_target),
+        "angle_excess_low_target": _np(angle_excess_low_target),
+        "angle_excess_high_target": _np(angle_excess_high_target),
+        "thermal_excess": _np(thermal_excess),
+        "thermal_excess_target": _np(thermal_excess_target),
         # Fields needed for current-based loading computation
-        "rate_a":                    _np(branch_thermal_limits),
-        "Yff_r":                     _np(bus_edge_attr[:, YFF_TT_R]),
-        "Yff_i":                     _np(bus_edge_attr[:, YFF_TT_I]),
-        "Yft_r":                     _np(bus_edge_attr[:, YFT_TF_R]),
-        "Yft_i":                     _np(bus_edge_attr[:, YFT_TF_I]),
+        "rate_a": _np(branch_thermal_limits),
+        "Yff_r": _np(bus_edge_attr[:, YFF_TT_R]),
+        "Yff_i": _np(bus_edge_attr[:, YFF_TT_I]),
+        "Yft_r": _np(bus_edge_attr[:, YFT_TF_R]),
+        "Yft_i": _np(bus_edge_attr[:, YFT_TF_I]),
     }

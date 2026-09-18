@@ -528,7 +528,7 @@ class PowerFlowTask(ReconstructionTask):
             bus_edge_attr,
             scenario_ids,
             local_bus_idx,
-        )  
+        )
         if embeddings is None or "bus" not in embeddings:
             return {
                 "bus": bus_predictions,
