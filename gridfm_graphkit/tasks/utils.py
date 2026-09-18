@@ -1,9 +1,21 @@
 import torch
+import torch.nn.functional as F
 from torch_scatter import scatter_mean, scatter_max
 import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
 import os
+from gridfm_graphkit.models.utils import ComputeBranchFlow
+from gridfm_graphkit.datasets.globals import (
+    VA_OUT,
+    ANG_MIN,
+    ANG_MAX,
+    RATE_A,
+    YFF_TT_R,
+    YFF_TT_I,
+    YFT_TF_R,
+    YFT_TF_I,
+)
 
 
 def local_index_per_graph(batch_index: torch.Tensor) -> torch.Tensor:
@@ -218,3 +230,85 @@ def plot_correlation_by_node_type(
         filename = f"{prefix}_correlation_{node_type}.png"
         plt.savefig(os.path.join(plot_dir, filename), dpi=300)
         plt.close(fig)
+
+
+def compute_branch_predictions(
+    eval_bus,
+    target,
+    bus_edge_index,
+    bus_edge_attr,
+    scenario_ids,
+    local_bus_idx,
+):
+    """Compute branch-level predictions and ground-truth constraint violations.
+
+    Args:
+        eval_bus:       Clamped model predictions [num_bus, 4]. Branch flows
+                        and angle violations are computed from this.
+        target:         Ground truth bus tensor [num_bus, 4]. Target branch
+                        flows and angle violations are computed from this.
+        bus_edge_index: Edge index [2, num_edges] (batch-global bus indices).
+        bus_edge_attr:  Edge features [num_edges, num_edge_features].
+        scenario_ids:   Scenario ID per bus [num_bus] (batch-global).
+        local_bus_idx:  Per-graph local bus index [num_bus].
+
+    Returns:
+        dict of numpy arrays, one entry per directed edge.
+    """
+    branch_flow_layer = ComputeBranchFlow()
+
+    from_bus_idx = bus_edge_index[0]
+    to_bus_idx   = bus_edge_index[1]
+
+    # Branch limits — ANG_MIN/ANG_MAX restored to degrees by inverse_transform;
+    # convert to radians to match VA_OUT which stays in radians.
+    angle_min = bus_edge_attr[:, ANG_MIN] * torch.pi / 180.0
+    angle_max = bus_edge_attr[:, ANG_MAX] * torch.pi / 180.0
+    branch_thermal_limits = bus_edge_attr[:, RATE_A]
+
+    def _branch_flows(bus_state):
+        Pft, Qft = branch_flow_layer(bus_state, bus_edge_index, bus_edge_attr)
+        Sft = torch.sqrt(Pft**2 + Qft**2)
+        thermal_excess = F.relu(Sft - branch_thermal_limits)
+        return Pft, Qft, thermal_excess
+
+    def _angle_violations(bus_state):
+        angles = bus_state[:, VA_OUT]
+        diff = angles[from_bus_idx] - angles[to_bus_idx]
+        diff = (diff + torch.pi) % (2 * torch.pi) - torch.pi  # wrap to [-pi, pi]
+        return diff, F.relu(angle_min - diff), F.relu(diff - angle_max)
+
+    # Predicted
+    Pft, Qft, thermal_excess = _branch_flows(eval_bus)
+    angle_diff, angle_excess_low, angle_excess_high = _angle_violations(eval_bus)
+
+    # Ground truth
+    Pft_target, Qft_target, thermal_excess_target = _branch_flows(target)
+    angle_diff_target, angle_excess_low_target, angle_excess_high_target = _angle_violations(target)
+
+    def _np(t):
+        return t.detach().cpu().numpy()
+
+    return {
+        "scenario":                  scenario_ids[from_bus_idx].cpu().numpy(),
+        "from_bus":                  local_bus_idx[from_bus_idx].cpu().numpy(),
+        "to_bus":                    local_bus_idx[to_bus_idx].cpu().numpy(),
+        "Pft":                       _np(Pft),
+        "Qft":                       _np(Qft),
+        "Pft_target":                _np(Pft_target),
+        "Qft_target":                _np(Qft_target),
+        "angle_diff":                _np(angle_diff),
+        "angle_excess_low":          _np(angle_excess_low),
+        "angle_excess_high":         _np(angle_excess_high),
+        "angle_diff_target":         _np(angle_diff_target),
+        "angle_excess_low_target":   _np(angle_excess_low_target),
+        "angle_excess_high_target":  _np(angle_excess_high_target),
+        "thermal_excess":            _np(thermal_excess),
+        "thermal_excess_target":     _np(thermal_excess_target),
+        # Fields needed for current-based loading computation
+        "rate_a":                    _np(branch_thermal_limits),
+        "Yff_r":                     _np(bus_edge_attr[:, YFF_TT_R]),
+        "Yff_i":                     _np(bus_edge_attr[:, YFF_TT_I]),
+        "Yft_r":                     _np(bus_edge_attr[:, YFT_TF_R]),
+        "Yft_i":                     _np(bus_edge_attr[:, YFT_TF_I]),
+    }
