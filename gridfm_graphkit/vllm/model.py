@@ -282,7 +282,14 @@ class GridFMMultiModalProcessor(BaseMultiModalProcessor[GridFMProcessingInfo]):
         )
 
         with timing_ctx.record("get_mm_hashes"):
-            mm_hashes = inputs.get_mm_hashes(self.info.model_id)
+            # vLLM 0.29 added a required hash-algorithm argument to
+            # ``get_mm_hashes`` (was single-arg on the 0.26 line). Source the
+            # algorithm from the multimodal config, mirroring vLLM's own
+            # Terratorch wrapper.
+            mm_hashes = inputs.get_mm_hashes(
+                self.info.model_id,
+                self.info.ctx.get_mm_config().mm_hasher_algorithm,
+            )
 
         mm_placeholders = {_MODALITY: [PlaceholderRange(offset=0, length=0)]}
 
