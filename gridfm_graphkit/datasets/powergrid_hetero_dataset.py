@@ -8,18 +8,7 @@ import pandas as pd
 from tqdm import tqdm
 from typing import Optional, Callable
 from torch_geometric.data import HeteroData
-from gridfm_graphkit.datasets.globals import (
-    VA_H,
-    PG_H,
-    MIN_VM_H,
-    MAX_VM_H,
-    MIN_QG_H,
-    MAX_QG_H,
-    VN_KV,
-    ANG_MIN,
-    ANG_MAX,
-    RATE_A,
-)
+from gridfm_graphkit.datasets.graph_builder import build_hetero_data
 
 
 class HeteroGridDatasetDisk(Dataset):
@@ -328,122 +317,7 @@ class HeteroGridDatasetDisk(Dataset):
         branch_df: pd.DataFrame,
     ) -> None:
         """Build and persist one scenario's heterogeneous graph to disk."""
-        bus_features = [
-            "Pd",
-            "Qd",
-            "Qg",
-            "Vm",
-            "Va",
-            "PQ",
-            "PV",
-            "REF",
-            "min_vm_pu",
-            "max_vm_pu",
-            "min_q_mvar",
-            "max_q_mvar",
-            "GS",
-            "BS",
-            "vn_kv",
-        ]
-        gen_features = [
-            "p_mw",
-            "min_p_mw",
-            "max_p_mw",
-            "cp0_eur",
-            "cp1_eur_per_mw",
-            "cp2_eur_per_mw2",
-            "in_service",
-        ]
-        common_branch_features = ["tap", "ang_min", "ang_max", "rate_a", "br_status"]
-        forward_branch_features = [
-            "pf",
-            "qf",
-            "Yff_r",
-            "Yff_i",
-            "Yft_r",
-            "Yft_i",
-        ] + common_branch_features
-        reverse_branch_features = [
-            "pt",
-            "qt",
-            "Ytt_r",
-            "Ytt_i",
-            "Ytf_r",
-            "Ytf_i",
-        ] + common_branch_features
-
-        assert (bus_df["bus"].values == torch.arange(len(bus_df))).all(), (
-            "Buses are not in increasing order"
-        )
-
-        data = HeteroData()
-
-        # Bus nodes
-        # todo: we should remove this assert and store the bus idx in the tensors
-        # right now we need the increasing order for e.g. the predict step that uses torch.arange(n_nodes) to index the buses.
-        data["bus"].x = torch.tensor(bus_df[bus_features].values, dtype=torch.float)
-        data["bus"].static = (
-            data["bus"].x[:, [MIN_VM_H, MAX_VM_H, MIN_QG_H, MAX_QG_H, VN_KV]].clone()
-        )
-
-        # Generator nodes
-        gen_df = gen_df.reset_index()
-        data["gen"].x = torch.tensor(gen_df[gen_features].values, dtype=torch.float)
-        gen_df["gen_index"] = gen_df.index
-
-        data["bus"].y = data["bus"].x[:, : (VA_H + 1)].clone()
-        data["gen"].y = data["gen"].x[:, : (PG_H + 1)].clone()
-
-        # Bus-Bus edges
-        forward_edges = torch.tensor(
-            branch_df[["from_bus", "to_bus"]].values.T,
-            dtype=torch.long,
-        )
-        forward_edge_attr = torch.tensor(
-            branch_df[forward_branch_features].values,
-            dtype=torch.float,
-        )
-        reverse_edges = torch.tensor(
-            branch_df[["to_bus", "from_bus"]].values.T,
-            dtype=torch.long,
-        )
-        reverse_edge_attr = torch.tensor(
-            branch_df[reverse_branch_features].values,
-            dtype=torch.float,
-        )
-
-        edge_index = torch.cat([forward_edges, reverse_edges], dim=1)
-        edge_attr = torch.cat([forward_edge_attr, reverse_edge_attr], dim=0)
-
-        forward_targets = torch.tensor(
-            branch_df[["pf", "qf"]].values,
-            dtype=torch.float,
-        )
-        reverse_targets = torch.tensor(
-            branch_df[["pt", "qt"]].values,
-            dtype=torch.float,
-        )
-        edge_y = torch.cat([forward_targets, reverse_targets], dim=0)
-
-        data["bus", "connects", "bus"].edge_index = edge_index
-        data["bus", "connects", "bus"].edge_attr = edge_attr
-        data["bus", "connects", "bus"].static = edge_attr[
-            :,
-            [ANG_MIN, ANG_MAX, RATE_A],
-        ].clone()
-        data["bus", "connects", "bus"].y = edge_y
-
-        # Gen-Bus and Bus-Gen edges
-        data["gen", "connected_to", "bus"].edge_index = torch.tensor(
-            gen_df[["gen_index", "bus"]].values.T,
-            dtype=torch.long,
-        )
-        data["bus", "connected_to", "gen"].edge_index = torch.tensor(
-            gen_df[["bus", "gen_index"]].values.T,
-            dtype=torch.long,
-        )
-
-        data["scenario_id"] = torch.tensor([scenario], dtype=torch.long)
+        data = build_hetero_data(bus_df, gen_df, branch_df, scenario)
 
         torch.save(
             data.to_dict(),

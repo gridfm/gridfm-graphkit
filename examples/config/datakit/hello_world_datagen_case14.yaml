@@ -1,0 +1,34 @@
+# Minimal gridfm-datakit "hello world" config: generates a tiny case14 power-flow dataset.
+# Used by the Docker quick-start in docs/install/docker.md. Not for real training.
+#   gridfm_datakit generate hello_world_datagen_case14.yaml
+network:
+  name: "case14_ieee"      # pulled from pglib (needs network on first grid download)
+  source: "pglib"
+load:
+  generator: "agg_load_profile"
+  agg_profile: "default"
+  scenarios: 20            # tiny on purpose so the run finishes in seconds
+  sigma: 0.2
+  change_reactive_power: true
+  global_range: 0.4
+  max_scaling_factor: 4.0
+  step_size: 0.1
+  start_scaling_factor: 1.0
+topology_perturbation:
+  type: "none"             # keep the hello-world fast and deterministic
+generation_perturbation:
+  type: "none"
+admittance_perturbation:
+  type: "none"
+settings:
+  num_processes: 2
+  data_dir: "/work/data"   # -> /work/data/case14_ieee/raw/*.parquet
+  large_chunk_size: 10
+  overwrite: true
+  mode: "pf"
+  include_dc_res: true
+  enable_solver_logs: false
+  pf_fast: true
+  dcpf_fast: true
+  max_iter: 200
+  seed: 42
