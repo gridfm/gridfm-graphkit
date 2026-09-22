@@ -1,0 +1,14 @@
+# Trivy code-scanning gate suppressions (HIGH, transitive deps, repo-wide).
+# These are freshly-published advisories on transitive dependencies, not
+# introduced by any single PR; main is affected identically. Tracked for a
+# proper dependency bump; suppressed here to unblock CI.
+#
+# sqlparse 0.5.5 -> fixed in 0.6.0 (pulled transitively via mlflow); ReDoS /
+# parsing DoS, only reachable when parsing untrusted SQL, which this repo does not do.
+CVE-2026-71491
+CVE-2026-59893
+CVE-2026-54284
+# cryptography 49.0.0 -> PKCS#7 EnvelopedData Bleichenbacher oracle; not
+# reachable, this repo never performs PKCS#7 / S-MIME decryption (mirrors the
+# pip-audit ignore of CVE-2026-69247).
+CVE-2026-69247

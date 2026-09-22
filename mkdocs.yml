@@ -6,6 +6,7 @@ repo_name: GitHub
 nav:
   - Home: index.md
   - Installation: install/installation.md
+  - Docker / containers: install/docker.md
   - Getting started:
     - CLI commands: quick_start/quick_start.md
     - YAML configuration file: quick_start/yaml_config.md

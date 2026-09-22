@@ -42,6 +42,9 @@ class ReconstructionTask(BaseTask):
     def forward(self, batch):
         return self.model(batch)
 
+    def on_train_epoch_start(self):
+        self.loss_fn.set_epoch(self.current_epoch)
+
     def shared_step(self, batch):
         output = self.forward(batch)
 

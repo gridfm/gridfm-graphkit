@@ -1,0 +1,19 @@
+{
+  "name": "gridfm",
+  "build": {
+    "dockerfile": "../Containerfile",
+    "context": ".."
+  },
+  "workspaceFolder": "/workspaces/gridfm-graphkit",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-toolsai.jupyter"
+      ],
+      "settings": {
+        "python.defaultInterpreterPath": "/usr/local/bin/python"
+      }
+    }
+  }
+}
