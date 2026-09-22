@@ -242,7 +242,7 @@ gridfm_graphkit evaluate --config path/to/eval.yaml --model_path path/to/model.p
 | `--dataset_wrapper_cache_dir` | `str` | Disk cache directory for dataset wrapper; cache is loaded from here when present and saved after first population. | `None` |
 | `--profiler` | `str` | Enable Lightning profiler (`simple`, `advanced`, `pytorch`). | `None` |
 | `--compute_dc_ac_metrics` | `flag` | Compute ground-truth AC/DC power balance metrics on the test split. | `False` |
-| `--save_output` | `flag` | Save predictions as `<grid_name>_predictions.parquet` under MLflow artifacts (`.../artifacts/test`). | `False` |
+| `--save_output` | `flag` | Save predictions under MLflow artifacts (`.../artifacts/test`). For the PowerFlow task this writes `<grid_name>_predictions.parquet` (bus-level) and `<grid_name>_branch_predictions.parquet` (branch-level flows, thermal loading, and angle violations). | `False` |
 | `--mp_context` | `str` | DataLoader multiprocessing start method (`spawn`, `fork`, `forkserver`). Defaults to PyTorch's automatic choice. On Linux, `spawn` is recommended for safety (CUDA + fork is unsafe); other choices emit a warning. | `None` |
 
 ### Example with saved normalizer stats
@@ -282,7 +282,7 @@ gridfm_graphkit predict --config path/to/config.yaml --model_path path/to/model.
 | `--plugins` | `list[str]` | Python packages to import for plugin registration, e.g. `gridfm_graphkit_ee`. | `[]` |
 | `--num_workers` | `int` | Override `data.workers` from YAML. Use `0` to debug worker crashes. | `None` |
 | `--dataset_wrapper_cache_dir` | `str` | Disk cache directory for dataset wrapper; cache is loaded from here when present and saved after first population. | `None` |
-| `--output_path` | `str` | Directory where predictions are saved as `<grid_name>_predictions.parquet`. | `data` |
+| `--output_path` | `str` | Directory where predictions are saved. For the PowerFlow task this writes `<grid_name>_predictions.parquet` (bus-level) and `<grid_name>_branch_predictions.parquet` (branch-level flows, thermal loading, and angle violations). | `data` |
 | `--get_embeddings` | `flag` | Export final hidden embeddings to `<grid_name>_bus_embeddings.parquet` (and `<grid_name>_gen_embeddings.parquet` for OPF models that expose gen embeddings) in `--output_path`. | `False` |
 | `--compile [MODE]` | `str` | Enable `torch.compile` mode. Valid values: `default`, `reduce-overhead`, `max-autotune`, `max-autotune-no-cudagraphs`. If flag is passed without a value, mode is `default`. | `None` |
 | `--bfloat16` | `flag` | Cast model to `torch.bfloat16` (`model.to(torch.bfloat16)`). | `False` |
