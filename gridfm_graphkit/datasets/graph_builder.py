@@ -13,7 +13,18 @@ import pandas as pd
 import torch
 from torch_geometric.data import HeteroData
 
-from gridfm_graphkit.datasets.globals import PG_H, VA_H
+from gridfm_graphkit.datasets.globals import (
+    ANG_MAX,
+    ANG_MIN,
+    MAX_QG_H,
+    MAX_VM_H,
+    MIN_QG_H,
+    MIN_VM_H,
+    PG_H,
+    RATE_A,
+    VA_H,
+    VN_KV,
+)
 
 # Column layouts consumed by GNS_heterogeneous. Order matters: these define the
 # feature-index constants in gridfm_graphkit.datasets.globals.
@@ -91,6 +102,9 @@ def build_hetero_data(
 
     # Bus nodes
     data["bus"].x = torch.tensor(bus_df[BUS_FEATURES].values, dtype=torch.float)
+    data["bus"].static = (
+        data["bus"].x[:, [MIN_VM_H, MAX_VM_H, MIN_QG_H, MAX_QG_H, VN_KV]].clone()
+    )
 
     # Generator nodes
     gen_df = gen_df.reset_index(drop=True)
@@ -130,6 +144,10 @@ def build_hetero_data(
 
     data["bus", "connects", "bus"].edge_index = edge_index
     data["bus", "connects", "bus"].edge_attr = edge_attr
+    data["bus", "connects", "bus"].static = edge_attr[
+        :,
+        [ANG_MIN, ANG_MAX, RATE_A],
+    ].clone()
     data["bus", "connects", "bus"].y = edge_y
 
     # Gen-Bus and Bus-Gen edges
