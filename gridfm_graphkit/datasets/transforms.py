@@ -72,6 +72,8 @@ class RemoveInactiveBranches(BaseTransform):
         data[et].edge_attr = data[et].edge_attr[active_mask]
         data[et].edge_attr = data[et].edge_attr[:, :B_ON]
         data[et].y = data[et].y[active_mask]
+        if hasattr(data[et], "static"):
+            data[et].static = data[et].static[active_mask]
 
         return data
 
