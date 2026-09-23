@@ -6,9 +6,9 @@ from packaging import version
 
 # The interface this integration targets. vLLM's IO-processor and pooling-model
 # APIs shift between minor releases (renderer constructor arg, multimodal input
-# nesting, pooling model mixins), so the plugin is written against this line and
-# refuses to load silently against an untested one.
-SUPPORTED_VLLM = ">=0.26,<0.27"
+# nesting, get_mm_hashes arity, pooling model mixins), so the plugin is written
+# against this line and refuses to load silently against an untested one.
+SUPPORTED_VLLM = ">=0.29,<0.30"
 
 
 def check_vllm_version(target_version: str, comparison: str) -> bool:

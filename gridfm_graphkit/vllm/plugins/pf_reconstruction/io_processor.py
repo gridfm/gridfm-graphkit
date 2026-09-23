@@ -11,7 +11,6 @@ Imports vLLM at load time; only import when the ``vllm`` extra is installed.
 
 from __future__ import annotations
 
-import asyncio
 import logging
 from collections.abc import Sequence
 from typing import Any, Optional
@@ -104,14 +103,12 @@ class GridFMPFIOProcessor(IOProcessor):
         request_id: str | None = None,
         **kwargs,
     ) -> PromptType | Sequence[PromptType]:
-        return asyncio.run(self.pre_process_async(prompt, request_id, **kwargs))
-
-    async def pre_process_async(
-        self,
-        prompt: IOProcessorInput,
-        request_id: str | None = None,
-        **kwargs,
-    ) -> PromptType | Sequence[PromptType]:
+        # vLLM's online pooling path (>=0.29) calls this synchronous method from
+        # inside the running server event loop (``get_request_factory_online`` →
+        # ``pre_process``), so it must do the work directly and must NOT spin up
+        # its own loop. Graph construction/normalization is pure CPU work (no
+        # awaits), so the synchronous implementation lives here and the async
+        # variant simply delegates.
         request: GridFMRequest = prompt
         case = request.case
 
@@ -135,6 +132,15 @@ class GridFMPFIOProcessor(IOProcessor):
         self._requests[request_id] = request
 
         return {"prompt_token_ids": [1], "multi_modal_data": multi_modal_data}
+
+    async def pre_process_async(
+        self,
+        prompt: IOProcessorInput,
+        request_id: str | None = None,
+        **kwargs,
+    ) -> PromptType | Sequence[PromptType]:
+        # No blocking I/O in pre_process; delegate to the synchronous path.
+        return self.pre_process(prompt, request_id, **kwargs)
 
     # --- post-processing --------------------------------------------------
 

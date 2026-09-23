@@ -282,7 +282,14 @@ class GridFMMultiModalProcessor(BaseMultiModalProcessor[GridFMProcessingInfo]):
         )
 
         with timing_ctx.record("get_mm_hashes"):
-            mm_hashes = inputs.get_mm_hashes(self.info.model_id)
+            # vLLM 0.29 added a required hash-algorithm argument to
+            # ``get_mm_hashes`` (was single-arg on the 0.26 line). Source the
+            # algorithm from the multimodal config, mirroring vLLM's own
+            # Terratorch wrapper.
+            mm_hashes = inputs.get_mm_hashes(
+                self.info.model_id,
+                self.info.ctx.get_mm_config().mm_hasher_algorithm,
+            )
 
         mm_placeholders = {_MODALITY: [PlaceholderRange(offset=0, length=0)]}
 
@@ -355,16 +362,23 @@ class GridFMForPooling(nn.Module, IsAttentionFree, SupportsMultiModal):
         **kwargs: object,
     ) -> torch.Tensor:
         # vLLM's multimodal collation prepends an "items" dimension to every
-        # field: one graph per prompt token. Real requests carry a single graph
-        # (leading dim 1); vLLM's warmup ``_dummy_run`` replicates the dummy
-        # graph across ``max_num_reqs`` items. vLLM then treats our output as
-        # ``[num_tokens, hidden]`` — it slices ``hidden_states[:num_tokens]`` in
-        # ``_pool`` and indexes ``hidden_states[logit_indices]`` (up to
-        # ``num_tokens - 1``) during warmup. So we must return one packed row per
-        # item, keeping the leading dim equal to the token/item count and all
-        # graph data in the trailing dimension (mirroring vLLM's Terratorch
-        # wrapper). Collapsing to a single graph would truncate real output and
-        # blow the warmup index out of bounds.
+        # field: one graph per collated item. We produce one packed row per item
+        # and vLLM treats our output as ``[num_tokens, hidden]`` — it slices
+        # ``hidden_states[:num_tokens]`` when pooling and gathers
+        # ``hidden_states[logit_indices]`` with indices up to ``num_tokens - 1``.
+        #
+        # In real serving each request is exactly one sentinel prompt token
+        # carrying one graph, so ``num_tokens == n_items`` and the two axes
+        # coincide. During warmup they do NOT: ``_dummy_run`` derives
+        # ``num_reqs = min(num_tokens, max_num_seqs)`` and collates only
+        # ``num_reqs`` graph items, but packs ``num_tokens`` tokens across those
+        # requests (several tokens each when ``max_num_seqs < num_tokens``). The
+        # profiling and flashinfer-autotune warmup runs both call
+        # ``_dummy_run(max_num_batched_tokens)``, so ``num_tokens`` can far
+        # exceed ``n_items`` and the downstream ``hidden_states[logit_indices]``
+        # gather would run out of bounds. Pad the (discarded) warmup output up to
+        # the scheduled token count to keep that gather in bounds; on real
+        # requests ``num_tokens == n_items`` and the pad is a no-op.
         fields = {
             name: kwargs[name] for name in graph_codec.GRAPH_FIELDS if name in kwargs
         }
@@ -385,7 +399,17 @@ class GridFMForPooling(nn.Module, IsAttentionFree, SupportsMultiModal):
                 ),
             )
 
-        return torch.stack(packed_rows, dim=0)
+        packed = torch.stack(packed_rows, dim=0)
+
+        # Align the leading (token) axis with the scheduled token count so
+        # vLLM's ``hidden_states[logit_indices]`` gather stays in bounds during
+        # warmup dummy runs; identity on real requests (num_tokens == n_items).
+        num_tokens = positions.shape[0]
+        if packed.shape[0] < num_tokens:
+            pad = packed.new_zeros((num_tokens - packed.shape[0], packed.shape[1]))
+            packed = torch.cat([packed, pad], dim=0)
+
+        return packed
 
     def load_weights(
         self,
