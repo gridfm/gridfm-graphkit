@@ -241,7 +241,16 @@ def compute_branch_predictions(
     local_bus_idx,
 ):
     """Compute branch-level predictions and ground-truth constraint violations.
-
+    
+    Expects tensors after ``inverse_transform``: ``Va`` stays in radians, while
+    ``ANG_MIN`` / ``ANG_MAX`` are restored to degrees and converted here with
+    ``* pi / 180``. Do not call this on training-space (post-``transform``) graphs:
+    those limits are already in radians, so the extra conversion would be wrong.
+    
+    Bidirectional edges reuse the same ``angmin`` / ``angmax``. That is correct
+    while limits are symmetric (e.g. ±30°). An asymmetric pair would be wrong
+    on the reverse copy.
+    
     Args:
         eval_bus:       Clamped model predictions [num_bus, 4]. Branch flows
                         and angle violations are computed from this.
@@ -251,7 +260,7 @@ def compute_branch_predictions(
         bus_edge_attr:  Edge features [num_edges, num_edge_features].
         scenario_ids:   Scenario ID per bus [num_bus] (batch-global).
         local_bus_idx:  Per-graph local bus index [num_bus].
-
+    
     Returns:
         dict of numpy arrays, one entry per directed edge.
     """
