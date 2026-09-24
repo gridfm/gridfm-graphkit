@@ -72,6 +72,32 @@ REVERSE_BRANCH_FEATURES = [
     "Ytf_i",
 ] + COMMON_BRANCH_FEATURES
 
+# Column indices whose *pre-mask, pre-normalisation* values are snapshotted into
+# ``.static`` at build time and restored by RemovePFMask after inference (see
+# gridfm_graphkit.datasets.masking.RemovePFMask). Single source of truth for both
+# the build path (build_hetero_data) and the backfill path (backfill_static).
+BUS_STATIC_COLS = [MIN_VM_H, MAX_VM_H, MIN_QG_H, MAX_QG_H, VN_KV]
+BRANCH_STATIC_COLS = [ANG_MIN, ANG_MAX, RATE_A]
+
+
+def backfill_static(data: HeteroData) -> None:
+    """Attach ``.static`` limit snapshots to graphs that lack them, in place.
+
+    Graphs processed before ``.static`` was introduced carry the limit columns
+    only inside ``bus.x`` / branch ``edge_attr``. Reconstruct the snapshot from
+    those raw columns so the PF test/predict path (RemovePFMask) works on such
+    caches without reprocessing the dataset.
+
+    Must run on the raw graph *before* normalisation and branch masking, so the
+    captured values match what ``build_hetero_data`` stores (raw, full edge set).
+    """
+    bus = data["bus"]
+    if not hasattr(bus, "static"):
+        bus.static = bus.x[:, BUS_STATIC_COLS].clone()
+    branch = data["bus", "connects", "bus"]
+    if not hasattr(branch, "static"):
+        branch.static = branch.edge_attr[:, BRANCH_STATIC_COLS].clone()
+
 
 def build_hetero_data(
     bus_df: pd.DataFrame,
@@ -102,9 +128,7 @@ def build_hetero_data(
 
     # Bus nodes
     data["bus"].x = torch.tensor(bus_df[BUS_FEATURES].values, dtype=torch.float)
-    data["bus"].static = (
-        data["bus"].x[:, [MIN_VM_H, MAX_VM_H, MIN_QG_H, MAX_QG_H, VN_KV]].clone()
-    )
+    data["bus"].static = data["bus"].x[:, BUS_STATIC_COLS].clone()
 
     # Generator nodes
     gen_df = gen_df.reset_index(drop=True)
@@ -144,10 +168,7 @@ def build_hetero_data(
 
     data["bus", "connects", "bus"].edge_index = edge_index
     data["bus", "connects", "bus"].edge_attr = edge_attr
-    data["bus", "connects", "bus"].static = edge_attr[
-        :,
-        [ANG_MIN, ANG_MAX, RATE_A],
-    ].clone()
+    data["bus", "connects", "bus"].static = edge_attr[:, BRANCH_STATIC_COLS].clone()
     data["bus", "connects", "bus"].y = edge_y
 
     # Gen-Bus and Bus-Gen edges
