@@ -35,3 +35,5 @@ scripts/*
 !scripts/opfdata/splits/*.pt
 !scripts/datakit_pf/
 !scripts/datakit_pf/**
+!scripts/datakit_opf/
+!scripts/datakit_opf/**
