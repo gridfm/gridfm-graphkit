@@ -4,7 +4,7 @@ import pandas as pd
 
 
 ROOT = Path(__file__).resolve().parent
-INPUT_CSV = ROOT / "results" / "sheet2_from_experiments_mean_std_only.csv"
+INPUT_CSV = ROOT / "results" / "opf_scaling_aggregated.csv"
 OUTPUT_TEX = ROOT / "opf_scaling_table.tex"
 
 SYSTEM_ORDER = ["14-ieee", "30-ieee", "57-ieee", "118-ieee", "500-goc", "2000-goc"]
@@ -141,7 +141,7 @@ def build_latex(df):
     return (
         r"""\begin{table*}[h]
 \centering
-\caption{Constraint violations and optimality gaps for GENCO and DC-OPF on datakit. Bold entries mark the lowest mean in each metric. The numbers come from results/sheet2_from_experiments_mean_std_only.csv.}
+\caption{Constraint violations and optimality gaps for GENCO and DC-OPF on datakit. Bold entries mark the lowest mean in each metric. The numbers come from results/opf_scaling_aggregated.csv.}
 \label{tab:opf_scaling}
 \resizebox{\linewidth}{!}{
 \begin{tabular}{|l|l|l|l|l|l|l|l|l|}
