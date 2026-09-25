@@ -19,8 +19,11 @@ The first 10,000 `data_index_*.pt` files per network (the files the paper jobs t
 ```bash
 hf download gridfm/reproducibility-genco-pf-processed --repo-type dataset \
     --local-dir /path/to/pf
+for t in /path/to/pf/*.tar; do tar -xf "$t" -C /path/to/pf; done
 export GENCO_DATA_PATH=/path/to/pf
 ```
+
+Each `<network>.tar` is uncompressed and contains `<network>/processed/data_index_0.pt` through `data_index_9999.pt`.
 
 In-memory jobs preload those 10,000 graphs. From-disk jobs copy them to node-local `/tmp` and load inside `Dataset.get()`. Sample counts timed against that pool match the PowerModels matrix (IEEE 4M/3M/2M/2M, GOC 500k/50k/10k). `GENCO_PYTHON` defaults to `python` on `PATH` (paper jobs used Python 3.12.9, PyTorch 2.8.0+cu128).
 
