@@ -39,5 +39,7 @@ scripts/*
 !scripts/datakit_opf/**
 !scripts/runtime/
 !scripts/runtime/**
+!scripts/transfer_553/
+!scripts/transfer_553/**
 scripts/runtime/**/__pycache__/
 scripts/runtime/**/*.pyc
