@@ -39,7 +39,9 @@ scripts/*
 !scripts/datakit_opf/**
 !scripts/runtime/
 !scripts/runtime/**
-!scripts/transfer_553/
-!scripts/transfer_553/**
+!scripts/pretraining_advantage/
+!scripts/pretraining_advantage/**
+scripts/pretraining_advantage/**/__pycache__/
+scripts/pretraining_advantage/**/*.pyc
 scripts/runtime/**/__pycache__/
 scripts/runtime/**/*.pyc

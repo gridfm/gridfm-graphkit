@@ -10,10 +10,10 @@ data:
   networks:
   - case118_ieee
   scenarios:
-  - 1000
+  - 100000
   test_ratio: 0.1
   val_ratio: 0.1
-  workers: 32
+  workers: 16
   split_by_load_scenario_idx: true
 model:
   attention_head: 8
