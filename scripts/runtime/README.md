@@ -12,15 +12,17 @@ Both protocols read processed graphs, not raw parquet and not a trained checkpoi
 $GENCO_DATA_PATH/<network>/processed/data_index_*.pt
 ```
 
-The paper jobs used the PF finetuning tree:
+The first 10,000 `data_index_*.pt` files per network (the files the paper jobs timed) are on Hugging Face:
 
-```text
-/dccstor/gridfm/powermodels_data/v4/finetuning/pf
+[`gridfm/reproducibility-genco-pf-processed`](https://huggingface.co/datasets/gridfm/reproducibility-genco-pf-processed)
+
+```bash
+hf download gridfm/reproducibility-genco-pf-processed --repo-type dataset \
+    --local-dir /path/to/pf
+export GENCO_DATA_PATH=/path/to/pf
 ```
 
-That is the full PF tree. It is not a separate "pf small" release. Each job uses the first 10,000 `data_index_*.pt` files per network (preloaded for in-memory, copied to node-local `/tmp` for from-disk). Sample counts timed against that pool match the PowerModels matrix (IEEE 4M/3M/2M/2M, GOC 500k/50k/10k).
-
-Override the path with `GENCO_DATA_PATH`. `GENCO_PYTHON` defaults to `python` on `PATH` (paper jobs used the evaluation-repo venv: Python 3.12.9, PyTorch 2.8.0+cu128).
+In-memory jobs preload those 10,000 graphs. From-disk jobs copy them to node-local `/tmp` and load inside `Dataset.get()`. Sample counts timed against that pool match the PowerModels matrix (IEEE 4M/3M/2M/2M, GOC 500k/50k/10k). `GENCO_PYTHON` defaults to `python` on `PATH` (paper jobs used Python 3.12.9, PyTorch 2.8.0+cu128).
 
 ## Submit
 

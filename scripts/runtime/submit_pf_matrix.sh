@@ -14,16 +14,17 @@ REPO_ROOT="$(cd -- "$SCRIPT_DIR/../.." && pwd)"
 LOG_DIR="${LSB_LOG_DIR:-$HOME/.lsbatch}"
 PYTHON="${GENCO_PYTHON:-python}"
 # Processed graphs: <data-path>/<network>/processed/data_index_*.pt
-# Paper path is the PF finetuning tree (not a separate "pf small" release).
-DATA_PATH="${GENCO_DATA_PATH:-/dccstor/gridfm/powermodels_data/v4/finetuning/pf}"
+# Download: https://huggingface.co/datasets/gridfm/reproducibility-genco-pf-processed
+DATA_PATH="${GENCO_DATA_PATH:-}"
 
 HOST_SELECT="select[hname=='cccxc702' || hname=='cccxc703' || hname=='cccxc704' || hname=='cccxc705' || hname=='cccxc706' || hname=='cccxc707' || hname=='cccxc708' || hname=='cccxc709' || hname=='cccxc710' || hname=='cccxc711' || hname=='cccxc712' || hname=='cccxc713' || hname=='cccxc714' || hname=='cccxc715' || hname=='cccxc716']"
 
 mkdir -p "$LOG_DIR"
 
-if [[ ! -d "$DATA_PATH" ]]; then
-  echo "error: GENCO data path not found: $DATA_PATH" >&2
-  echo "Set GENCO_DATA_PATH to the PF tree with <network>/processed/data_index_*.pt" >&2
+if [[ -z "$DATA_PATH" || ! -d "$DATA_PATH" ]]; then
+  echo "error: GENCO_DATA_PATH is not a directory (${DATA_PATH:-unset})." >&2
+  echo "hf download gridfm/reproducibility-genco-pf-processed --repo-type dataset --local-dir /path/to/pf" >&2
+  echo "export GENCO_DATA_PATH=/path/to/pf" >&2
   exit 1
 fi
 
