@@ -1,3 +1,5 @@
+Reproduction guide: [GENCO](https://github.com/albanpuech/GENCO).
+
 <p align="center">
   <img src="https://raw.githubusercontent.com/gridfm/gridfm-graphkit/refs/heads/main/docs/figs/KIT.png" alt="GridFM logo" style="width: 40%; height: auto;"/>
   <br/>
