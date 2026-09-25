@@ -81,10 +81,15 @@ def load_run_relative(run: Path) -> dict | None:
         with open(run / "meta.yaml", "r") as f:
             k_val = int(yaml.safe_load(f)["run_name"].split("_")[1])
 
-        base = run / "artifacts/test" / CASE_PREFIX
+        preds_path = run / "predictions.parquet"
+        dc_path = run / "dc_bus_residuals.parquet"
+        if not preds_path.is_file():
+            base = run / "artifacts/test" / CASE_PREFIX
+            preds_path = base.with_name(base.name + "_predictions.parquet")
+            dc_path = base.with_name(base.name + "_dc_bus_residuals.parquet")
 
-        preds = pd.read_parquet(base.with_name(base.name + "_predictions.parquet"))
-        dc_bus = pd.read_parquet(base.with_name(base.name + "_dc_bus_residuals.parquet"))
+        preds = pd.read_parquet(preds_path)
+        dc_bus = pd.read_parquet(dc_path)
 
         genco_rel, genco_zero_inj_abs = split_relative_and_zero_inj_abs(
             preds["active res. (MW)"].to_numpy(),
