@@ -51,7 +51,7 @@ optimizer:
   lr_patience: 5
 seed: 200
 training:
-  batch_size: 16
+  batch_size: 32
   epochs: 300
   loss_weights:
   - 0.1
