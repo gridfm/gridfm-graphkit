@@ -2,7 +2,7 @@
 
 This branch is a snapshot of the code and scripts used for:
 
-- [GENCO](https://arxiv.org/abs/2608.09921) — [reproduction guide](https://github.com/albanpuech/GENCO)
+- [GENCO](https://arxiv.org/abs/2608.09921) — [reproduction guide](https://github.com/albanpuech/GENCO/tree/main/repro_instructions)
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/gridfm/gridfm-graphkit/refs/heads/main/docs/figs/KIT.png" alt="GridFM logo" style="width: 40%; height: auto;"/>
