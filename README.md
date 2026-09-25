@@ -1,3 +1,9 @@
+# Reproducing the results of the paper
+
+This branch is a snapshot of the code and scripts used for:
+
+- [GENCO](https://arxiv.org/abs/2608.09921) — [reproduction guide](https://github.com/albanpuech/GENCO)
+
 # gridfm-graphkit
 [![Docs](https://img.shields.io/badge/docs-available-brightgreen)](https://gridfm.github.io/gridfm-graphkit/)
 ![Coverage](https://img.shields.io/badge/coverage-83%25-yellowgreen)
