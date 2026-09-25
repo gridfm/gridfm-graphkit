@@ -41,6 +41,8 @@ scripts/*
 !scripts/runtime/**
 !scripts/pretraining_advantage/
 !scripts/pretraining_advantage/**
+!scripts/contingency/
+!scripts/contingency/**
 scripts/pretraining_advantage/**/__pycache__/
 scripts/pretraining_advantage/**/*.pyc
 scripts/runtime/**/__pycache__/
