@@ -438,7 +438,10 @@ def main_cli(args):
         if args.command == "predict":
             output_dir = args.output_path
         else:
-            output_dir = os.path.join(artifacts_dir, "test")
+            output_dir = getattr(args, "output_path", None) or os.path.join(
+                artifacts_dir,
+                "test",
+            )
         os.makedirs(output_dir, exist_ok=True)
         first_prediction = predictions[0]
         if any(isinstance(value, dict) for value in first_prediction.values()):

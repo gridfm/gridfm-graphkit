@@ -376,6 +376,12 @@ def main():
         "--converted_config_path",
         **_converted_config_path_kwargs,
     )
+    evaluate_parser.add_argument(
+        "--output_path",
+        type=str,
+        default=None,
+        help="Optional custom output directory to save evaluation predictions. Defaults to MLflow artifacts/test directory.",
+    )
     evaluate_parser.add_argument("--stream-partitions", **_stream_partitions_kwargs)
 
     # ---- PREDICT SUBCOMMAND ----
