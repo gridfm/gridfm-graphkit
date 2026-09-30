@@ -8,7 +8,7 @@ import pandas as pd
 from tqdm import tqdm
 from typing import Optional, Callable
 from torch_geometric.data import HeteroData
-from gridfm_graphkit.datasets.graph_builder import build_hetero_data
+from gridfm_graphkit.datasets.graph_builder import backfill_static, build_hetero_data
 
 
 class HeteroGridDatasetDisk(Dataset):
@@ -346,5 +346,8 @@ class HeteroGridDatasetDisk(Dataset):
             raise IndexError(f"Data file {file_name} does not exist.")
         data_dict = torch.load(file_name, weights_only=True)
         data = HeteroData.from_dict(data_dict)
+        # Backfill .static for caches processed before it was added, before
+        # normalisation so the snapshot matches build_hetero_data (raw columns).
+        backfill_static(data)
         self.data_normalizer.transform(data=data)
         return data
