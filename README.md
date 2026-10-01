@@ -17,6 +17,8 @@
 
 This library is brought to you by the GridFM team to train, finetune and interact with a foundation model for the electric power grid.
 
+Tutorials, including the Colab notebooks, are in [gridfm/gridfm-tutorials](https://github.com/gridfm/gridfm-tutorials).
+
 ## Citation
 
 If you use `gridfm-graphkit` in your research, please cite:
