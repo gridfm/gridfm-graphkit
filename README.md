@@ -17,8 +17,6 @@
 
 This library is brought to you by the GridFM team to train, finetune and interact with a foundation model for the electric power grid.
 
-The tutorial is the [OPF Colab notebook](https://colab.research.google.com/github/gridfm/gridfm-graphkit/blob/lfe-tutorial/examples/notebooks/Tutorial_opf_colab.ipynb#scrollTo=41258ab0).
-
 ## Citation
 
 If you use `gridfm-graphkit` in your research, please cite:
