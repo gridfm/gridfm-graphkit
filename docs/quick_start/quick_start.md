@@ -109,6 +109,7 @@ gridfm_graphkit evaluate --config path/to/eval.yaml --model_path path/to/model.p
 | `--profiler` | `str` | Enable Lightning profiler (`simple`, `advanced`, `pytorch`). | `None` |
 | `--compute_dc_ac_metrics` | `flag` | Compute ground-truth AC/DC power balance metrics on the test split. | `False` |
 | `--save_output` | `flag` | Save predictions under MLflow artifacts (`.../artifacts/test`). For the PowerFlow task this writes `<grid_name>_predictions.parquet` (bus-level) and `<grid_name>_branch_predictions.parquet` (branch-level flows, thermal loading, and angle violations). | `False` |
+| `--output_path` | `str` | Optional custom output directory to save evaluation predictions (when used with `--save_output`). Defaults to MLflow artifacts directory (`artifacts/test`). | `None` |
 | `--mp_context` | `str` | DataLoader multiprocessing start method (`spawn`, `fork`, `forkserver`). Defaults to PyTorch's automatic choice. On Linux, `spawn` is recommended for safety (CUDA + fork is unsafe); other choices emit a warning. | `None` |
 
 ### Example with saved normalizer stats
