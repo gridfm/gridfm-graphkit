@@ -59,8 +59,8 @@ def _legacy_build(scenario, bus_df, gen_df, branch_df) -> HeteroData:
     data["bus"].y = data["bus"].x[:, : VA_H + 1].clone()
     data["gen"].y = data["gen"].x[:, : PG_H + 1].clone()
 
-    fwd_e = torch.tensor(branch_df[["from_bus", "to_bus"]].values.T, dtype=torch.long)
-    rev_e = torch.tensor(branch_df[["to_bus", "from_bus"]].values.T, dtype=torch.long)
+    fwd_e = torch.tensor(branch_df[["from_bus", "to_bus"]].values.T.copy(), dtype=torch.long)
+    rev_e = torch.tensor(branch_df[["to_bus", "from_bus"]].values.T.copy(), dtype=torch.long)
     data["bus", "connects", "bus"].edge_index = torch.cat([fwd_e, rev_e], dim=1)
     data["bus", "connects", "bus"].edge_attr = torch.cat(
         [
@@ -77,10 +77,10 @@ def _legacy_build(scenario, bus_df, gen_df, branch_df) -> HeteroData:
         dim=0,
     )
     data["gen", "connected_to", "bus"].edge_index = torch.tensor(
-        gen_df[["gen_index", "bus"]].values.T, dtype=torch.long,
+        gen_df[["gen_index", "bus"]].values.T.copy(), dtype=torch.long,
     )
     data["bus", "connected_to", "gen"].edge_index = torch.tensor(
-        gen_df[["bus", "gen_index"]].values.T, dtype=torch.long,
+        gen_df[["bus", "gen_index"]].values.T.copy(), dtype=torch.long,
     )
     data["scenario_id"] = torch.tensor([scenario], dtype=torch.long)
     return data
