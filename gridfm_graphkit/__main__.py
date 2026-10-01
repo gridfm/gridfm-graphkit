@@ -6,6 +6,14 @@ import subprocess
 import os
 
 
+def is_lsf():
+    return (
+        os.environ.get("LSB_JOBID") is not None
+        and os.environ.get("LSB_MCPU_HOSTS") is not None
+        and "LSF_ENVDIR" in os.environ  # strong LSF indicator
+    )
+
+
 def fix_infiniband():
     ibv = subprocess.run("ibv_devinfo", stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     lines = ibv.stdout.decode("utf-8").split("\n")
@@ -48,8 +56,10 @@ def set_env():
 
 
 def main():
-    set_env()
-    fix_infiniband()
+    if is_lsf():
+        print("Using LSF")
+        set_env()
+        fix_infiniband()
     parser = argparse.ArgumentParser(
         prog="gridfm_graphkit",
         description="gridfm-graphkit CLI",
