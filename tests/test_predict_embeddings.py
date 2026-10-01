@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import torch
 import yaml
@@ -113,6 +114,56 @@ def test_predict_parser_accepts_get_embeddings_flag() -> None:
     parsed_args = mocked_main_cli.call_args.args[0]
     assert parsed_args.command == "predict"
     assert parsed_args.get_embeddings is True
+
+
+def test_predict_parser_output_path_defaults_to_data() -> None:
+    """When --output_path is omitted, it defaults to 'data'."""
+    test_argv = [
+        "gridfm_graphkit",
+        "predict",
+        "--config",
+        "examples/config/HGNS_PF_118Bus.yaml",
+        "--model_path",
+        "tests/models/dummy_model.pt",
+    ]
+
+    with (
+        mock.patch("sys.argv", test_argv),
+        mock.patch(
+            "gridfm_graphkit.__main__.main_cli",
+        ) as mocked_main_cli,
+    ):
+        main()
+
+    parsed_args = mocked_main_cli.call_args.args[0]
+    assert parsed_args.command == "predict"
+    assert parsed_args.output_path == "data"
+
+
+def test_predict_parser_accepts_output_path_flag() -> None:
+    """--output_path is a registered optional argument on the predict subcommand."""
+    test_argv = [
+        "gridfm_graphkit",
+        "predict",
+        "--config",
+        "examples/config/HGNS_PF_118Bus.yaml",
+        "--model_path",
+        "tests/models/dummy_model.pt",
+        "--output_path",
+        "/some/custom/path",
+    ]
+
+    with (
+        mock.patch("sys.argv", test_argv),
+        mock.patch(
+            "gridfm_graphkit.__main__.main_cli",
+        ) as mocked_main_cli,
+    ):
+        main()
+
+    parsed_args = mocked_main_cli.call_args.args[0]
+    assert parsed_args.command == "predict"
+    assert parsed_args.output_path == "/some/custom/path"
 
 
 def test_main_cli_propagates_get_embeddings_to_task_args(tmp_path) -> None:
@@ -576,6 +627,324 @@ def test_main_cli_predict_saves_opf_embedding_tables(tmp_path) -> None:
         "emb_000",
     ]
     assert all(not index for _, _, index in saved.values())
+
+
+# ---------------------------------------------------------------------------
+# evaluate --output_path: parser registration and output-dir routing
+# ---------------------------------------------------------------------------
+
+
+def test_evaluate_parser_accepts_output_path_flag() -> None:
+    """--output_path is a registered argument on the evaluate subcommand."""
+    test_argv = [
+        "gridfm_graphkit",
+        "evaluate",
+        "--config",
+        "examples/config/HGNS_PF_118Bus.yaml",
+        "--model_path",
+        "tests/models/dummy_model.pt",
+        "--save_output",
+        "--output_path",
+        "/some/custom/path",
+    ]
+
+    with (
+        mock.patch("sys.argv", test_argv),
+        mock.patch(
+            "gridfm_graphkit.__main__.main_cli",
+        ) as mocked_main_cli,
+    ):
+        main()
+
+    parsed_args = mocked_main_cli.call_args.args[0]
+    assert parsed_args.command == "evaluate"
+    assert parsed_args.output_path == "/some/custom/path"
+
+
+def test_evaluate_parser_output_path_defaults_to_none() -> None:
+    """When --output_path is omitted, it defaults to None."""
+    test_argv = [
+        "gridfm_graphkit",
+        "evaluate",
+        "--config",
+        "examples/config/HGNS_PF_118Bus.yaml",
+        "--model_path",
+        "tests/models/dummy_model.pt",
+    ]
+
+    with (
+        mock.patch("sys.argv", test_argv),
+        mock.patch(
+            "gridfm_graphkit.__main__.main_cli",
+        ) as mocked_main_cli,
+    ):
+        main()
+
+    parsed_args = mocked_main_cli.call_args.args[0]
+    assert parsed_args.command == "evaluate"
+    assert parsed_args.output_path is None
+
+
+def test_main_cli_evaluate_uses_custom_output_path(tmp_path) -> None:
+    """When --output_path is set, predictions are written to that directory."""
+    config_path = tmp_path / "config.yaml"
+    config_path.write_text(
+        yaml.safe_dump(
+            {
+                "seed": 0,
+                "task": {"task_name": "PowerFlow"},
+                "data": {
+                    "networks": ["case14"],
+                    "workers": 0,
+                    "baseMVA": 100,
+                },
+                "training": {
+                    "accelerator": "cpu",
+                    "devices": 1,
+                    "strategy": "auto",
+                    "epochs": 1,
+                    "batch_size": 1,
+                },
+                "callbacks": {"tol": 0.0, "patience": 1},
+                "version": 1,
+                "optimizer": {
+                    "type": "AdamW",
+                    "learning_rate": 1e-3,
+                    "optimizer_params": {"betas": [0.9, 0.999]},
+                    "scheduler_type": "ReduceLROnPlateau",
+                    "scheduler_params": {"mode": "min", "factor": 0.5, "patience": 1},
+                },
+            },
+        ),
+    )
+
+    custom_dir = str(tmp_path / "custom_output")
+    args = SimpleNamespace(
+        tf32=False,
+        log_dir=str(tmp_path / "mlruns"),
+        exp_name="tests",
+        run_name="evaluate-output-path",
+        config=str(config_path),
+        data_path=str(tmp_path / "data"),
+        model_path="tests/models/dummy_model.pt",
+        command="evaluate",
+        output_path=custom_dir,
+        get_embeddings=False,
+        num_workers=0,
+        batch_size=None,
+        plugins=[],
+        dataset_wrapper=None,
+        dataset_wrapper_cache_dir=None,
+        mp_context=None,
+        normalizer_stats=None,
+        bfloat16=False,
+        compile=None,
+        profiler=None,
+        report_performance=False,
+        deterministic=False,
+        compute_dc_ac_metrics=False,
+        save_output=True,
+    )
+
+    logger = SimpleNamespace(
+        save_dir=str(tmp_path / "mlruns"),
+        experiment_id="0",
+        run_id="abc",
+    )
+    written_paths = []
+
+    class DummyModel:
+        def __init__(self):
+            self.model = self
+
+        def load_state_dict(self, _state_dict):
+            return None
+
+    class DummyDataModule:
+        def __init__(self, *args, **kwargs):
+            self.data_normalizers = [object()]
+
+    class DummyTrainer:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def test(self, model=None, datamodule=None):
+            return [{}]
+
+        def predict(self, model=None, datamodule=None):
+            return [
+                {"scenario": np.array([0]), "vm_pu": np.array([1.0])},
+                {"scenario": np.array([1]), "vm_pu": np.array([1.1])},
+            ]
+
+    def fake_to_parquet(df, path, index=False):
+        written_paths.append(str(path))
+
+    with (
+        mock.patch("gridfm_graphkit.cli.MLFlowLogger", return_value=logger),
+        mock.patch(
+            "gridfm_graphkit.cli.L.seed_everything",
+        ),
+        mock.patch(
+            "gridfm_graphkit.cli.LitGridHeteroDataModule",
+            DummyDataModule,
+        ),
+        mock.patch(
+            "gridfm_graphkit.cli.get_task",
+            return_value=DummyModel(),
+        ),
+        mock.patch(
+            "gridfm_graphkit.cli.L.Trainer",
+            DummyTrainer,
+        ),
+        mock.patch(
+            "gridfm_graphkit.cli.torch.load",
+            return_value={},
+        ),
+        mock.patch(
+            "pandas.DataFrame.to_parquet",
+            new=fake_to_parquet,
+        ),
+    ):
+        main_cli(args)
+
+    assert len(written_paths) == 1
+    assert os.path.dirname(written_paths[0]) == custom_dir
+
+
+def test_main_cli_evaluate_falls_back_to_artifacts_test_dir(tmp_path) -> None:
+    """When --output_path is omitted, predictions go to <artifacts_dir>/test."""
+    config_path = tmp_path / "config.yaml"
+    config_path.write_text(
+        yaml.safe_dump(
+            {
+                "seed": 0,
+                "task": {"task_name": "PowerFlow"},
+                "data": {
+                    "networks": ["case14"],
+                    "workers": 0,
+                    "baseMVA": 100,
+                },
+                "training": {
+                    "accelerator": "cpu",
+                    "devices": 1,
+                    "strategy": "auto",
+                    "epochs": 1,
+                    "batch_size": 1,
+                },
+                "callbacks": {"tol": 0.0, "patience": 1},
+                "version": 1,
+                "optimizer": {
+                    "type": "AdamW",
+                    "learning_rate": 1e-3,
+                    "optimizer_params": {"betas": [0.9, 0.999]},
+                    "scheduler_type": "ReduceLROnPlateau",
+                    "scheduler_params": {"mode": "min", "factor": 0.5, "patience": 1},
+                },
+            },
+        ),
+    )
+
+    experiment_id = "0"
+    run_id = "xyz"
+    args = SimpleNamespace(
+        tf32=False,
+        log_dir=str(tmp_path / "mlruns"),
+        exp_name="tests",
+        run_name="evaluate-output-path",
+        config=str(config_path),
+        data_path=str(tmp_path / "data"),
+        model_path="tests/models/dummy_model.pt",
+        command="evaluate",
+        output_path=None,
+        get_embeddings=False,
+        num_workers=0,
+        batch_size=None,
+        plugins=[],
+        dataset_wrapper=None,
+        dataset_wrapper_cache_dir=None,
+        mp_context=None,
+        normalizer_stats=None,
+        bfloat16=False,
+        compile=None,
+        profiler=None,
+        report_performance=False,
+        deterministic=False,
+        compute_dc_ac_metrics=False,
+        save_output=True,
+    )
+
+    logger = SimpleNamespace(
+        save_dir=str(tmp_path / "mlruns"),
+        experiment_id=experiment_id,
+        run_id=run_id,
+    )
+    expected_dir = os.path.join(
+        str(tmp_path / "mlruns"),
+        experiment_id,
+        run_id,
+        "artifacts",
+        "test",
+    )
+    written_paths = []
+
+    class DummyModel:
+        def __init__(self):
+            self.model = self
+
+        def load_state_dict(self, _state_dict):
+            return None
+
+    class DummyDataModule:
+        def __init__(self, *args, **kwargs):
+            self.data_normalizers = [object()]
+
+    class DummyTrainer:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def test(self, model=None, datamodule=None):
+            return [{}]
+
+        def predict(self, model=None, datamodule=None):
+            return [
+                {"scenario": np.array([0]), "vm_pu": np.array([1.0])},
+                {"scenario": np.array([1]), "vm_pu": np.array([1.1])},
+            ]
+
+    def fake_to_parquet(df, path, index=False):
+        written_paths.append(str(path))
+
+    with (
+        mock.patch("gridfm_graphkit.cli.MLFlowLogger", return_value=logger),
+        mock.patch(
+            "gridfm_graphkit.cli.L.seed_everything",
+        ),
+        mock.patch(
+            "gridfm_graphkit.cli.LitGridHeteroDataModule",
+            DummyDataModule,
+        ),
+        mock.patch(
+            "gridfm_graphkit.cli.get_task",
+            return_value=DummyModel(),
+        ),
+        mock.patch(
+            "gridfm_graphkit.cli.L.Trainer",
+            DummyTrainer,
+        ),
+        mock.patch(
+            "gridfm_graphkit.cli.torch.load",
+            return_value={},
+        ),
+        mock.patch(
+            "pandas.DataFrame.to_parquet",
+            new=fake_to_parquet,
+        ),
+    ):
+        main_cli(args)
+
+    assert len(written_paths) == 1
+    assert os.path.dirname(written_paths[0]) == expected_dir
 
 
 class _Const(torch.nn.Module):
