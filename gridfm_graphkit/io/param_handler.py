@@ -139,12 +139,12 @@ def load_model(args) -> torch.nn.Module:
         raise ValueError(f"Unknown model type: {model_type}")
 
 
-def get_task_transforms(args) -> Compose:
+def get_task_transforms(args, task_name=None) -> Compose:
     """
-    Load the task-specific transforms
+    Load the task-specific transforms. ``task_name`` overrides the experiment task.
     """
 
-    task_transforms = args.task.task_name
+    task_transforms = task_name or args.task.task_name
 
     try:
         return TRANSFORM_REGISTRY.create(task_transforms, args)

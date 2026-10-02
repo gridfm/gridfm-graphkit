@@ -320,7 +320,7 @@ class OptimalPowerFlowTask(ReconstructionTask):
             gathered = [None] * world_size if dist.get_rank() == 0 else None
             dist.gather_object(self.test_outputs, gathered, dst=0)
             if dist.get_rank() == 0:
-                merged = {i: [] for i in range(len(self.args.data.networks))}
+                merged = {i: [] for i in self.test_outputs}
                 for rank_data in gathered:
                     for dl_idx, batches in rank_data.items():
                         merged[dl_idx].extend(batches)

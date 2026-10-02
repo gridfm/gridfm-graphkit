@@ -30,6 +30,7 @@ import numpy as np
 import random
 import warnings
 import lightning as L
+from lightning.pytorch.utilities import CombinedLoader
 from pathlib import Path
 from typing import List
 from lightning.pytorch.loggers import MLFlowLogger
@@ -174,7 +175,7 @@ class LitGridHeteroDataModule(L.LightningDataModule):
                 dataset = HeteroGridDatasetDisk(
                     root=data_path_network,
                     data_normalizer=data_normalizer,
-                    transform=get_task_transforms(args=self.args),
+                    transform=get_task_transforms(self.args, self._task_name(i)),
                     stream_partitions=self.stream_partitions,
                 )
 
@@ -186,7 +187,7 @@ class LitGridHeteroDataModule(L.LightningDataModule):
                 dataset = HeteroGridDatasetDisk(
                     root=data_path_network,
                     data_normalizer=data_normalizer,
-                    transform=get_task_transforms(args=self.args),
+                    transform=get_task_transforms(self.args, self._task_name(i)),
                     stream_partitions=self.stream_partitions,
                 )
 
@@ -475,6 +476,29 @@ class LitGridHeteroDataModule(L.LightningDataModule):
             with open(splits_path, "w") as f:
                 json.dump(splits, f, indent=2)
 
+    def _task_name(self, index):
+        """Task of dataset ``index`` when ``data.tasks`` is set, else None."""
+        tasks = getattr(self.args.data, "tasks", None)
+        return tasks[index] if tasks is not None else None
+
+    def _task_loaders(self, datasets, shuffle):
+        """One loader per task, so every batch holds a single task.
+
+        The batch size is split evenly across tasks. Each task loader mixes
+        that task's grids.
+        """
+        tasks = list(self.args.data.tasks)
+        loaders = {}
+        for task in dict.fromkeys(tasks):
+            group = [ds for ds, t in zip(datasets, tasks) if t == task]
+            loaders[task] = DataLoader(
+                ConcatDataset(group),
+                batch_size=self.batch_size // len(set(tasks)),
+                shuffle=shuffle,
+                **self._dataloader_kwargs(),
+            )
+        return loaders
+
     def _dataloader_kwargs(self):
         num_workers = self.args.data.workers
         kwargs = dict(
@@ -493,6 +517,8 @@ class LitGridHeteroDataModule(L.LightningDataModule):
             if dist.is_available() and dist.is_initialized()
             else "not distributed",
         )
+        if self._task_name(0) is not None:
+            return CombinedLoader(self._task_loaders(self.train_datasets, True))
         return DataLoader(
             self.train_dataset_multi,
             batch_size=self.batch_size,
@@ -501,6 +527,8 @@ class LitGridHeteroDataModule(L.LightningDataModule):
         )
 
     def val_dataloader(self):
+        if self._task_name(0) is not None:
+            return list(self._task_loaders(self.val_datasets, False).values())
         return DataLoader(
             self.val_dataset_multi,
             batch_size=self.batch_size,
