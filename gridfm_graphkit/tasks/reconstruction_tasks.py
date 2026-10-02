@@ -56,6 +56,7 @@ class ReconstructionTask(BaseTask):
             batch.mask_dict,
             model=self.model,
             x_dict=batch.x_dict,
+            batch_dict={"bus": batch["bus"].batch, "gen": batch["gen"].batch},
         )
         return output, loss_dict
 

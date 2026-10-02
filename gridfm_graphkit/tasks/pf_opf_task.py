@@ -17,6 +17,11 @@ _PREFIX = {"PowerFlow": "PF", "OptimalPowerFlow": "OPF"}
 _PF_LOSSES = ["LayeredWeightedPhysics", "MaskedBusMSE"]
 _PF_WEIGHTS = [0.1, 0.9]
 _PF_LOSS_ARGS = [{"base_weight": 0.5}, {}]
+# Graph-weighted PF loss name for every name in _PF_LOSSES, used instead of
+# _PF_LOSSES when the OPF-side config (``training.losses``) opts into the
+# graph-weighted variants. Keeps the PF side's weighting family consistent
+# with whatever the config specifies for OPF, without a second YAML field.
+_PF_LOSSES_GRAPH_WEIGHTED = ["LayeredWeightedPhysics", "MaskedBusMSEGraphWeighted"]
 
 
 def _loss_from_spec(args, names, weights, loss_arg_dicts):
@@ -46,7 +51,15 @@ class PowerFlowAndOPFTask(ReconstructionTask):
         super().__init__(args, data_normalizers)
         self.tasks = list(args.data.tasks)
         opf_loss = self.loss_fn
-        pf_loss = _loss_from_spec(args, _PF_LOSSES, _PF_WEIGHTS, _PF_LOSS_ARGS)
+        # The OPF-side config opts into the graph-weighted loss variants by
+        # naming them in training.losses (e.g. "MaskedBusMSEGraphWeighted").
+        # Mirror that choice on the PF side so both tasks use the same
+        # weighting family; default (no "GraphWeighted" names) is unchanged.
+        graph_weighted = any(
+            name.endswith("GraphWeighted") for name in args.training.losses
+        )
+        pf_losses = _PF_LOSSES_GRAPH_WEIGHTED if graph_weighted else _PF_LOSSES
+        pf_loss = _loss_from_spec(args, pf_losses, _PF_WEIGHTS, _PF_LOSS_ARGS)
         self.losses = nn.ModuleDict(
             {
                 "PowerFlow": pf_loss,
@@ -77,6 +90,7 @@ class PowerFlowAndOPFTask(ReconstructionTask):
             batch.mask_dict,
             model=self.model,
             x_dict=batch.x_dict,
+            batch_dict={"bus": batch["bus"].batch, "gen": batch["gen"].batch},
         )
         return output, loss_dict
 

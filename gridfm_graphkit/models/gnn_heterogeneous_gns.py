@@ -162,6 +162,20 @@ class GNS_heterogeneous(nn.Module):
         # container for monitoring residual norms per layer and type
         self.layer_residuals = {}
 
+    def _residual_norm_mean(self, bus_residuals, batch=None):
+        """Reduce one layer's per-bus residual norm to the scalar stored in
+        ``self.layer_residuals`` (consumed by ``LayeredWeightedPhysicsLoss``).
+
+        Default: flat mean over every bus row in the batch, pooled across all
+        graphs (unchanged original behavior; a bigger graph contributes more
+        rows and so more weight to this mean). ``GNS_heterogeneous_GraphWeighted``
+        overrides this to average per-graph means instead, so every graph
+        counts equally regardless of its bus count. ``batch`` (the HeteroData
+        batch passed to ``forward``) is unused here and only present so the
+        override can read ``batch["bus"].batch``.
+        """
+        return torch.linalg.norm(bus_residuals, dim=-1).mean()
+
     def forward(self, batch, return_embeddings: bool = False):
         """
         Accepts a PyG HeteroData batch and extracts the required tensors.
@@ -313,10 +327,10 @@ class GNS_heterogeneous(nn.Module):
                 # Save and project residuals to latent space.
                 # layer_residuals is consumed by LayeredWeightedPhysicsLoss for
                 # every layer, so it is recorded unconditionally.
-                self.layer_residuals[i] = torch.linalg.norm(
+                self.layer_residuals[i] = self._residual_norm_mean(
                     bus_residuals,
-                    dim=-1,
-                ).mean()
+                    batch,
+                )
                 # On the last layer the updated h_bus is never read again: the
                 # loop ends, predictions come from output_temp/gen_temp, and the
                 # exported embedding is the tensor that fed mlp_bus. Skipping the

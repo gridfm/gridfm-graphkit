@@ -50,6 +50,7 @@ class BaseLoss(nn.Module, ABC):
         mask=None,
         model=None,
         x_dict=None,
+        batch_dict=None,
     ):
         """
         Compute the loss.
@@ -61,6 +62,11 @@ class BaseLoss(nn.Module, ABC):
         - edge_attr: Optional edge attributes for graph-based losses.
         - mask: Optional mask to filter the inputs for certain losses.
         - model: Optional model reference for accessing internal states.
+        - x_dict: Optional raw input features, keyed by node type.
+        - batch_dict: Optional per-node graph index, keyed by node type
+          (e.g. ``{"bus": batch["bus"].batch, "gen": batch["gen"].batch}``).
+          Only consumed by graph-weighted loss variants; existing losses
+          ignore it, so passing or omitting it never changes their result.
 
         Returns:
         - A dictionary with the total loss and any additional metrics.
@@ -87,6 +93,7 @@ class MaskedMSELoss(BaseLoss):
         mask=None,
         model=None,
         x_dict=None,
+        batch_dict=None,
     ):
         loss = F.mse_loss(pred[mask], target[mask], reduction=self.reduction)
         return {"loss": loss, "Masked MSE loss": loss.detach()}
@@ -109,6 +116,7 @@ class MaskedGenMSE(torch.nn.Module):
         mask_dict,
         model=None,
         x_dict=None,
+        batch_dict=None,
     ):
         gen_pred = pred_dict["gen"][:, : (PG_H + 1)]
         gen_target = target_dict["gen"][:, : (PG_H + 1)]
@@ -139,6 +147,7 @@ class MaskedBusMSE(torch.nn.Module):
         mask_dict,
         model=None,
         x_dict=None,
+        batch_dict=None,
     ):
         if self.args.task == "OptimalPowerFlow":
             pred_cols = [VM_OUT, VA_OUT, QG_OUT]
@@ -158,6 +167,111 @@ class MaskedBusMSE(torch.nn.Module):
             reduction=self.reduction,
         )
         return {"loss": loss, "Masked bus MSE loss": loss.detach()}
+
+
+def _graph_weighted_masked_mse(pred, target, mask, batch_index):
+    """Equal-weight-per-graph masked MSE.
+
+    For each graph: sum of squared error over its masked entries / count of
+    its masked entries (the same ratio ``MaskedBusMSE``/``MaskedGenMSE``
+    compute globally, but computed within each graph first). The per-graph
+    ratios are then averaged with equal weight, so a 57-bus graph counts the
+    same as a 14-bus graph, unlike the flat node-pooled mean. Graphs with no
+    masked entries are excluded (undefined ratio).
+
+    Requires ``batch_index``: the per-node graph id (``batch["bus"].batch``
+    or ``batch["gen"].batch``). Falls back to the ordinary flat mean when
+    ``batch_index`` is ``None`` (e.g. called without ``batch_dict``), so this
+    helper degrades to the existing behavior rather than erroring.
+    """
+    if batch_index is None:
+        return F.mse_loss(pred[mask], target[mask], reduction="mean")
+
+    num_graphs = int(batch_index.max().item()) + 1 if batch_index.numel() else 0
+    se = (pred - target) ** 2
+    se_masked = torch.where(mask, se, torch.zeros_like(se))
+    row_se_sum = se_masked.sum(dim=1)
+    row_count = mask.sum(dim=1).to(se.dtype)
+
+    per_graph_se_sum = scatter_add(row_se_sum, batch_index, dim=0, dim_size=num_graphs)
+    per_graph_count = scatter_add(row_count, batch_index, dim=0, dim_size=num_graphs)
+
+    valid = per_graph_count > 0
+    if not bool(valid.any()):
+        # No graph has a masked entry: match F.mse_loss(empty, empty) on an
+        # all-False mask, which returns nan.
+        return (pred[mask] - target[mask]).pow(2).mean()
+    per_graph_mean = per_graph_se_sum[valid] / per_graph_count[valid]
+    return per_graph_mean.mean()
+
+
+@LOSS_REGISTRY.register("MaskedGenMSEGraphWeighted")
+class MaskedGenMSEGraphWeighted(torch.nn.Module):
+    """``MaskedGenMSE``, but every graph gets equal weight regardless of its
+    generator count (see ``_graph_weighted_masked_mse``). Needs ``batch_dict``
+    (passed automatically by the training tasks); without it, falls back to
+    the identical flat mean as ``MaskedGenMSE``.
+    """
+
+    def __init__(self, loss_args, args):
+        super().__init__()
+
+    def forward(
+        self,
+        pred_dict,
+        target_dict,
+        edge_index,
+        edge_attr,
+        mask_dict,
+        model=None,
+        x_dict=None,
+        batch_dict=None,
+    ):
+        gen_pred = pred_dict["gen"][:, : (PG_H + 1)]
+        gen_target = target_dict["gen"][:, : (PG_H + 1)]
+        mask = mask_dict["gen"][:, : (PG_H + 1)]
+        batch_index = batch_dict["gen"] if batch_dict is not None else None
+        loss = _graph_weighted_masked_mse(gen_pred, gen_target, mask, batch_index)
+        return {"loss": loss, "Masked generator MSE loss (graph-weighted)": loss.detach()}
+
+
+@LOSS_REGISTRY.register("MaskedBusMSEGraphWeighted")
+class MaskedBusMSEGraphWeighted(torch.nn.Module):
+    """``MaskedBusMSE``, but every graph gets equal weight regardless of its
+    bus count (see ``_graph_weighted_masked_mse``). Needs ``batch_dict``
+    (passed automatically by the training tasks); without it, falls back to
+    the identical flat mean as ``MaskedBusMSE``.
+    """
+
+    def __init__(self, loss_args, args):
+        super().__init__()
+        self.args = args
+
+    def forward(
+        self,
+        pred_dict,
+        target_dict,
+        edge_index,
+        edge_attr,
+        mask_dict,
+        model=None,
+        x_dict=None,
+        batch_dict=None,
+    ):
+        if self.args.task == "OptimalPowerFlow":
+            pred_cols = [VM_OUT, VA_OUT, QG_OUT]
+            target_cols = [VM_H, VA_H, QG_H]
+        else:
+            pred_cols = [VM_OUT, VA_OUT]
+            target_cols = [VM_H, VA_H]
+
+        pred_bus = pred_dict["bus"][:, pred_cols]
+        target_bus = target_dict["bus"][:, target_cols]
+        mask = mask_dict["bus"][:, target_cols]
+        batch_index = batch_dict["bus"] if batch_dict is not None else None
+
+        loss = _graph_weighted_masked_mse(pred_bus, target_bus, mask, batch_index)
+        return {"loss": loss, "Masked bus MSE loss (graph-weighted)": loss.detach()}
 
 
 @LOSS_REGISTRY.register("MaskedReconstructionMSE")
@@ -188,6 +302,7 @@ class MaskedReconstructionMSE(BaseLoss):
         mask_dict,
         model=None,
         x_dict=None,
+        batch_dict=None,
     ):
         pred_bus = pred_dict["bus"]
         target_bus = target_dict["bus"]
@@ -262,6 +377,7 @@ class MSELoss(BaseLoss):
         mask=None,
         model=None,
         x_dict=None,
+        batch_dict=None,
     ):
         loss = F.mse_loss(pred, target, reduction=self.reduction)
         return {"loss": loss, "MSE loss": loss.detach()}
@@ -314,6 +430,7 @@ class MixedLoss(BaseLoss):
         mask=None,
         model=None,
         x_dict=None,
+        batch_dict=None,
     ):
         """
         Compute the weighted sum of all specified losses.
@@ -325,6 +442,9 @@ class MixedLoss(BaseLoss):
         - edge_index: Optional edge index for graph-based losses.
         - edge_attr: Optional edge attributes for graph-based losses.
         - mask: Optional mask to filter the inputs for certain losses.
+        - batch_dict: Optional per-node graph index (see ``BaseLoss.forward``),
+          forwarded unchanged to every sub-loss. Sub-losses that don't accept
+          or use it are unaffected.
 
         Returns:
         - A dictionary with the total loss and individual losses.
@@ -341,6 +461,7 @@ class MixedLoss(BaseLoss):
                 mask,
                 model,
                 x_dict,
+                batch_dict,
             )
 
             # Assume each loss function returns a dictionary with a "loss" key
@@ -374,6 +495,7 @@ class LayeredWeightedPhysicsLoss(BaseLoss):
         mask=None,
         model=None,
         x_dict=None,
+        batch_dict=None,
     ):
         total_loss = 0.0
         loss_details = {}
@@ -427,6 +549,7 @@ class LossPerDim(BaseLoss):
         mask_dict,
         model=None,
         x_dict=None,
+        batch_dict=None,
     ):
         if self.dim == "VM":
             temp_pred = pred_dict["bus"][:, VM_OUT]
@@ -484,6 +607,7 @@ class PBELoss(BaseLoss):
         mask_dict,
         model=None,
         x_dict=None,
+        batch_dict=None,
     ):
         pred_bus = pred_dict["bus"]  # [N_bus, output_bus_dim]
         target_bus = target_dict["bus"]  # [N_bus, bus_feat_dim]
@@ -670,6 +794,7 @@ class QgViolationPenaltyLoss(BaseLoss):
         mask=None,
         model=None,
         x_dict=None,
+        batch_dict=None,
     ):
         # --- Qg limit violation mask ---
         Qg_pred = pred["bus"][:, QG_OUT]
@@ -701,3 +826,85 @@ class QgViolationPenaltyLoss(BaseLoss):
             output = {"loss": loss, "Qg Violation Penalty loss": loss}
 
         return output
+
+
+def _graph_weighted_masked_mean_1d(values, row_mask, batch_index, num_graphs):
+    """Equal-weight-per-graph mean of ``values`` over the rows where
+    ``row_mask`` is True (1D mask, one row per node). Returns 0.0 (matching
+    the nan-to-0 convention used by ``QgViolationPenaltyLoss``) when no graph
+    has a True row.
+    """
+    masked_values = torch.where(row_mask, values, torch.zeros_like(values))
+    row_count = row_mask.to(values.dtype)
+
+    per_graph_sum = scatter_add(masked_values, batch_index, dim=0, dim_size=num_graphs)
+    per_graph_count = scatter_add(row_count, batch_index, dim=0, dim_size=num_graphs)
+
+    valid = per_graph_count > 0
+    if not bool(valid.any()):
+        return torch.zeros((), dtype=values.dtype, device=values.device)
+    return (per_graph_sum[valid] / per_graph_count[valid]).mean()
+
+
+@LOSS_REGISTRY.register("QgViolationPenaltyGraphWeighted")
+class QgViolationPenaltyLossGraphWeighted(BaseLoss):
+    """``QgViolationPenalty``, but every graph gets equal weight regardless of
+    how many of its buses violate the Qg limits. Needs ``batch_dict`` (passed
+    automatically by the training tasks); without it, falls back to the
+    identical flat mean as ``QgViolationPenalty``.
+    """
+
+    def __init__(self, loss_args, args):
+        super().__init__()
+
+    def forward(
+        self,
+        pred,
+        target,
+        edge_index=None,
+        edge_attr=None,
+        mask=None,
+        model=None,
+        x_dict=None,
+        batch_dict=None,
+    ):
+        Qg_pred = pred["bus"][:, QG_OUT]
+        Qg_max = x_dict["bus"][:, MAX_QG_H]
+        Qg_min = x_dict["bus"][:, MIN_QG_H]
+
+        max_penalty_mask = Qg_pred > Qg_max
+        min_penalty_mask = Qg_pred < Qg_min
+
+        Qg_over = F.relu(Qg_pred - Qg_max)
+        Qg_under = F.relu(Qg_min - Qg_pred)
+
+        batch_index = batch_dict["bus"] if batch_dict is not None else None
+        if batch_index is None:
+            Qg_over_mean = Qg_over[max_penalty_mask].mean()
+            Qg_under_mean = Qg_under[min_penalty_mask].mean()
+            if Qg_over_mean != Qg_over_mean:
+                Qg_over_mean = 0.0
+            if Qg_under_mean != Qg_under_mean:
+                Qg_under_mean = 0.0
+        else:
+            num_graphs = int(batch_index.max().item()) + 1 if batch_index.numel() else 0
+            Qg_over_mean = _graph_weighted_masked_mean_1d(
+                Qg_over,
+                max_penalty_mask,
+                batch_index,
+                num_graphs,
+            )
+            Qg_under_mean = _graph_weighted_masked_mean_1d(
+                Qg_under,
+                min_penalty_mask,
+                batch_index,
+                num_graphs,
+            )
+
+        loss = Qg_over_mean + Qg_under_mean
+        return {
+            "loss": loss,
+            "Qg Violation Penalty loss (graph-weighted)": loss.detach()
+            if torch.is_tensor(loss)
+            else loss,
+        }
