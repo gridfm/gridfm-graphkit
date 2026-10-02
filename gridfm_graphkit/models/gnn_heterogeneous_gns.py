@@ -256,16 +256,25 @@ class GNS_heterogeneous(nn.Module):
                 gen_temp = torch.where(gen_mask, gen_temp, gen_fixed)
 
                 if self.task == "OptimalPowerFlow":
-                    bus_temp[:, VM_OUT] = bound_with_sigmoid(
+                    # Out-of-place column replacement: an in-place slice write
+                    # here (bus_temp[:, VM_OUT] = ...) breaks torch.compile's
+                    # autograd graph under mode="reduce-overhead" ("one of the
+                    # variables needed for gradient computation has been
+                    # modified by an inplace operation").
+                    bus_cols = list(bus_temp.unbind(dim=1))
+                    bus_cols[VM_OUT] = bound_with_sigmoid(
                         bus_temp[:, VM_OUT],
                         x_dict["bus"][:, MIN_VM_H],
                         x_dict["bus"][:, MAX_VM_H],
                     )
-                    gen_temp[:, PG_OUT_GEN] = bound_with_sigmoid(
+                    bus_temp = torch.stack(bus_cols, dim=1)
+                    gen_cols = list(gen_temp.unbind(dim=1))
+                    gen_cols[PG_OUT_GEN] = bound_with_sigmoid(
                         gen_temp[:, PG_OUT_GEN],
                         x_dict["gen"][:, MIN_PG],
                         x_dict["gen"][:, MAX_PG],
                     )
+                    gen_temp = torch.stack(gen_cols, dim=1)
 
                 Pft, Qft = self.branch_flow_layer(
                     bus_temp,
