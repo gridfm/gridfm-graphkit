@@ -17,7 +17,7 @@ data:
 model:
   attention_head: 8
   edge_dim: 10
-  hidden_size: 24
+  hidden_size: 12
   input_bus_dim: 15
   input_gen_dim: 6
   output_bus_dim: 2
