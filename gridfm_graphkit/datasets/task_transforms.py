@@ -28,7 +28,11 @@ class PowerFlowTransforms(Compose):
         if mask_type == "rnd":
             transforms.append(AddRandomHeteroMask(mask_ratio=args.data.mask_ratio))
         else:
-            transforms.append(AddPFHeteroMask())
+            transforms.append(
+                AddPFHeteroMask(
+                    mask_ref_vm=getattr(args.data, "mask_ref_vm", False),
+                ),
+            )
 
         transforms.append(ApplyMasking(args=args))
 
