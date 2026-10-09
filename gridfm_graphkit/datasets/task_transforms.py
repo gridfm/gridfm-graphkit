@@ -34,7 +34,7 @@ class PowerFlowTransforms(Compose):
                 warnings.warn(
                     "PowerFlow: the slack (REF) bus VM is no longer masked by default. "
                     "Set `data.mask_ref_vm: true` to run models released before "
-                    "September 2026, which were trained with it masked.",
+                    "October 2026, which were trained with it masked.",
                 )
             transforms.append(
                 AddPFHeteroMask(
