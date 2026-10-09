@@ -1,3 +1,5 @@
+import warnings
+
 from torch_geometric.transforms import Compose
 from gridfm_graphkit.datasets.transforms import (
     RemoveInactiveBranches,
@@ -28,6 +30,12 @@ class PowerFlowTransforms(Compose):
         if mask_type == "rnd":
             transforms.append(AddRandomHeteroMask(mask_ratio=args.data.mask_ratio))
         else:
+            if not hasattr(args.data, "mask_ref_vm"):
+                warnings.warn(
+                    "PowerFlow: the slack (REF) bus VM is no longer masked by default. "
+                    "Set `data.mask_ref_vm: true` to run models released before "
+                    "September 2026, which were trained with it masked.",
+                )
             transforms.append(
                 AddPFHeteroMask(
                     mask_ref_vm=getattr(args.data, "mask_ref_vm", False),

@@ -1,3 +1,6 @@
+import warnings
+
+import pytest
 import torch
 from torch_geometric.data import HeteroData
 from gridfm_graphkit.datasets.masking import AddPFHeteroMask
@@ -44,3 +47,14 @@ def test_pf_mask_ref_vm_legacy_flag():
     mask = PowerFlowTransforms(args).transforms[2](data).mask_dict
     assert mask["bus"][mask["REF"]][:, VM_H].all()
     assert not mask["bus"][mask["REF"]][:, VA_H].any()
+
+
+def test_pf_mask_ref_vm_warning():
+    """Warn only when the config leaves `data.mask_ref_vm` unset."""
+    with pytest.warns(UserWarning, match="mask_ref_vm"):
+        PowerFlowTransforms(NestedNamespace(data={"mask_value": 0.0}))
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        PowerFlowTransforms(
+            NestedNamespace(data={"mask_ref_vm": False, "mask_value": 0.0}),
+        )
