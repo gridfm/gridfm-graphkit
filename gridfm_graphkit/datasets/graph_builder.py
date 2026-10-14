@@ -9,6 +9,7 @@ inference input layouts can never drift apart.
 
 from __future__ import annotations
 
+import numpy as np
 import pandas as pd
 import torch
 from torch_geometric.data import HeteroData
@@ -123,6 +124,17 @@ def build_hetero_data(
     assert (bus_df["bus"].values == torch.arange(len(bus_df)).numpy()).all(), (
         "Buses are not in increasing order"
     )
+    symmetric_angle_limits = np.isclose(
+        branch_df["ang_min"].to_numpy(),
+        -branch_df["ang_max"].to_numpy(),
+    )
+    if not symmetric_angle_limits.all():
+        invalid_rows = branch_df.index[~symmetric_angle_limits].tolist()
+        raise ValueError(
+            "Branch angle-difference limits must be symmetric "
+            "(ang_min == -ang_max); invalid rows: "
+            f"{invalid_rows[:10]}",
+        )
 
     data = HeteroData()
 
