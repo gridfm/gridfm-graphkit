@@ -97,7 +97,11 @@ def get_loss_function(args):
         ValueError: If an unknown loss function is specified.
     """
     loss_functions = []
-    for loss_name, loss_args in zip(args.training.losses, args.training.loss_args):
+    for loss_name, loss_args in zip(
+        args.training.losses,
+        args.training.loss_args,
+        strict=True,
+    ):
         try:
             loss_functions.append(LOSS_REGISTRY.create(loss_name, loss_args, args))
         except KeyError:

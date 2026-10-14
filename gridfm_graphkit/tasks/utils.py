@@ -24,6 +24,7 @@ def compute_angle_violation(
     bus_edge_index: torch.Tensor,
     ang_min_col: int,
     ang_max_col: int,
+    is_forward: torch.Tensor = None,
 ) -> torch.Tensor:
     """Compute the mean branch angle-difference violation.
 
@@ -57,6 +58,12 @@ def compute_angle_violation(
     """
     angle_min = bus_edge_attr[:, ang_min_col] * torch.pi / 180.0  # degrees → radians
     angle_max = bus_edge_attr[:, ang_max_col] * torch.pi / 180.0  # degrees → radians
+    if is_forward is not None:
+        # Reverse edges see the opposite angle difference: limits become [-max, -min].
+        angle_min, angle_max = (
+            torch.where(is_forward, angle_min, -angle_max),
+            torch.where(is_forward, angle_max, -angle_min),
+        )
 
     from_bus = bus_edge_index[0]
     to_bus = bus_edge_index[1]

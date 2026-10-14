@@ -131,10 +131,12 @@ class OptimalPowerFlowTask(ReconstructionTask):
         branch_thermal_limits = bus_edge_attr[:, RATE_A]
         branch_thermal_excess = F.relu(Sft - branch_thermal_limits)
 
-        num_edges = bus_edge_index.size(1)
-        half_edges = num_edges // 2
-        forward_excess = branch_thermal_excess[:half_edges]
-        reverse_excess = branch_thermal_excess[half_edges:]
+        # Each graph stores its edges as [forward, reverse], so split per graph.
+        edge_graph = batch.batch_dict["bus"][bus_edge_index[0]]
+        edge_count = torch.bincount(edge_graph)[edge_graph]
+        is_forward = local_index_per_graph(edge_graph) < edge_count // 2
+        forward_excess = branch_thermal_excess[is_forward]
+        reverse_excess = branch_thermal_excess[~is_forward]
 
         mean_thermal_violation_forward = torch.mean(forward_excess)
         mean_thermal_violation_reverse = torch.mean(reverse_excess)
@@ -146,6 +148,7 @@ class OptimalPowerFlowTask(ReconstructionTask):
             bus_edge_index=bus_edge_index,
             ang_min_col=ANG_MIN,
             ang_max_col=ANG_MAX,
+            is_forward=is_forward,
         )
 
         P_in, Q_in = node_injection_layer(Pft, Qft, bus_edge_index, num_bus)

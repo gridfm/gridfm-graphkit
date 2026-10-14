@@ -140,7 +140,7 @@ class MaskedBusMSE(torch.nn.Module):
         model=None,
         x_dict=None,
     ):
-        if self.args.task == "OptimalPowerFlow":
+        if self.args.task.task_name in ("OptimalPowerFlow", "PowerFlow"):
             pred_cols = [VM_OUT, VA_OUT, QG_OUT]
             target_cols = [VM_H, VA_H, QG_H]
         else:
@@ -676,24 +676,11 @@ class QgViolationPenaltyLoss(BaseLoss):
         Qg_max = x_dict["bus"][:, MAX_QG_H]
         Qg_min = x_dict["bus"][:, MIN_QG_H]
 
-        max_penalty_mask = Qg_pred > Qg_max
-        min_penalty_mask = Qg_pred < Qg_min
-
-        loss = 0.0
-        # where there are violations, compute penalty loss
+        # Qg is only produced at PV/REF buses (PQ buses are forced to 0).
+        mask_pvref = mask["PV"] | mask["REF"]
         Qg_over = F.relu(Qg_pred - Qg_max)  # amount above max limit
         Qg_under = F.relu(Qg_min - Qg_pred)  # amount below min limit
-
-        Qg_over = Qg_over[max_penalty_mask].mean()
-        Qg_under = Qg_under[min_penalty_mask].mean()
-
-        if Qg_over != Qg_over:  # replacing nan with 0
-            Qg_over = 0.0
-        if Qg_under != Qg_under:  # replacing nan with 0
-            Qg_under = 0.0
-
-        penalty_loss = Qg_over + Qg_under
-        loss += penalty_loss
+        loss = (Qg_over + Qg_under)[mask_pvref].sum() / mask_pvref.sum().clamp(min=1)
 
         try:
             output = {"loss": loss, "Qg Violation Penalty loss": loss.detach()}

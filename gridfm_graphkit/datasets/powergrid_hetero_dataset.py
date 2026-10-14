@@ -106,7 +106,8 @@ class HeteroGridDatasetDisk(Dataset):
             )
 
         agg_gen = (
-            gen_data.groupby(["scenario", "bus"])[["min_q_mvar", "max_q_mvar"]]
+            gen_data[gen_data["in_service"] == 1]
+            .groupby(["scenario", "bus"])[["min_q_mvar", "max_q_mvar"]]
             .sum()
             .reset_index()
         )
@@ -254,7 +255,8 @@ class HeteroGridDatasetDisk(Dataset):
             # partition, so summing Q-limits here equals the legacy whole-dataset
             # groupby sum.
             agg_gen = (
-                gen_data.groupby(["scenario", "bus"])[["min_q_mvar", "max_q_mvar"]]
+                gen_data[gen_data["in_service"] == 1]
+            .groupby(["scenario", "bus"])[["min_q_mvar", "max_q_mvar"]]
                 .sum()
                 .reset_index()
             )

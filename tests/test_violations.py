@@ -172,3 +172,24 @@ def test_baseline_angle_violation_regression_degrees_vs_radians():
     ] == pytest.approx(expected, abs=1e-6), (
         "DC: check that ang_min/ang_max are converted from degrees to radians"
     )
+
+
+def test_angle_violation_reverse_edge_asymmetric_limits():
+    """Reverse edges are checked against the mirrored limits [-max, -min]."""
+    # One branch 0->1 with limits [-10°, 30°] and angle diff +20° (within limits).
+    edge_attr = torch.zeros(2, 9)
+    edge_attr[:, ANG_MIN] = -10.0
+    edge_attr[:, ANG_MAX] = 30.0
+    bus_angles = torch.tensor([20.0, 0.0]) * torch.pi / 180.0
+    edge_index = torch.tensor([[0, 1], [1, 0]])  # forward, reverse
+
+    violation = compute_angle_violation(
+        bus_edge_attr=edge_attr,
+        bus_angles=bus_angles,
+        bus_edge_index=edge_index,
+        ang_min_col=ANG_MIN,
+        ang_max_col=ANG_MAX,
+        is_forward=torch.tensor([True, False]),
+    )
+
+    assert violation == pytest.approx(0.0, abs=1e-6)
