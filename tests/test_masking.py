@@ -44,17 +44,22 @@ def test_pf_mask_ref_vm_legacy_flag():
     )
     data = HeteroData.from_dict(data_dict)
     args = NestedNamespace(data={"mask_ref_vm": True, "mask_value": 0.0})
-    mask = PowerFlowTransforms(args).transforms[2](data).mask_dict
+    with pytest.warns(UserWarning, match="before October 2026"):
+        mask = PowerFlowTransforms(args).transforms[2](data).mask_dict
     assert mask["bus"][mask["REF"]][:, VM_H].all()
     assert not mask["bus"][mask["REF"]][:, VA_H].any()
 
 
 def test_pf_mask_ref_vm_warning():
-    """Warn only when the config leaves `data.mask_ref_vm` unset."""
-    with pytest.warns(UserWarning, match="mask_ref_vm"):
+    """Unset keeps the default-change warning; true warns that masking is legacy."""
+    with pytest.warns(UserWarning, match="no longer masked"):
         PowerFlowTransforms(NestedNamespace(data={"mask_value": 0.0}))
     with warnings.catch_warnings():
         warnings.simplefilter("error")
         PowerFlowTransforms(
             NestedNamespace(data={"mask_ref_vm": False, "mask_value": 0.0}),
+        )
+    with pytest.warns(UserWarning, match="performs better"):
+        PowerFlowTransforms(
+            NestedNamespace(data={"mask_ref_vm": True, "mask_value": 0.0}),
         )

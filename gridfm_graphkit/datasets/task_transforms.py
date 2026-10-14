@@ -30,15 +30,23 @@ class PowerFlowTransforms(Compose):
         if mask_type == "rnd":
             transforms.append(AddRandomHeteroMask(mask_ratio=args.data.mask_ratio))
         else:
+            mask_ref_vm = getattr(args.data, "mask_ref_vm", False)
             if not hasattr(args.data, "mask_ref_vm"):
                 warnings.warn(
                     "PowerFlow: the slack (REF) bus VM is no longer masked by default. "
                     "Set `data.mask_ref_vm: true` to run models released before "
                     "October 2026, which were trained with it masked.",
                 )
+            elif mask_ref_vm:
+                warnings.warn(
+                    "PowerFlow: slack (REF) bus VM is masked (`data.mask_ref_vm: true`). "
+                    "That matches checkpoints released before October 2026, which were "
+                    "trained with it masked. Otherwise, leave slack VM unmasked: the "
+                    "model performs better when it is an input.",
+                )
             transforms.append(
                 AddPFHeteroMask(
-                    mask_ref_vm=getattr(args.data, "mask_ref_vm", False),
+                    mask_ref_vm=mask_ref_vm,
                 ),
             )
 
