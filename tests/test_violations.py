@@ -4,7 +4,10 @@ import pytest
 import torch
 from gridfm_graphkit.datasets.globals import ANG_MIN, ANG_MAX
 from gridfm_graphkit.tasks.opf_ac_dc_baseline import _compute_branch_violations
-from gridfm_graphkit.tasks.utils import compute_angle_violation
+from gridfm_graphkit.tasks.utils import (
+    compute_angle_violation,
+    compute_branch_thermal_violations,
+)
 
 
 def test_angle_violation_zero_within_limits():
@@ -193,3 +196,46 @@ def test_angle_violation_reverse_edge_asymmetric_limits():
     )
 
     assert violation == pytest.approx(0.0, abs=1e-6)
+
+
+def test_thermal_violations_split_each_graph():
+    """Forward and reverse edges are identified within each batched graph."""
+    # Graph 0 has 2 physical branches and graph 1 has 3. Directed edges are
+    # ordered [forward, reverse] within each graph by the dataset builder.
+    edge_graph = torch.tensor([0] * 4 + [1] * 6)
+    apparent_power = torch.tensor(
+        [
+            11.0,
+            13.0,
+            12.0,
+            14.0,
+            15.0,
+            17.0,
+            19.0,
+            16.0,
+            18.0,
+            20.0,
+        ],
+    )
+    thermal_limits = torch.full((10,), 10.0)
+
+    forward, reverse, is_forward = compute_branch_thermal_violations(
+        apparent_power=apparent_power,
+        thermal_limits=thermal_limits,
+        edge_graph=edge_graph,
+    )
+
+    assert is_forward.tolist() == [
+        True,
+        True,
+        False,
+        False,
+        True,
+        True,
+        True,
+        False,
+        False,
+        False,
+    ]
+    assert forward == pytest.approx(5.0)
+    assert reverse == pytest.approx(6.0)

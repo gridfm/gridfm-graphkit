@@ -30,6 +30,7 @@ from gridfm_graphkit.datasets.globals import (
 from gridfm_graphkit.tasks.reconstruction_tasks import ReconstructionTask
 from gridfm_graphkit.io.registries import TASK_REGISTRY
 from gridfm_graphkit.tasks.utils import (
+    compute_branch_thermal_violations,
     embedding_table_from_tensor,
     local_index_per_graph,
     compute_angle_violation,
@@ -129,17 +130,16 @@ class OptimalPowerFlowTask(ReconstructionTask):
         # Compute branch thermal limits violations
         Sft = torch.sqrt(Pft**2 + Qft**2)  # apparent power flow per branch
         branch_thermal_limits = bus_edge_attr[:, RATE_A]
-        branch_thermal_excess = F.relu(Sft - branch_thermal_limits)
-
-        # Each graph stores its edges as [forward, reverse], so split per graph.
         edge_graph = batch.batch_dict["bus"][bus_edge_index[0]]
-        edge_count = torch.bincount(edge_graph)[edge_graph]
-        is_forward = local_index_per_graph(edge_graph) < edge_count // 2
-        forward_excess = branch_thermal_excess[is_forward]
-        reverse_excess = branch_thermal_excess[~is_forward]
-
-        mean_thermal_violation_forward = torch.mean(forward_excess)
-        mean_thermal_violation_reverse = torch.mean(reverse_excess)
+        (
+            mean_thermal_violation_forward,
+            mean_thermal_violation_reverse,
+            is_forward,
+        ) = compute_branch_thermal_violations(
+            apparent_power=Sft,
+            thermal_limits=branch_thermal_limits,
+            edge_graph=edge_graph,
+        )
 
         # Compute branch angle difference violation
         branch_angle_violation_mean = compute_angle_violation(

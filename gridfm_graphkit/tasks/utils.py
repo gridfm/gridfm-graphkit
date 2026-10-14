@@ -87,6 +87,32 @@ def local_index_per_graph(batch_index: torch.Tensor) -> torch.Tensor:
     )
 
 
+def compute_branch_thermal_violations(
+    apparent_power: torch.Tensor,
+    thermal_limits: torch.Tensor,
+    edge_graph: torch.Tensor,
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    """Compute mean thermal violations at both ends of batched branches.
+
+    Each graph's directed edges must be ordered as all forward edges followed
+    by all reverse edges. PyG batches graphs consecutively, so the split must
+    be applied within each graph rather than once across the whole batch.
+
+    Args:
+        apparent_power: Apparent power for every directed edge.
+        thermal_limits: Thermal limit for every directed edge.
+        edge_graph: Graph index for every directed edge.
+
+    Returns:
+        Mean forward-end violation, mean reverse-end violation, and the boolean
+        mask identifying forward edges.
+    """
+    edge_count = torch.bincount(edge_graph)[edge_graph]
+    is_forward = local_index_per_graph(edge_graph) < edge_count // 2
+    excess = F.relu(apparent_power - thermal_limits)
+    return excess[is_forward].mean(), excess[~is_forward].mean(), is_forward
+
+
 def embedding_table_from_tensor(
     embedding: torch.Tensor,
     *,
