@@ -114,8 +114,9 @@ Fill value used when masking unavailable measurements/features (examples use `0.
 ### `data.mask_ref_vm`
 
 PowerFlow only (default `false`). The slack (REF) bus voltage magnitude is a PF input, so it is
-left unmasked. Set `true` only to evaluate or finetune checkpoints trained before this default
-changed, which saw the slack voltage masked.
+left unmasked. Set `true` only to evaluate or finetune checkpoints released before October 2026,
+which were trained with the slack voltage masked. Setting `true` warns that this is for those
+checkpoints, and that otherwise the model performs better with slack VM left unmasked.
 
 ### `data.test_ratio`, `data.val_ratio`
 
