@@ -134,7 +134,6 @@ class OptimalPowerFlowTask(ReconstructionTask):
         (
             mean_thermal_violation_forward,
             mean_thermal_violation_reverse,
-            is_forward,
         ) = compute_branch_thermal_violations(
             apparent_power=Sft,
             thermal_limits=branch_thermal_limits,
@@ -148,7 +147,6 @@ class OptimalPowerFlowTask(ReconstructionTask):
             bus_edge_index=bus_edge_index,
             ang_min_col=ANG_MIN,
             ang_max_col=ANG_MAX,
-            is_forward=is_forward,
         )
 
         P_in, Q_in = node_injection_layer(Pft, Qft, bus_edge_index, num_bus)

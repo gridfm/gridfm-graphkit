@@ -24,7 +24,6 @@ def compute_angle_violation(
     bus_edge_index: torch.Tensor,
     ang_min_col: int,
     ang_max_col: int,
-    is_forward: torch.Tensor = None,
 ) -> torch.Tensor:
     """Compute the mean branch angle-difference violation.
 
@@ -35,6 +34,8 @@ def compute_angle_violation(
     The signed angle difference for each branch is wrapped to ``[-π, π]`` before
     checking against the limits.  Any exceedance on either side is accumulated
     with ``ReLU`` and the result is averaged across all branches.
+    The dataset builder requires symmetric limits (``angle_min == -angle_max``),
+    so the same limits apply to both directed copies of each physical branch.
 
     Args:
         bus_edge_attr: Edge-attribute tensor of shape ``(num_edges, num_edge_features)``.
@@ -58,12 +59,6 @@ def compute_angle_violation(
     """
     angle_min = bus_edge_attr[:, ang_min_col] * torch.pi / 180.0  # degrees → radians
     angle_max = bus_edge_attr[:, ang_max_col] * torch.pi / 180.0  # degrees → radians
-    if is_forward is not None:
-        # Reverse edges see the opposite angle difference: limits become [-max, -min].
-        angle_min, angle_max = (
-            torch.where(is_forward, angle_min, -angle_max),
-            torch.where(is_forward, angle_max, -angle_min),
-        )
 
     from_bus = bus_edge_index[0]
     to_bus = bus_edge_index[1]
@@ -91,7 +86,7 @@ def compute_branch_thermal_violations(
     apparent_power: torch.Tensor,
     thermal_limits: torch.Tensor,
     edge_graph: torch.Tensor,
-) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+) -> tuple[torch.Tensor, torch.Tensor]:
     """Compute mean thermal violations at both ends of batched branches.
 
     Each graph's directed edges must be ordered as all forward edges followed
@@ -104,13 +99,12 @@ def compute_branch_thermal_violations(
         edge_graph: Graph index for every directed edge.
 
     Returns:
-        Mean forward-end violation, mean reverse-end violation, and the boolean
-        mask identifying forward edges.
+        Mean forward-end violation and mean reverse-end violation.
     """
     edge_count = torch.bincount(edge_graph)[edge_graph]
     is_forward = local_index_per_graph(edge_graph) < edge_count // 2
     excess = F.relu(apparent_power - thermal_limits)
-    return excess[is_forward].mean(), excess[~is_forward].mean(), is_forward
+    return excess[is_forward].mean(), excess[~is_forward].mean()
 
 
 def embedding_table_from_tensor(

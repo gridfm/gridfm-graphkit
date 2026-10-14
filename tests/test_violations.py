@@ -177,27 +177,6 @@ def test_baseline_angle_violation_regression_degrees_vs_radians():
     )
 
 
-def test_angle_violation_reverse_edge_asymmetric_limits():
-    """Reverse edges are checked against the mirrored limits [-max, -min]."""
-    # One branch 0->1 with limits [-10°, 30°] and angle diff +20° (within limits).
-    edge_attr = torch.zeros(2, 9)
-    edge_attr[:, ANG_MIN] = -10.0
-    edge_attr[:, ANG_MAX] = 30.0
-    bus_angles = torch.tensor([20.0, 0.0]) * torch.pi / 180.0
-    edge_index = torch.tensor([[0, 1], [1, 0]])  # forward, reverse
-
-    violation = compute_angle_violation(
-        bus_edge_attr=edge_attr,
-        bus_angles=bus_angles,
-        bus_edge_index=edge_index,
-        ang_min_col=ANG_MIN,
-        ang_max_col=ANG_MAX,
-        is_forward=torch.tensor([True, False]),
-    )
-
-    assert violation == pytest.approx(0.0, abs=1e-6)
-
-
 def test_thermal_violations_split_each_graph():
     """Forward and reverse edges are identified within each batched graph."""
     # Graph 0 has 2 physical branches and graph 1 has 3. Directed edges are
@@ -219,23 +198,11 @@ def test_thermal_violations_split_each_graph():
     )
     thermal_limits = torch.full((10,), 10.0)
 
-    forward, reverse, is_forward = compute_branch_thermal_violations(
+    forward, reverse = compute_branch_thermal_violations(
         apparent_power=apparent_power,
         thermal_limits=thermal_limits,
         edge_graph=edge_graph,
     )
 
-    assert is_forward.tolist() == [
-        True,
-        True,
-        False,
-        False,
-        True,
-        True,
-        True,
-        False,
-        False,
-        False,
-    ]
     assert forward == pytest.approx(5.0)
     assert reverse == pytest.approx(6.0)
