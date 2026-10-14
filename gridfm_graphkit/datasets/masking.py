@@ -88,10 +88,16 @@ class AddRandomHeteroMask(BaseTransform):
 
 
 class AddPFHeteroMask(BaseTransform):
-    """Creates masks for a heterogeneous power flow graph."""
+    """Creates masks for a heterogeneous power flow graph.
 
-    def __init__(self):
+    Args:
+        mask_ref_vm: Also mask VM at REF buses. The slack voltage is a PF input,
+            so this is only for checkpoints trained before it was unmasked.
+    """
+
+    def __init__(self, mask_ref_vm=False):
         super().__init__()
+        self.mask_ref_vm = mask_ref_vm
 
     def forward(self, data):
         bus_x = data.x_dict["bus"]
@@ -127,8 +133,9 @@ class AddPFHeteroMask(BaseTransform):
         mask_bus[mask_PV, QG_H] = True
 
         # --- REF buses ---
-        mask_bus[mask_REF, VM_H] = True
         mask_bus[mask_REF, QG_H] = True
+        if self.mask_ref_vm:
+            mask_bus[mask_REF, VM_H] = True
         # --- Generators connected to REF buses ---
         gen_bus_edges = data.edge_index_dict[("gen", "connected_to", "bus")]
         gen_indices, bus_indices = gen_bus_edges
