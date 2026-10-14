@@ -21,6 +21,7 @@ task:
 data:
   baseMVA: 100
   mask_value: 0.0
+  mask_ref_vm: true
   normalization: HeteroDataMVANormalizer
   networks:
   - case14_ieee

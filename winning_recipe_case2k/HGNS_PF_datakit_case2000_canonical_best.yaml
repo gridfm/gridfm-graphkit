@@ -11,6 +11,7 @@ task:
 data:
   baseMVA: 100
   mask_value: 0.0
+  mask_ref_vm: true
   normalization: HeteroDataMVANormalizer
   normalizer_preset: # you can use that to set the normalizer stats yourself without having to fit everytime. (useful for big datasets)
     baseMVA: 121.0

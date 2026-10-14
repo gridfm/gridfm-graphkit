@@ -4,6 +4,7 @@ callbacks:
 data:
   baseMVA: 100
   mask_value: 0.0
+  mask_ref_vm: true
   networks:
   - case118_ieee
   normalization: HeteroDataMVANormalizer
