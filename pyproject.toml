@@ -41,22 +41,17 @@ classifiers = [
 
 dependencies = [
     "mlflow>=3.1.0",
-    "nbformat>=5.10.4",
     "networkx>=3.4.2",
     "numpy>=2.2.6",
     "opt-einsum>=3.3.0",
     "pandas>=2.3.0",
-    "plotly>=6.1.2",
     "pyyaml>=6.0.2",
     "torch>=2.10,<2.14", # upper bound; <2.14 admits torch 2.13, required by vllm>=0.29 (see [vllm] extra)
     "torch-geometric>=2.6.1",
     "torch-scatter>=2.1.2",
-    "torchaudio>=2.10",
-    "torchvision>=0.25",
     "lightning",
     "seaborn",
     "urllib3>=2.6.0",
-    "gdown>=6.0.0",
     "gridfm-datakit==1.1.0",
 ]
 
@@ -70,6 +65,7 @@ dev = [
 ]
 
 test = [
+  "gdown>=6.0.0",
   "pytest",
   "pytest-cov"
 ]
