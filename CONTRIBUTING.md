@@ -152,20 +152,26 @@ Before opening a PR, make sure you complete all steps:
 
   Replace `<CUDA_TAG>` in the command below:
 
+  pip does not read `[tool.uv] find-links` in `pyproject.toml`. Pass the index
+  yourself, and pin `torch==2.12.*` in the same command. That pin matches the
+  wheel index below. `pyproject.toml` allows `torch<2.14` so the `vllm` extra
+  can use torch 2.13, which has no prebuilt scatter wheel; an unpinned install
+  selects torch 2.13 and a mismatched 2.12 scatter wheel.
+
   ```bash
-  pip install -e ".[dev,test]" \
+  pip install -e ".[dev,test]" "torch==2.12.*" \
       --find-links https://data.pyg.org/whl/torch-2.12.0+<CUDA_TAG>.html
   ```
 
   For example, CPU-only:
   ```bash
-  pip install -e ".[dev,test]" \
+  pip install -e ".[dev,test]" "torch==2.12.*" \
       --find-links https://data.pyg.org/whl/torch-2.12.0+cpu.html
   ```
 
   Or CUDA 12.6:
   ```bash
-  pip install -e ".[dev,test]" \
+  pip install -e ".[dev,test]" "torch==2.12.*" \
       --find-links https://data.pyg.org/whl/torch-2.12.0+cu126.html
   ```
   > **Note:** The PyTorch version (`2.12.0`) in the URL must match what is

@@ -87,6 +87,10 @@ vllm = [
 # torch-scatter is not on PyPI as a universal wheel — prebuilt wheels live on a
 # PyG wheel index matching your torch version. The find-links below must be
 # updated whenever the torch version in [project.dependencies] changes.
+# pip does not read this table. Pass the same index with --find-links and pin
+# torch to that wheel line (torch==2.12.* today); see the README. An unpinned
+# pip install resolves torch 2.13 (allowed by torch<2.14) and a mismatched
+# 2.12 scatter wheel.
 # CPU:  https://data.pyg.org/whl/torch-X.Y.Z+cpu.html
 # CUDA: https://data.pyg.org/whl/torch-X.Y.Z+cuNNN.html
 # After updating, regenerate the lock file with: uv lock
