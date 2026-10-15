@@ -21,9 +21,11 @@ RUN pip install --no-cache-dir --upgrade pip
 
 # 1) CPU PyTorch stack. The released gridfm-graphkit 0.9.0 pins torch<2.13 (>=2.10), so we
 #    stay in that range here; the newest CPU torch (2.14) would force pip to fall back to an
-#    older gridfm release.
+#    older gridfm release. 0.9.0 still depends on torchvision and torchaudio, so pin them to
+#    the matching torch 2.12 line; otherwise pip installs unpinned versions when it pulls
+#    the release. Those pins can be removed after the next gridfm-graphkit release.
 RUN pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu \
-        "torch>=2.10,<2.13"
+        "torch>=2.10,<2.13" "torchvision<0.28" "torchaudio<2.13"
 
 # 2) torch-scatter / torch-sparse compiled against the installed torch (guaranteed ABI match).
 #    Try the matching prebuilt PyG wheel first, else build from source with torch visible.
@@ -35,7 +37,9 @@ RUN TORCH_CUDA_VERSION=$(python -c "import torch; print(torch.__version__ + ('+c
 
 # 3) Pin the torch stack we just built, then install the latest GridFM releases under those
 #    constraints so pip keeps (never re-resolves) torch/torch-scatter/torch-sparse.
-RUN pip freeze | grep -iE '^(torch|torch-scatter|torch-sparse)==' > /tmp/torch-constraints.txt \
+#    torchvision/torchaudio stay in this grep while 0.9.0 still depends on them; drop them
+#    from the pattern after the next gridfm-graphkit release.
+RUN pip freeze | grep -iE '^(torch|torchvision|torchaudio|torch-scatter|torch-sparse)==' > /tmp/torch-constraints.txt \
     && cat /tmp/torch-constraints.txt \
     && pip install --no-cache-dir \
         --index-url https://download.pytorch.org/whl/cpu \
