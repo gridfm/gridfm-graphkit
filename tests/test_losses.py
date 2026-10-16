@@ -165,3 +165,62 @@ def test_get_loss_function_without_warmup_key_is_unchanged(loss_config):
     assert loss_fn.warmup_epochs == 0
     loss_fn.set_epoch(3)
     assert loss_fn.weights == loss_fn.target_weights
+
+
+# ---------------------------------------------------------------------------
+# Fix #1 – MaskedBusMSE must include QG for both PF and OPF configs
+# ---------------------------------------------------------------------------
+
+
+def test_masked_bus_mse_scores_qg_column():
+    """MaskedBusMSE must include QG in the loss for both PF and OPF tasks.
+
+    Regression for issue #136 bug #1: the old code compared ``args.task ==
+    "OptimalPowerFlow"`` where ``args.task`` is a NestedNamespace object, so
+    the equality was always False and QG was never scored.
+    """
+    from gridfm_graphkit.training.loss import MaskedBusMSE
+    from gridfm_graphkit.datasets.globals import (
+        QG_OUT,
+        VM_H,
+        VA_H,
+        QG_H,
+    )
+
+    # Build a minimal args stub — task_name should not affect behaviour any more.
+    for task_name in ("PowerFlow", "OptimalPowerFlow"):
+        args = NestedNamespace(task={"task_name": task_name})
+        loss_fn = MaskedBusMSE(loss_args={}, args=args)
+
+        N = 5
+        pred_dict = {"bus": torch.zeros(N, 4)}
+        # Make QG predictions differ from targets so QG contributes.
+        pred_dict["bus"][:, QG_OUT] = 1.0
+
+        target_dict = {"bus": torch.zeros(N, max(VM_H, VA_H, QG_H) + 1)}
+
+        # Unmask everything so every element contributes.
+        mask_dict = {"bus": torch.ones(N, max(VM_H, VA_H, QG_H) + 1, dtype=torch.bool)}
+
+        result = loss_fn(pred_dict, target_dict, None, None, mask_dict)
+        assert result["loss"].item() > 0.0, (
+            f"MaskedBusMSE loss is zero for task={task_name!r}; "
+            "QG column is not being included."
+        )
+
+
+# ---------------------------------------------------------------------------
+# Fix #5 – get_loss_function must raise when list lengths differ
+# ---------------------------------------------------------------------------
+
+
+def test_get_loss_function_raises_on_mismatched_lengths(loss_config):
+    """get_loss_function must raise ValueError when losses/loss_args/loss_weights
+    have different lengths, not silently drop entries."""
+    bad_config = dict(loss_config)
+    bad_config["training"] = dict(loss_config["training"])
+    # Remove one loss_args entry while keeping losses and loss_weights intact.
+    bad_config["training"]["loss_args"] = loss_config["training"]["loss_args"][:1]
+
+    with pytest.raises(ValueError, match="same length"):
+        get_loss_function(NestedNamespace(**bad_config))

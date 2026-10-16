@@ -24,16 +24,24 @@ def compute_angle_violation(
     bus_edge_index: torch.Tensor,
     ang_min_col: int,
     ang_max_col: int,
+    edge_is_forward: torch.Tensor | None = None,
 ) -> torch.Tensor:
-    """Compute the mean branch angle-difference violation.
+    """Compute the mean branch angle-difference violation on forward edges.
 
-    Assumes ``bus_angles`` is in **radians**, while ``ang_min_col`` and ``ang_max_col`` are in **degrees**
-    This function converts the limits (``ang_min_col`` and ``ang_max_col``) to radians before comparison so that both
+    Assumes ``bus_angles`` is in **radians**, while ``ang_min_col`` and ``ang_max_col`` are in **degrees**.
+    This function converts the limits to radians before comparison so that both
     sides of the inequality are in the same unit.
 
     The signed angle difference for each branch is wrapped to ``[-π, π]`` before
     checking against the limits.  Any exceedance on either side is accumulated
-    with ``ReLU`` and the result is averaged across all branches.
+    with ``ReLU`` and the result is averaged across branches.
+
+    When ``edge_is_forward`` is supplied only the forward directed edges are
+    evaluated, matching the AC/DC baseline which operates on forward branches
+    only (``opf_ac_dc_baseline.py``).  On reverse edges the angle difference has
+    the opposite sign, so checking both directions against the same limits would
+    give wrong results for asymmetric ``ang_min``/``ang_max``.  When
+    ``edge_is_forward`` is ``None`` all edges are evaluated (legacy behaviour).
 
     Args:
         bus_edge_attr: Edge-attribute tensor of shape ``(num_edges, num_edge_features)``.
@@ -46,15 +54,17 @@ def compute_angle_violation(
             are the to-bus indices.
         ang_min_col: Column index of the minimum angle limit in ``bus_edge_attr``.
         ang_max_col: Column index of the maximum angle limit in ``bus_edge_attr``.
+        edge_is_forward: Optional boolean mask of shape ``(num_edges,)``.  When
+            provided, only edges where the mask is ``True`` are evaluated.
 
     Returns:
-        Scalar tensor: mean angle-difference violation across all directed edges
-        (in radians). Note: each physical branch appears as two directed edges
-        (forward and reverse), so this averages over 2 × num_branches entries —
-        a different denominator from the per-direction thermal violation metrics
-        (``mean_thermal_violation_forward`` / ``mean_thermal_violation_reverse``)
-        which split forward and reverse separately.
+        Scalar tensor: mean angle-difference violation across forward branches
+        (in radians).
     """
+    if edge_is_forward is not None:
+        bus_edge_attr = bus_edge_attr[edge_is_forward]
+        bus_edge_index = bus_edge_index[:, edge_is_forward]
+
     angle_min = bus_edge_attr[:, ang_min_col] * torch.pi / 180.0  # degrees → radians
     angle_max = bus_edge_attr[:, ang_max_col] * torch.pi / 180.0  # degrees → radians
 

@@ -54,3 +54,9 @@ ANG_MIN = 7  # Angle min (deg)
 ANG_MAX = 8  # Angle max (deg)
 RATE_A = 9  # Thermal limit
 B_ON = 10  # Branch on/off
+
+# Direction flag stored as a separate edge-store attribute (not in edge_attr).
+# 1.0 = forward edge (from_bus → to_bus), 0.0 = reverse edge (to_bus → from_bus).
+# Stored as ``data["bus", "connects", "bus"].edge_is_forward``.
+EDGE_DIR_FORWARD = 1.0
+EDGE_DIR_REVERSE = 0.0
