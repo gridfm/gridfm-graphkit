@@ -65,10 +65,9 @@ prebuilt wheels live on a PyG index that must match the installed PyTorch build.
 pip does not read the `find-links` list under `[tool.uv]` in `pyproject.toml`
 (uv uses that table; pip ignores it), so pass the index on the command line.
 
-Pin torch to the 2.12 line in the same command. That is the newest release with
-prebuilt `torch-scatter` wheels. `pyproject.toml` allows `torch<2.14` so the
-`vllm` extra can use torch 2.13, and 2.13 has no scatter wheel yet. Leaving torch
-unpinned makes pip select 2.13 and a 2.12 scatter wheel from this index.
+The package already pins `torch>=2.10,<2.13`. That is the newest line with
+prebuilt `torch-scatter` wheels. Passing `torch==2.12.*` on the command keeps
+pip on the same line as the wheel index.
 
 ```bash
 pip install gridfm-graphkit "torch==2.12.*" \
@@ -90,11 +89,11 @@ pip install torch-scatter -f "https://data.pyg.org/whl/torch-${TORCH_VERSION}+cp
 pip install torch-sparse -f "https://data.pyg.org/whl/torch-${TORCH_VERSION}+cpu.html"
 ```
 
-When `data.pyg.org` has no prebuilt wheel (including torch 2.13), install torch
-first and compile scatter against it:
+When `data.pyg.org` has no prebuilt wheel for your platform, install torch
+first (still inside `>=2.10,<2.13`) and compile scatter against it:
 
 ```bash
-pip install "torch>=2.10,<2.14"
+pip install "torch>=2.10,<2.13"
 pip install torch-scatter --no-build-isolation
 ```
 

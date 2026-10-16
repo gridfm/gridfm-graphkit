@@ -11,10 +11,8 @@ source venv/bin/activate
 
 Install gridfm-graphkit from PyPI. `torch-scatter` wheels are not on PyPI.
 pip does not read `[tool.uv] find-links` in `pyproject.toml`, so pass the PyG
-index on the command line and pin torch to 2.12 (the newest release with
-prebuilt scatter wheels). `pyproject.toml` allows `torch<2.14` for the `vllm`
-extra; torch 2.13 has no scatter wheel, and an unpinned install selects that
-torch plus a mismatched 2.12 scatter wheel.
+index on the command line. The package pins `torch>=2.10,<2.13`, the newest
+line with prebuilt scatter wheels. `torch==2.12.*` keeps pip on that same line.
 
 ```bash
 pip install gridfm-graphkit "torch==2.12.*" \
@@ -30,11 +28,11 @@ TORCH_VERSION=$(python -c "import torch; print(torch.__version__.split('+')[0])"
 pip install torch-scatter -f "https://data.pyg.org/whl/torch-${TORCH_VERSION}+cpu.html"
 ```
 
-When no prebuilt wheel exists (including torch 2.13), install torch first and
-build scatter against it. This needs a C++ compiler:
+When no prebuilt wheel exists for your platform, install torch first (still
+inside `>=2.10,<2.13`) and build scatter against it. This needs a C++ compiler:
 
 ```bash
-pip install "torch>=2.10,<2.14"
+pip install "torch>=2.10,<2.13"
 pip install torch-scatter --no-build-isolation
 ```
 

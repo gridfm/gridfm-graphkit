@@ -153,10 +153,8 @@ Before opening a PR, make sure you complete all steps:
   Replace `<CUDA_TAG>` in the command below:
 
   pip does not read `[tool.uv] find-links` in `pyproject.toml`. Pass the index
-  yourself, and pin `torch==2.12.*` in the same command. That pin matches the
-  wheel index below. `pyproject.toml` allows `torch<2.14` so the `vllm` extra
-  can use torch 2.13, which has no prebuilt scatter wheel; an unpinned install
-  selects torch 2.13 and a mismatched 2.12 scatter wheel.
+  yourself, and pin `torch==2.12.*` in the same command. That matches the
+  package pin `torch>=2.10,<2.13` and the wheel index below.
 
   ```bash
   pip install -e ".[dev,test]" "torch==2.12.*" \
@@ -178,7 +176,7 @@ Before opening a PR, make sure you complete all steps:
   > installed. If you change the `torch` pin in `pyproject.toml`, update this
   > URL and regenerate the lock file with `uv lock`.
 
-  **No prebuilt wheel for your combination?** If `data.pyg.org` has no prebuilt wheel for your combination, build from source instead. This compiles against your installed torch, so it works with any version — but torch must already be installed first:
+  **No prebuilt wheel for your combination?** If `data.pyg.org` has no prebuilt wheel for your combination, build from source instead. This compiles against the installed torch. Stay inside the package pin `torch>=2.10,<2.13`, and install torch first:
   ```bash
   pip install torch==2.12.0
   pip install torch-scatter torch-sparse --no-build-isolation
