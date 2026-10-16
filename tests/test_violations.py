@@ -175,64 +175,69 @@ def test_baseline_angle_violation_regression_degrees_vs_radians():
 
 
 # ---------------------------------------------------------------------------
-# Fix #2 – edge_is_forward flag survives batching and splits thermal violations
+# Fix #2 – thermal violations are split by edge direction, not by batch half
 # ---------------------------------------------------------------------------
 
 
-def test_edge_is_forward_splits_correctly_in_batch():
-    """edge_is_forward must correctly identify forward/reverse edges after batching.
+def test_opf_thermal_violation_split_matches_per_graph_reference():
+    """Batched "from"/"to" thermal violations must equal the per-graph reference.
 
-    Regression for issue #136 bug #2: the old ``[:half_edges]`` split cut the
-    batch between the first and second *half of the graphs*, not between forward
-    and reverse directions, when batch_size > 1.
+    Regression for issue #136 bug #2: splitting at ``num_edges // 2`` cut the
+    batch between graphs, not between directions. A single-graph batch is laid
+    out ``[forward, reverse]``, so running each graph alone gives a reference
+    that does not depend on ``edge_is_forward``. The batched mean over forward
+    edges is the forward-edge-weighted mean of those per-graph values.
     """
-    from torch_geometric.data import HeteroData
-    from torch_geometric.data.batch import Batch
+    import yaml
+    from torch_geometric.data import Batch
 
-    def _make_graph(n_branches):
-        data = HeteroData()
-        # bus nodes (not used in this test, just required for a valid HeteroData)
-        data["bus"].x = torch.zeros(n_branches + 1, 1)
-        # edges: n_branches forward + n_branches reverse
-        fwd = torch.stack(
-            [torch.arange(n_branches), torch.arange(1, n_branches + 1)],
-            dim=0,
-        )
-        rev = torch.stack(
-            [torch.arange(1, n_branches + 1), torch.arange(n_branches)],
-            dim=0,
-        )
-        data["bus", "connects", "bus"].edge_index = torch.cat([fwd, rev], dim=1)
-        data["bus", "connects", "bus"].edge_attr = torch.zeros(2 * n_branches, 11)
-        data["bus", "connects", "bus"].edge_is_forward = torch.cat(
-            [torch.ones(n_branches), torch.zeros(n_branches)],
-        ).bool()
-        return data
-
-    # Two graphs with *different* branch counts to expose the old half-split bug.
-    g1 = _make_graph(3)  # 6 edges total
-    g2 = _make_graph(5)  # 10 edges total
-
-    batch = Batch.from_data_list([g1, g2])
-    edge_is_forward = batch["bus", "connects", "bus"].edge_is_forward
-
-    # Total edges: 16; forward edges should be exactly 8 (3 from g1, 5 from g2).
-    assert edge_is_forward.sum().item() == 8, (
-        "Expected 8 forward edges (3 + 5) after batching two graphs."
+    from gridfm_graphkit.datasets.hetero_powergrid_datamodule import (
+        LitGridHeteroDataModule,
     )
-    assert (~edge_is_forward).sum().item() == 8, (
-        "Expected 8 reverse edges after batching two graphs."
-    )
+    from gridfm_graphkit.io.param_handler import NestedNamespace, get_task
 
-    # The old half-split would give indices [:8] and [8:].  Because PyG interleaves
-    # graphs as [g1_fwd, g1_rev, g2_fwd, g2_rev], the true layout is:
-    #   [fwd0, fwd1, fwd2, rev0, rev1, rev2, fwd0, fwd1, fwd2, fwd3, fwd4,
-    #    rev0, rev1, rev2, rev3, rev4]
-    # Half-split [:8] picks g1_fwd + g1_rev + g2_fwd[:2] — mixed directions.
-    half_split_forward = edge_is_forward[:8]
-    assert not half_split_forward.all(), (
-        "Half-split incorrectly classifies all edges as forward — "
-        "batching interleaves graphs, not directions."
+    class _DummyTrainer:
+        is_global_zero = True
+        logger = None
+
+    with open("tests/config/datamodule_test_base_config2.yaml") as f:
+        args = NestedNamespace(**yaml.safe_load(f))
+    dm = LitGridHeteroDataModule(args, data_dir="tests/data")
+    dm.trainer = _DummyTrainer()
+    dm.setup("fit")
+    # Fixed init: an unlucky untrained model can produce zero thermal violations.
+    torch.manual_seed(0)
+    task = get_task(args, dm.data_normalizers).eval()
+    ds = dm.test_datasets[0]
+
+    def n_forward(i):
+        return ds[i]["bus", "connects", "bus"].edge_index.size(1) // 2
+
+    # Graphs with different active-branch counts, so a half-split would cross graphs.
+    idx = list(range(len(ds)))
+    assert len({n_forward(i) for i in idx}) > 1, "need unequal branch counts"
+
+    def run(graph_ids):
+        logged = {}
+        task.log = lambda name, value, **kw: logged.__setitem__(
+            name.split("/")[-1],
+            float(value),
+        )
+        with torch.no_grad():
+            task.test_step(Batch.from_data_list([ds[i] for i in graph_ids]), 0)
+        return logged
+
+    batched = run(idx)
+    singles = [run([i]) for i in idx]
+    counts = [n_forward(i) for i in idx]
+
+    for key in ["Branch thermal violation from", "Branch thermal violation to"]:
+        reference = sum(s[key] * c for s, c in zip(singles, counts)) / sum(counts)
+        assert batched[key] == pytest.approx(reference, rel=1e-4), key
+    # Directions must actually differ, or the check above cannot catch a mix-up.
+    assert batched["Branch thermal violation from"] != pytest.approx(
+        batched["Branch thermal violation to"],
+        rel=1e-3,
     )
 
 

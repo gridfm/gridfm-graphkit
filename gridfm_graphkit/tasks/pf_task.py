@@ -531,6 +531,7 @@ class PowerFlowTask(ReconstructionTask):
             bus_edge_attr,
             scenario_ids,
             local_bus_idx,
+            edge_is_forward=batch[("bus", "connects", "bus")].edge_is_forward,
         )
         if embeddings is None or "bus" not in embeddings:
             return {

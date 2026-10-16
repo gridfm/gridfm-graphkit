@@ -300,6 +300,7 @@ def compute_branch_predictions(
     bus_edge_attr,
     scenario_ids,
     local_bus_idx,
+    edge_is_forward=None,
 ):
     """Compute branch-level predictions and ground-truth constraint violations.
 
@@ -308,9 +309,11 @@ def compute_branch_predictions(
     ``* pi / 180``. Do not call this on training-space (post-``transform``) graphs:
     those limits are already in radians, so the extra conversion would be wrong.
 
-    Bidirectional edges reuse the same ``angmin`` / ``angmax``. That is correct
-    while limits are symmetric (e.g. ±30°). An asymmetric pair would be wrong
-    on the reverse copy.
+    Bidirectional edges store the same ``angmin`` / ``angmax``, but a reverse
+    edge sees ``Va[to] - Va[from]``. When ``edge_is_forward`` is given, reverse
+    edges are checked against the mirrored limits ``[-angmax, -angmin]``, so
+    asymmetric limits are handled. Without it, every edge uses the stored
+    limits, which is only correct while limits are symmetric (e.g. ±30°).
 
     Args:
         eval_bus:       Clamped model predictions [num_bus, 4]. Branch flows
@@ -321,6 +324,8 @@ def compute_branch_predictions(
         bus_edge_attr:  Edge features [num_edges, num_edge_features].
         scenario_ids:   Scenario ID per bus [num_bus] (batch-global).
         local_bus_idx:  Per-graph local bus index [num_bus].
+        edge_is_forward: Optional boolean mask [num_edges], ``True`` on forward
+                        edges. Enables the mirrored limits on reverse edges.
 
     Returns:
         dict of numpy arrays, one entry per directed edge.
@@ -334,6 +339,11 @@ def compute_branch_predictions(
     # convert to radians to match VA_OUT which stays in radians.
     angle_min = bus_edge_attr[:, ANG_MIN] * torch.pi / 180.0
     angle_max = bus_edge_attr[:, ANG_MAX] * torch.pi / 180.0
+    if edge_is_forward is not None:
+        angle_min, angle_max = (
+            torch.where(edge_is_forward, angle_min, -angle_max),
+            torch.where(edge_is_forward, angle_max, -angle_min),
+        )
     branch_thermal_limits = bus_edge_attr[:, RATE_A]
 
     def _branch_flows(bus_state):
