@@ -60,37 +60,54 @@ python -m venv venv
 source venv/bin/activate
 ```
 
-Install gridfm-graphkit from PyPI
+Install gridfm-graphkit from PyPI. `torch-scatter` is a required dependency, and its
+prebuilt wheels live on a PyG index that must match the installed PyTorch build.
+pip does not read the `find-links` list under `[tool.uv]` in `pyproject.toml`
+(uv uses that table; pip ignores it), so pass the index on the command line.
+
+The package already pins `torch>=2.10,<2.13`. That is the newest line with
+prebuilt `torch-scatter` wheels. Passing `torch==2.12.*` on the command keeps
+pip on the same line as the wheel index.
+
 ```bash
-pip install gridfm-graphkit
+pip install gridfm-graphkit "torch==2.12.*" \
+    --find-links https://data.pyg.org/whl/torch-2.12.0+cpu.html
 ```
 
-**`torch-scatter` is a required dependency.** It cannot be bundled in `pyproject.toml` because the correct wheel depends on your PyTorch and CUDA versions, so it must be installed separately.
+The URL above is the CPU index. For a CUDA build, swap `cpu` for the matching tag
+(`cu126`, `cu118`, …); see [CONTRIBUTING.md](CONTRIBUTING.md). Then install
+`torch-scatter` from the index for the torch version pip actually selected:
 
-Get PyTorch + CUDA version for torch-scatter
 ```bash
-TORCH_CUDA_VERSION=$(python -c "import torch; print(torch.__version__ + ('+cpu' if torch.version.cuda is None else ''))")
+TORCH_VERSION=$(python -c "import torch; print(torch.__version__.split('+')[0])")
+pip install torch-scatter -f "https://data.pyg.org/whl/torch-${TORCH_VERSION}+cpu.html"
 ```
 
-Install the correct torch-scatter wheel
+`torch-sparse` is optional. It is required only for RRWP positional encodings:
+
 ```bash
-pip install torch-scatter -f https://data.pyg.org/whl/torch-${TORCH_CUDA_VERSION}.html
-pip install torch-sparse -f https://data.pyg.org/whl/torch-${TORCH_CUDA_VERSION}.html
+pip install torch-sparse -f "https://data.pyg.org/whl/torch-${TORCH_VERSION}+cpu.html"
 ```
 
-If `data.pyg.org` has no prebuilt wheel for your PyTorch version, build from source instead (this
-compiles against your installed torch, so it works with any version):
+When `data.pyg.org` has no prebuilt wheel for your platform, install torch
+first (still inside `>=2.10,<2.13`) and compile scatter against it:
+
 ```bash
-pip install torch-scatter torch-sparse --no-build-isolation
+pip install "torch>=2.10,<2.13"
+pip install torch-scatter --no-build-isolation
 ```
+
 Building from source requires a C++ compiler (and a matching CUDA toolkit with
 `nvcc` for GPU builds).
 
 
-For documentation generation and unit testing, install with the optional `dev` and `test` extras:
+For documentation generation and unit testing, install the `dev` and `test`
+extras the same way. The `test` extra includes `gdown`, which the integration
+tests use to download fixtures.
 
 ```bash
-pip install "gridfm-graphkit[dev,test]"
+pip install "gridfm-graphkit[dev,test]" "torch==2.12.*" \
+    --find-links https://data.pyg.org/whl/torch-2.12.0+cpu.html
 ```
 
 
@@ -330,7 +347,8 @@ gridfm_graphkit <command> --help
 Install the test dependencies first (if not already done):
 
 ```bash
-pip install -e .[dev,test]
+pip install -e ".[dev,test]" "torch==2.12.*" \
+    --find-links https://data.pyg.org/whl/torch-2.12.0+cpu.html
 ```
 
 Run the full unit test suite:
