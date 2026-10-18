@@ -6,7 +6,7 @@ per-node predictions and embeddings. The heavy lifting — graph construction,
 normalization, task masking — is delegated to the existing gridfm-graphkit
 pipeline so serving and training share one code path.
 
-Imports vLLM at load time; only import when the ``vllm`` extra is installed.
+Imports vLLM at load time; only import when vLLM is installed.
 """
 
 from __future__ import annotations
