@@ -12,6 +12,7 @@ for.
 import os
 
 import pandas as pd
+import pytest
 import torch
 import yaml
 
@@ -113,6 +114,19 @@ def test_offline_serving_core_round_trip(generate_processed_test_data):
     bundle.normalizer.inverse_output(pred_dict, batch=None)
     assert pred_dict["bus"].shape == out["bus_pred"].shape
     assert pred_dict["gen"].shape == out["gen_pred"].shape
+
+
+def test_graph_builder_rejects_asymmetric_angle_limits(
+    generate_processed_test_data,
+):
+    bus_df, gen_df, branch_df = _case_frames(0)
+    branch_df.loc[0, "ang_max"] += 1.0
+
+    with pytest.raises(
+        ValueError,
+        match="Branch angle-difference limits must be symmetric",
+    ):
+        build_hetero_data(bus_df, gen_df, branch_df)
 
 
 def test_build_hf_config_shape():
