@@ -4,9 +4,6 @@ import matplotlib
 import numpy as np
 import pytest
 import torch
-
-matplotlib.use("Agg")
-
 from matplotlib.collections import PathCollection
 
 from gridfm_graphkit.datasets.globals import (
@@ -18,6 +15,11 @@ from gridfm_graphkit.datasets.globals import (
     VM_H,
 )
 from gridfm_graphkit.utils import visualization
+
+
+@pytest.fixture(autouse=True)
+def _agg_backend():
+    matplotlib.use("Agg")
 
 
 def _data():
