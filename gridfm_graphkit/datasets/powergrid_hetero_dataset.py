@@ -253,7 +253,7 @@ class HeteroGridDatasetDisk(Dataset):
 
             # Invariant: every scenario's rows are fully contained in this
             # partition, so summing Q-limits here equals the legacy whole-dataset
-            # groupby sum (for in-service generators only).
+            # groupby sum.
             agg_gen = (
                 gen_data[gen_data["in_service"] == 1]
                 .groupby(["scenario", "bus"])[["min_q_mvar", "max_q_mvar"]]

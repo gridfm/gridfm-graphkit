@@ -33,6 +33,7 @@ from gridfm_graphkit.tasks.utils import (
     embedding_table_from_tensor,
     local_index_per_graph,
     compute_angle_violation,
+    forward_edge_mask,
     plot_correlation_by_node_type,
     plot_residuals_histograms,
     residual_stats_by_type,
@@ -131,7 +132,7 @@ class OptimalPowerFlowTask(ReconstructionTask):
         branch_thermal_limits = bus_edge_attr[:, RATE_A]
         branch_thermal_excess = F.relu(Sft - branch_thermal_limits)
 
-        edge_is_forward = batch[("bus", "connects", "bus")].edge_is_forward
+        edge_is_forward = forward_edge_mask(batch.batch_dict["bus"][bus_edge_index[0]])
         forward_excess = branch_thermal_excess[edge_is_forward]
         reverse_excess = branch_thermal_excess[~edge_is_forward]
 

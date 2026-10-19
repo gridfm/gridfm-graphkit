@@ -90,6 +90,22 @@ def local_index_per_graph(batch_index: torch.Tensor) -> torch.Tensor:
     )
 
 
+def forward_edge_mask(edge_graph: torch.Tensor) -> torch.Tensor:
+    """Return ``True`` on the forward copy of each branch in a batch of graphs.
+
+    ``build_hetero_data`` lays out each graph's edges as all forward edges
+    followed by all reverse edges, and ``RemoveInactiveBranches`` drops both
+    copies of a branch together. PyG batches graphs consecutively, so the split
+    is at half of each graph's edges, not half of the batch.
+
+    Args:
+        edge_graph: Graph index for every directed edge, e.g.
+            ``batch.batch_dict["bus"][bus_edge_index[0]]``.
+    """
+    edge_count = torch.bincount(edge_graph)[edge_graph]
+    return local_index_per_graph(edge_graph) < edge_count // 2
+
+
 def embedding_table_from_tensor(
     embedding: torch.Tensor,
     *,

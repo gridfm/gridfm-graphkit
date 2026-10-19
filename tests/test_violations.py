@@ -4,7 +4,7 @@ import pytest
 import torch
 from gridfm_graphkit.datasets.globals import ANG_MIN, ANG_MAX
 from gridfm_graphkit.tasks.opf_ac_dc_baseline import _compute_branch_violations
-from gridfm_graphkit.tasks.utils import compute_angle_violation
+from gridfm_graphkit.tasks.utils import compute_angle_violation, forward_edge_mask
 
 
 def test_angle_violation_zero_within_limits():
@@ -368,3 +368,45 @@ def test_angle_violation_forward_only_ignores_reverse():
     assert violation_forward_only != pytest.approx(violation_both.item(), abs=1e-4), (
         "Forward-only and all-edges results must differ with asymmetric limits."
     )
+
+
+def test_forward_edge_mask_splits_each_graph():
+    """The forward/reverse split is per graph, not at half of the batch."""
+    # Graph 0 has 2 branches (4 directed edges), graph 1 has 3 (6 edges); each
+    # graph is laid out [forward, reverse] by the dataset builder.
+    edge_graph = torch.tensor([0] * 4 + [1] * 6)
+    expected = torch.tensor([1, 1, 0, 0, 1, 1, 1, 0, 0, 0], dtype=torch.bool)
+    assert torch.equal(forward_edge_mask(edge_graph), expected)
+
+
+def test_forward_edge_mask_matches_dataset_graphs():
+    """On real dataset graphs, the forward copies are exactly the first half.
+
+    Checks the layout ``forward_edge_mask`` relies on, after
+    ``RemoveInactiveBranches`` and batching: every reverse edge is the flipped
+    copy of the forward edge at the same offset within its graph.
+    """
+    import yaml
+    from torch_geometric.data import Batch
+
+    from gridfm_graphkit.datasets.hetero_powergrid_datamodule import (
+        LitGridHeteroDataModule,
+    )
+    from gridfm_graphkit.io.param_handler import NestedNamespace
+
+    class _DummyTrainer:
+        is_global_zero = True
+        logger = None
+
+    with open("tests/config/datamodule_test_base_config2.yaml") as f:
+        args = NestedNamespace(**yaml.safe_load(f))
+    dm = LitGridHeteroDataModule(args, data_dir="tests/data")
+    dm.trainer = _DummyTrainer()
+    dm.setup("fit")
+    ds = dm.test_datasets[0]
+    batch = Batch.from_data_list([ds[i] for i in range(len(ds))])
+
+    edge_index = batch["bus", "connects", "bus"].edge_index
+    edge_graph = batch.batch_dict["bus"][edge_index[0]]
+    is_forward = forward_edge_mask(edge_graph)
+    assert torch.equal(edge_index[:, is_forward], edge_index[:, ~is_forward].flip(0))

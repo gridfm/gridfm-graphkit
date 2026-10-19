@@ -123,11 +123,12 @@ class MaskedGenMSE(torch.nn.Module):
 
 @LOSS_REGISTRY.register("MaskedBusMSE")
 class MaskedBusMSE(torch.nn.Module):
-    """Compute masked MSE on bus targets [VM, VA, QG] for both PF and OPF tasks."""
+    """Compute MSE on selected bus targets, respecting task-specific output columns."""
 
     def __init__(self, loss_args, args):
         super().__init__()
         self.reduction = "mean"
+        self.args = args
 
     def forward(
         self,
@@ -139,8 +140,12 @@ class MaskedBusMSE(torch.nn.Module):
         model=None,
         x_dict=None,
     ):
-        pred_cols = [VM_OUT, VA_OUT, QG_OUT]
-        target_cols = [VM_H, VA_H, QG_H]
+        if self.args.task.task_name in ("OptimalPowerFlow", "PowerFlow"):
+            pred_cols = [VM_OUT, VA_OUT, QG_OUT]
+            target_cols = [VM_H, VA_H, QG_H]
+        else:
+            pred_cols = [VM_OUT, VA_OUT]
+            target_cols = [VM_H, VA_H]
 
         pred_bus = pred_dict["bus"][:, pred_cols]  # shape: [N, 3]
         target_bus = target_dict["bus"][:, target_cols]
@@ -651,14 +656,7 @@ class PBELoss(BaseLoss):
 
 @LOSS_REGISTRY.register("QgViolationPenalty")
 class QgViolationPenaltyLoss(BaseLoss):
-    """Qg limit violation penalty, extensive over PV/REF buses.
-
-    Computes the sum of per-bus ReLU violations divided by the total number of
-    PV+REF buses (not just the violating ones), so the magnitude scales with how
-    many buses violate and does not jump discontinuously when the violating set
-    changes. PQ buses are excluded because the physics decoder forces Qg = 0
-    there, matching the test metric in ``opf_task.py``.
-    """
+    """Standard Mean Squared Error loss."""
 
     def __init__(self, loss_args, args):
         super().__init__()
@@ -673,16 +671,20 @@ class QgViolationPenaltyLoss(BaseLoss):
         model=None,
         x_dict=None,
     ):
+        # --- Qg limit violation mask ---
         Qg_pred = pred["bus"][:, QG_OUT]
         Qg_max = x_dict["bus"][:, MAX_QG_H]
         Qg_min = x_dict["bus"][:, MIN_QG_H]
 
-        # Restrict to PV and REF buses (generators that can adjust Qg).
-        mask_PV_REF = mask["PV"] | mask["REF"]
-        N = mask_PV_REF.sum().clamp(min=1)
+        # Qg is only produced at PV/REF buses (PQ buses are forced to 0).
+        mask_pvref = mask["PV"] | mask["REF"]
+        Qg_over = F.relu(Qg_pred - Qg_max)  # amount above max limit
+        Qg_under = F.relu(Qg_min - Qg_pred)  # amount below min limit
+        loss = (Qg_over + Qg_under)[mask_pvref].sum() / mask_pvref.sum().clamp(min=1)
 
-        Qg_over = F.relu(Qg_pred - Qg_max)[mask_PV_REF].sum()
-        Qg_under = F.relu(Qg_min - Qg_pred)[mask_PV_REF].sum()
+        try:
+            output = {"loss": loss, "Qg Violation Penalty loss": loss.detach()}
+        except Exception:
+            output = {"loss": loss, "Qg Violation Penalty loss": loss}
 
-        loss = (Qg_over + Qg_under) / N
-        return {"loss": loss, "Qg Violation Penalty loss": loss.detach()}
+        return output

@@ -217,10 +217,11 @@ def test_masked_bus_mse_scores_qg_column():
 def test_get_loss_function_raises_on_mismatched_lengths(loss_config):
     """get_loss_function must raise ValueError when losses/loss_args/loss_weights
     have different lengths, not silently drop entries."""
-    bad_config = dict(loss_config)
-    bad_config["training"] = dict(loss_config["training"])
-    # Remove one loss_args entry while keeping losses and loss_weights intact.
-    bad_config["training"]["loss_args"] = loss_config["training"]["loss_args"][:1]
+    for key in ("loss_args", "loss_weights"):
+        bad_config = dict(loss_config)
+        bad_config["training"] = dict(loss_config["training"])
+        # Drop one entry of `key` while keeping the other two lists intact.
+        bad_config["training"][key] = loss_config["training"][key][:1]
 
-    with pytest.raises(ValueError, match="same length"):
-        get_loss_function(NestedNamespace(**bad_config))
+        with pytest.raises(ValueError):
+            get_loss_function(NestedNamespace(**bad_config))

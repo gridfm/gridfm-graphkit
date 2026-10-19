@@ -81,12 +81,12 @@ BRANCH_STATIC_COLS = [ANG_MIN, ANG_MAX, RATE_A]
 
 
 def backfill_static(data: HeteroData) -> None:
-    """Attach ``.static`` / ``edge_is_forward`` snapshots to graphs that lack them.
+    """Attach ``.static`` limit snapshots to graphs that lack them, in place.
 
-    Graphs processed before these attributes were introduced carry the limit
-    columns only inside ``bus.x`` / branch ``edge_attr``. Reconstruct the
-    snapshots from those raw columns so the PF test/predict path and OPF metrics
-    work on stale caches without reprocessing the dataset.
+    Graphs processed before ``.static`` was introduced carry the limit columns
+    only inside ``bus.x`` / branch ``edge_attr``. Reconstruct the snapshot from
+    those raw columns so the PF test/predict path (RemovePFMask) works on such
+    caches without reprocessing the dataset.
 
     Must run on the raw graph *before* normalisation and branch masking, so the
     captured values match what ``build_hetero_data`` stores (raw, full edge set).
@@ -97,15 +97,6 @@ def backfill_static(data: HeteroData) -> None:
     branch = data["bus", "connects", "bus"]
     if not hasattr(branch, "static"):
         branch.static = branch.edge_attr[:, BRANCH_STATIC_COLS].clone()
-    if not hasattr(branch, "edge_is_forward"):
-        # Each single-graph cache was built as [forward_edges, reverse_edges]
-        # with equal counts, so the first half are forward and the second are
-        # reverse.  This invariant holds for every file written by build_hetero_data.
-        n_edges = branch.edge_attr.size(0)
-        half = n_edges // 2
-        branch.edge_is_forward = torch.cat(
-            [torch.ones(half), torch.zeros(n_edges - half)],
-        ).bool()
 
 
 def build_hetero_data(
@@ -171,18 +162,12 @@ def build_hetero_data(
     edge_index = torch.cat([forward_edges, reverse_edges], dim=1)
     edge_attr = torch.cat([forward_edge_attr, reverse_edge_attr], dim=0)
 
-    n_branches = forward_edges.size(1)
-    edge_is_forward = torch.cat(
-        [torch.ones(n_branches), torch.zeros(n_branches)],
-    ).bool()
-
     forward_targets = torch.tensor(branch_df[["pf", "qf"]].values, dtype=torch.float)
     reverse_targets = torch.tensor(branch_df[["pt", "qt"]].values, dtype=torch.float)
     edge_y = torch.cat([forward_targets, reverse_targets], dim=0)
 
     data["bus", "connects", "bus"].edge_index = edge_index
     data["bus", "connects", "bus"].edge_attr = edge_attr
-    data["bus", "connects", "bus"].edge_is_forward = edge_is_forward
     data["bus", "connects", "bus"].static = edge_attr[:, BRANCH_STATIC_COLS].clone()
     data["bus", "connects", "bus"].y = edge_y
 

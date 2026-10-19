@@ -96,17 +96,12 @@ def get_loss_function(args):
     Raises:
         ValueError: If an unknown loss function is specified.
     """
-    n_losses = len(args.training.losses)
-    n_args = len(args.training.loss_args)
-    n_weights = len(args.training.loss_weights)
-    if not (n_losses == n_args == n_weights):
-        raise ValueError(
-            f"training.losses ({n_losses}), training.loss_args ({n_args}), and "
-            f"training.loss_weights ({n_weights}) must all have the same length.",
-        )
-
     loss_functions = []
-    for loss_name, loss_args in zip(args.training.losses, args.training.loss_args):
+    for loss_name, loss_args in zip(
+        args.training.losses,
+        args.training.loss_args,
+        strict=True,
+    ):
         try:
             loss_functions.append(LOSS_REGISTRY.create(loss_name, loss_args, args))
         except KeyError:

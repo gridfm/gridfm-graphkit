@@ -28,6 +28,7 @@ from gridfm_graphkit.tasks.utils import (
     plot_residuals_histograms,
     residual_stats_by_type,
     compute_branch_predictions,
+    forward_edge_mask,
 )
 import torch
 import torch.distributed as dist
@@ -531,7 +532,7 @@ class PowerFlowTask(ReconstructionTask):
             bus_edge_attr,
             scenario_ids,
             local_bus_idx,
-            edge_is_forward=batch[("bus", "connects", "bus")].edge_is_forward,
+            edge_is_forward=forward_edge_mask(bus_batch[bus_edge_index[0]]),
         )
         if embeddings is None or "bus" not in embeddings:
             return {

@@ -74,8 +74,6 @@ class RemoveInactiveBranches(BaseTransform):
         data[et].y = data[et].y[active_mask]
         if hasattr(data[et], "static"):
             data[et].static = data[et].static[active_mask]
-        if hasattr(data[et], "edge_is_forward"):
-            data[et].edge_is_forward = data[et].edge_is_forward[active_mask]
 
         return data
 
