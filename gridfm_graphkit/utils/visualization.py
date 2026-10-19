@@ -142,8 +142,11 @@ def _aggregate_generators_to_buses(values, edge_index, num_buses):
     return aggregated
 
 
-def visualize_error(data_point, output, node_normalizer=None):
-    """Plot nodal active-power residuals in p.u. on the heterogeneous grid."""
+def visualize_error(data_point, output, node_normalizer):
+    """Plot nodal active-power residuals in MW on the heterogeneous grid.
+
+    PBELoss residuals are in p.u.; they are scaled by ``node_normalizer.baseMVA``.
+    """
     loss_args = SimpleNamespace(visualization=True)
     loss = PBELoss(loss_args, args=None)
 
@@ -156,6 +159,7 @@ def visualize_error(data_point, output, node_normalizer=None):
         x_dict=data_point.x_dict,
     )
     active_loss = _numpy(loss_dict["Nodal Active Power Loss in p.u."]).reshape(-1)
+    active_loss = active_loss * node_normalizer.baseMVA
     graph, node_labels = _topology(data_point)
     if len(active_loss) != graph.number_of_nodes():
         raise ValueError("PBELoss residual count must match the number of bus nodes")
@@ -170,7 +174,7 @@ def visualize_error(data_point, output, node_normalizer=None):
         plt.cm.ScalarMappable(cmap=cmap, norm=plt.Normalize(vmin=vmin, vmax=vmax)),
         ax=ax,
     )
-    colorbar.set_label("Nodal Active Power Residual (p.u.)")
+    colorbar.set_label("Nodal Active Power Residual (MW)")
     ax.set_title("Nodal Active Power Residuals", fontsize=14, fontweight="bold")
     fig.tight_layout()
     return fig
@@ -301,9 +305,18 @@ def plot_mass_correlation_density(
     x_max=2,
     y_max=3,
 ):
-    """
-    TODO docstring
+    """Plot a log-scaled 2D histogram of true versus predicted loadings.
 
+    The Pearson correlation of the two arrays is annotated on the plot. The figure
+    is saved as ``mass_correlation_density_{model_name}.png`` and then shown.
+
+    Args:
+        true_vals: Ground-truth loading values.
+        gfm_vals: Model-predicted loading values.
+        model_name: Suffix used in the saved file name.
+        label_plot: Plot title.
+        x_max: Upper x-axis limit.
+        y_max: Upper y-axis limit.
     """
     # TODO check if these parameters need to be passed by func or default behavior
     vmin = 1
@@ -368,8 +381,18 @@ def plot_mass_correlation_density(
 
 
 def plot_cm(TN, FP, FN, TP, model_name, label_plot):
-    """
-    TODO docstring
+    """Plot the confusion matrix of line-overload predictions.
+
+    The figure is saved as ``confusion_matrix_overload_{model_name}.png`` and then
+    shown.
+
+    Args:
+        TN: True negatives (non-overload predicted as non-overload).
+        FP: False positives.
+        FN: False negatives.
+        TP: True positives (overload predicted as overload).
+        model_name: Suffix used in the saved file name.
+        label_plot: Included in the plot title.
     """
     cm = np.array([[TN, FP], [FN, TP]])
 
@@ -408,8 +431,17 @@ def plot_loading_predictions(
     prediction_dir,
     label_plot,
 ):
-    """
-    TODO docstrings
+    """Plot overlaid normalized histograms of predicted, DC and ground-truth loadings.
+
+    The y-axis is logarithmic. The figure is saved as
+    ``distribution_loading_predictions_{prediction_dir}.png`` and then shown.
+
+    Args:
+        loadings_pred: Model-predicted loadings.
+        loadings_dc: Loadings from the DC solver.
+        loadings_gt: Ground-truth loadings.
+        prediction_dir: Suffix used in the saved file name.
+        label_plot: Legend label for the model predictions.
     """
     plt.hist(
         loadings_pred,
@@ -439,11 +471,23 @@ def plot_mass_correlation_density_voltage(
     x_max=1.15,
     y_max=1.15,
 ):
-    """
-    TODO docstrings
-    TODO refactor if we pass by parameters a few more plot deets we can use plot_mass_correlation_density for both
+    """Plot a log-scaled 2D histogram of true versus predicted voltage magnitudes.
 
+    Dashed lines mark 0.05 p.u. inside each axis limit. The Pearson correlation is
+    annotated on the plot. The figure is saved as
+    ``mass_correlation_density_voltage_{prediction_dir}.png`` and then shown.
+
+    Args:
+        pf_node: Mapping or DataFrame with ``Vm`` (true) and
+            ``Vm_pred_corrected`` (predicted) columns, in p.u.
+        prediction_dir: Suffix used in the saved file name.
+        label_plot: Plot title.
+        x_min: Lower x-axis limit.
+        y_min: Lower y-axis limit.
+        x_max: Upper x-axis limit.
+        y_max: Upper y-axis limit.
     """
+    # TODO refactor if we pass by parameters a few more plot deets we can use plot_mass_correlation_density for both
     # Get the global min and max for color scaling (avoid log(0) by setting min to at least 1)
     vmin = 1
     bin_width = 0.001  # consistent bin width for both plots

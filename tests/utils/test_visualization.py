@@ -122,7 +122,7 @@ def test_visualize_error_uses_heterogeneous_pbe_inputs_and_returns_figure(
     assert calls["inputs"][5] is data.x_dict
     assert len(fig.axes) == 2
     assert fig.axes[0].get_title() == "Nodal Active Power Residuals"
-    assert fig.axes[1].get_ylabel() == "Nodal Active Power Residual (p.u.)"
+    assert fig.axes[1].get_ylabel() == "Nodal Active Power Residual (MW)"
     assert {label.get_text() for label in fig.axes[0].texts} == {"PQ", "PV", "REF"}
     visualization.plt.close(fig)
 
