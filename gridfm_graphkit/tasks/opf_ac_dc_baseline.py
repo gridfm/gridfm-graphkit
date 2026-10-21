@@ -160,8 +160,10 @@ def _compute_qg_violations_ac(bus_df: pd.DataFrame, gen_df: pd.DataFrame) -> dic
 
 
 def _compute_branch_violations(branch_df: pd.DataFrame, bus_df: pd.DataFrame) -> dict:
-    """Compute AC/DC branch thermal and angle-limit violation statistics."""
+    """Compute AC/DC violations, with zero ratings denoting no thermal limit."""
     rate = branch_df["rate_a"].to_numpy(dtype=float)
+    # MATPOWER uses zero to mean that no thermal limit is imposed.
+    rate = np.where(rate == 0.0, np.inf, rate)
     ac_from = np.sqrt(
         branch_df["pf"].to_numpy(dtype=float) ** 2
         + branch_df["qf"].to_numpy(dtype=float) ** 2,
