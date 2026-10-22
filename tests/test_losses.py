@@ -2,8 +2,8 @@ import pytest
 import torch
 from gridfm_graphkit.datasets.hetero_powergrid_datamodule import LitGridHeteroDataModule
 from gridfm_graphkit.io.param_handler import NestedNamespace, get_loss_function
-from gridfm_graphkit.training.loss import MixedLoss
-from gridfm_graphkit.datasets.globals import VM_H, VA_H, QG_H
+from gridfm_graphkit.training.loss import MaskedBusMSE, MixedLoss
+from gridfm_graphkit.datasets.globals import VM_H, VA_H, QG_H, QG_OUT
 from torch_scatter import scatter_add
 from gridfm_graphkit.models.utils import (
     ComputeBranchFlow,
@@ -165,3 +165,32 @@ def test_get_loss_function_without_warmup_key_is_unchanged(loss_config):
     assert loss_fn.warmup_epochs == 0
     loss_fn.set_epoch(3)
     assert loss_fn.weights == loss_fn.target_weights
+
+
+@pytest.mark.parametrize(
+    "task_name, expected",
+    [
+        # 4 buses x [VM, VA, QG] masked, error 1.0 on the 4 QG entries -> 4 / 12
+        ("OptimalPowerFlow", 1.0 / 3.0),
+        # PowerFlow supervises only VM and VA, so a QG error is invisible
+        ("PowerFlow", 0.0),
+    ],
+)
+def test_masked_bus_mse_supervises_qg_only_for_opf(task_name, expected):
+    # args.task is a NestedNamespace, as built from the YAML config
+    args = NestedNamespace(task={"task_name": task_name})
+    num_bus = 4
+    target = torch.zeros(num_bus, 15)
+    pred = torch.zeros(num_bus, 4)
+    pred[:, QG_OUT] = 1.0
+    mask = torch.zeros(num_bus, 15, dtype=torch.bool)
+    mask[:, [VM_H, VA_H, QG_H]] = True
+
+    out = MaskedBusMSE(None, args)(
+        {"bus": pred},
+        {"bus": target},
+        None,
+        None,
+        {"bus": mask},
+    )
+    assert out["loss"].item() == pytest.approx(expected)
