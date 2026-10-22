@@ -59,10 +59,10 @@ def test_baseline_zero_rating_is_unbounded(rating, expected):
             "qf_dc_computed": [0.0],
             "pt_dc_computed": [-10.0],
             "qt_dc_computed": [0.0],
-        }
+        },
     )
     bus = pd.DataFrame(
-        {"scenario": [0, 0], "bus": [0, 1], "Va": [0.0, 0.0], "Va_dc": [0.0, 0.0]}
+        {"scenario": [0, 0], "bus": [0, 1], "Va": [0.0, 0.0], "Va_dc": [0.0, 0.0]},
     )
     before = branch.copy(deep=True)
     metrics = _compute_branch_violations(branch, bus)
@@ -143,7 +143,7 @@ def test_opf_test_step_zero_rating_is_unbounded(rating, expected, dtype):
             SimpleNamespace(
                 inverse_transform=lambda batch: None,
                 inverse_output=lambda output, batch: None,
-            )
+            ),
         ],
         shared_step=lambda batch: (
             {"bus": bus.clone(), "gen": y_gen.clone()},
@@ -154,5 +154,6 @@ def test_opf_test_step_zero_rating_is_unbounded(rating, expected, dtype):
     OptimalPowerFlowTask.test_step(task, batch, 0)
     for end in ("from", "to"):
         _assert_excess(
-            metrics[f"fixture/Branch thermal violation {end}"].item(), expected
+            metrics[f"fixture/Branch thermal violation {end}"].item(),
+            expected,
         )
