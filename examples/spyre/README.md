@@ -31,7 +31,7 @@ outputs match `task.model` on the CLI path exactly (max abs diff `0.0` on a batc
 
 ## Setup
 
-Same environment as the rest of the repo (see the top-level README / `CLAUDE.md`). The script needs
+Same environment as the rest of the repo (see [`docs/install/installation.md`](../../docs/install/installation.md)). The script needs
 `torch-scatter` and `huggingface_hub` (for the `hf` CLI) on top of the base install. `main` pins torch below 2.13
 to match the prebuilt PyG wheels. On macOS arm64 there is no prebuilt wheel, so install with
 `pip install torch-scatter --no-build-isolation`. That compiles against the installed torch, and you must rerun it
