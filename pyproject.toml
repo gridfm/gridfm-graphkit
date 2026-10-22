@@ -41,22 +41,20 @@ classifiers = [
 
 dependencies = [
     "mlflow>=3.1.0",
-    "nbformat>=5.10.4",
     "networkx>=3.4.2",
     "numpy>=2.2.6",
     "opt-einsum>=3.3.0",
     "pandas>=2.3.0",
-    "plotly>=6.1.2",
     "pyyaml>=6.0.2",
-    "torch>=2.10,<2.14", # upper bound; <2.14 admits torch 2.13, required by vllm>=0.29 (see [vllm] extra)
+    # Stay below 2.13 so the default install matches prebuilt torch-scatter
+    # wheels (torch 2.12). vllm 0.29 requires torch==2.13.0; an extra cannot
+    # loosen this pin, so the vllm extra cannot be installed alongside it.
+    "torch>=2.10,<2.13",
     "torch-geometric>=2.6.1",
     "torch-scatter>=2.1.2",
-    "torchaudio>=2.10",
-    "torchvision>=0.25",
     "lightning",
     "seaborn",
     "urllib3>=2.6.0",
-    "gdown>=6.0.0",
     "gridfm-datakit==1.1.0",
 ]
 
@@ -70,20 +68,23 @@ dev = [
 ]
 
 test = [
+  "gdown>=6.0.0",
   "pytest",
   "pytest-cov"
 ]
 
-# Optional dependency for serving a trained GridFM model through vLLM's
-# /pooling endpoint. Aligned with the vLLM pin used downstream (algorithm-nexus
-# candidate pins vllm==0.29.0). The plugin interfaces this integration targets
-# shift between minor releases; see gridfm_graphkit.vllm.utils.SUPPORTED_VLLM.
+# Optional pieces for serving a trained GridFM model through vLLM's /pooling
+# endpoint. vllm==0.29.0 (the line this plugin targets; see
+# gridfm_graphkit.vllm.utils.SUPPORTED_VLLM) requires torch==2.13.0. That
+# conflicts with the base torch<2.13 pin, and an extra cannot loosen a base
+# pin. uv's conflict forks still apply project.dependencies, so they cannot
+# split the two either. vllm itself is omitted here until torch-scatter ships
+# a 2.13 wheel and this cap can be raised. safetensors and timm do not force
+# torch 2.13: vLLM parses the served config.json through HuggingFace
+# AutoConfig, and a config with no model_type is routed to TimmWrapperConfig,
+# whose from_dict requires timm.
 vllm = [
-  "vllm>=0.29,<0.30",
   "safetensors>=0.4.0",
-  # vLLM parses the served config.json through HuggingFace AutoConfig; a config
-  # that carries no `model_type` (see gridfm_graphkit.vllm.export.build_hf_config)
-  # is routed to TimmWrapperConfig, whose from_dict requires timm to be importable.
   "timm>=1.0.0",
 ]
 
@@ -91,26 +92,36 @@ vllm = [
 # torch-scatter is not on PyPI as a universal wheel — prebuilt wheels live on a
 # PyG wheel index matching your torch version. The find-links below must be
 # updated whenever the torch version in [project.dependencies] changes.
+# pip does not read this table. Pass the same index with --find-links; see the
+# README. The project pin torch<2.13 selects the 2.12 line, which is the newest
+# release with those wheels.
 # CPU:  https://data.pyg.org/whl/torch-X.Y.Z+cpu.html
 # CUDA: https://data.pyg.org/whl/torch-X.Y.Z+cuNNN.html
 # After updating, regenerate the lock file with: uv lock
-# NOTE: torch 2.13 (pulled by the vllm>=0.29 extra) has no prebuilt torch-scatter
-# wheels on the PyG index yet, so torch-scatter is built from its PyPI sdist. That
-# sdist imports torch at build time without declaring it, so we inject torch into
-# its build environment below (extra-build-dependencies). Kept the torch 2.12
-# links too for the non-vllm torch range.
+# Linux and Windows wheels on that index are tagged 2.1.2+pt212cpu; macOS
+# wheels are plain 2.1.2. Without these constraints uv locks only the macOS
+# version, and `uv sync` on Linux then has no compatible wheel. The markers
+# keep each platform on the wheel that index actually publishes. pip does not
+# read this table, so a CUDA install can still select +pt212cuNNN from its own
+# --find-links URL.
+required-environments = [
+    "sys_platform == 'linux' and platform_machine == 'x86_64'",
+    "sys_platform == 'darwin' and platform_machine == 'arm64'",
+]
+constraint-dependencies = [
+    "torch-scatter==2.1.2+pt212cpu ; sys_platform == 'linux' or sys_platform == 'win32'",
+    "torch-scatter==2.1.2 ; sys_platform == 'darwin'",
+]
 find-links = [
-    "https://data.pyg.org/whl/torch-2.13.0+cpu.html",
-    "https://data.pyg.org/whl/torch-2.13.0+cu130.html",
     "https://data.pyg.org/whl/torch-2.12.0+cpu.html",
     "https://data.pyg.org/whl/torch-2.12.0+cu126.html",
 ]
 
 # torch-scatter's sdist imports torch at build time without declaring it as a
-# build dependency, so `uv lock`/`uv sync` fail to build it (e.g. on torch 2.13,
-# which has no prebuilt wheel). Inject torch into its build environment. (uv only
-# reads this from the top-level project, so downstream consumers still need their
-# own copy; the real fix belongs in torch-scatter's build-system.requires.)
+# build dependency. Inject torch into its build environment for platforms that
+# still build from the sdist. (uv only reads this from the top-level project,
+# so downstream consumers still need their own copy; the real fix belongs in
+# torch-scatter's build-system.requires.)
 [tool.uv.extra-build-dependencies]
 torch-scatter = ["torch"]
 

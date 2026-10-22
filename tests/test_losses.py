@@ -2,8 +2,8 @@ import pytest
 import torch
 from gridfm_graphkit.datasets.hetero_powergrid_datamodule import LitGridHeteroDataModule
 from gridfm_graphkit.io.param_handler import NestedNamespace, get_loss_function
-from gridfm_graphkit.training.loss import MixedLoss
-from gridfm_graphkit.datasets.globals import VM_H, VA_H, QG_H
+from gridfm_graphkit.training.loss import MaskedBusMSE, MixedLoss
+from gridfm_graphkit.datasets.globals import VM_H, VA_H, QG_H, QG_OUT
 from torch_scatter import scatter_add
 from gridfm_graphkit.models.utils import (
     ComputeBranchFlow,
@@ -167,46 +167,35 @@ def test_get_loss_function_without_warmup_key_is_unchanged(loss_config):
     assert loss_fn.weights == loss_fn.target_weights
 
 
-# ---------------------------------------------------------------------------
-# Fix #1 – MaskedBusMSE must include QG for both PF and OPF configs
-# ---------------------------------------------------------------------------
+@pytest.mark.parametrize(
+    "task_name, expected",
+    [
+        # 4 buses x [VM, VA, QG] masked, error 1.0 on the 4 QG entries -> 4 / 12
+        ("OptimalPowerFlow", 1.0 / 3.0),
+        # PowerFlow also predicts Qg at PV/REF buses (issue #136, fix #1)
+        ("PowerFlow", 1.0 / 3.0),
+        # StateEstimation supervises only VM and VA, so a QG error is invisible
+        ("StateEstimation", 0.0),
+    ],
+)
+def test_masked_bus_mse_supervises_qg_for_pf_and_opf(task_name, expected):
+    # args.task is a NestedNamespace, as built from the YAML config
+    args = NestedNamespace(task={"task_name": task_name})
+    num_bus = 4
+    target = torch.zeros(num_bus, 15)
+    pred = torch.zeros(num_bus, 4)
+    pred[:, QG_OUT] = 1.0
+    mask = torch.zeros(num_bus, 15, dtype=torch.bool)
+    mask[:, [VM_H, VA_H, QG_H]] = True
 
-
-def test_masked_bus_mse_scores_qg_column():
-    """MaskedBusMSE must include QG in the loss for both PF and OPF tasks.
-
-    Regression for issue #136 bug #1: the old code compared ``args.task ==
-    "OptimalPowerFlow"`` where ``args.task`` is a NestedNamespace object, so
-    the equality was always False and QG was never scored.
-    """
-    from gridfm_graphkit.training.loss import MaskedBusMSE
-    from gridfm_graphkit.datasets.globals import (
-        QG_OUT,
-        VM_H,
-        VA_H,
-        QG_H,
+    out = MaskedBusMSE(None, args)(
+        {"bus": pred},
+        {"bus": target},
+        None,
+        None,
+        {"bus": mask},
     )
-
-    # Build a minimal args stub — task_name should not affect behaviour any more.
-    for task_name in ("PowerFlow", "OptimalPowerFlow"):
-        args = NestedNamespace(task={"task_name": task_name})
-        loss_fn = MaskedBusMSE(loss_args={}, args=args)
-
-        N = 5
-        pred_dict = {"bus": torch.zeros(N, 4)}
-        # Make QG predictions differ from targets so QG contributes.
-        pred_dict["bus"][:, QG_OUT] = 1.0
-
-        target_dict = {"bus": torch.zeros(N, max(VM_H, VA_H, QG_H) + 1)}
-
-        # Unmask everything so every element contributes.
-        mask_dict = {"bus": torch.ones(N, max(VM_H, VA_H, QG_H) + 1, dtype=torch.bool)}
-
-        result = loss_fn(pred_dict, target_dict, None, None, mask_dict)
-        assert result["loss"].item() > 0.0, (
-            f"MaskedBusMSE loss is zero for task={task_name!r}; "
-            "QG column is not being included."
-        )
+    assert out["loss"].item() == pytest.approx(expected)
 
 
 # ---------------------------------------------------------------------------

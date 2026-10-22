@@ -29,9 +29,10 @@ def check_vllm_version(target_version: str, comparison: str) -> bool:
         from vllm import __version__ as vllm_version
     except ImportError as exc:  # pragma: no cover - exercised only without vLLM
         raise ImportError(
-            "vLLM is not installed. Install gridfm-graphkit with the 'vllm' "
-            "extra (pip install 'gridfm-graphkit[vllm]') to use the serving "
-            "integration.",
+            "vLLM is not installed. vLLM 0.29 requires torch==2.13.0, which "
+            "conflicts with this package's torch<2.13 pin (the 2.12 line is "
+            "what has prebuilt torch-scatter wheels). The 'vllm' extra cannot "
+            "install vLLM until that cap is raised.",
         ) from exc
 
     current = version.parse(vllm_version)

@@ -39,8 +39,6 @@ WORKDIR /app
 # 1. Install Torch and PyG binaries
 RUN pip install --no-cache-dir \
         "torch>=2.7.1,<2.9" \
-        torchvision \
-        torchaudio \
         --index-url https://download.pytorch.org/whl/cu128 \
  && pip install --no-cache-dir \
         torch-scatter \
