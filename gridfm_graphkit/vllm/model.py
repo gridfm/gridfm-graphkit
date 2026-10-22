@@ -8,8 +8,9 @@ multimodal modality; the model rebuilds the ``HeteroData``, runs the GNN with
 ``return_embeddings=True``, and returns one packed tensor that vLLM's identity
 pooler passes straight through to the IO processor.
 
-This module imports vLLM at load time and must only be imported when the
-optional ``vllm`` extra is installed.
+This module imports vLLM at load time and must only be imported when vLLM
+is installed. The ``vllm`` extra does not install vLLM (see the package
+docstring).
 """
 
 from __future__ import annotations

@@ -2,13 +2,17 @@
 
 This subpackage lets a trained GridFM model be served through vLLM's ``/pooling``
 endpoint. It provides two vLLM plugins, discovered via entry points declared in
-``pyproject.toml`` and only active when the optional ``vllm`` extra is installed:
+``pyproject.toml`` and only active when vLLM is installed:
 
 - a **general plugin** registering the ``GridFMGNS`` architecture
   (:class:`gridfm_graphkit.vllm.model.GridFMForPooling`), and
 - an **IO-processor plugin** (``gridfm_pf_reconstruction``) that turns a
   power-grid case into graph tensors and reads back per-node embeddings and
   reconstructed PowerFlow quantities.
+
+The optional ``vllm`` extra does not install vLLM itself. vLLM 0.29 requires
+``torch==2.13.0``, which conflicts with this package's ``torch<2.13`` pin
+(the newest line with prebuilt torch-scatter wheels).
 
 Only lightweight, vLLM-free helpers are re-exported here so that importing
 ``gridfm_graphkit.vllm`` never requires vLLM. The model and IO-processor modules
