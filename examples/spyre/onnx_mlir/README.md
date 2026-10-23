@@ -35,6 +35,11 @@ onnx-mlir -O3 genco_case118_tiny_opset18_dynamo.onnx                            
 
 `--opt-report=NNPAUnsupportedOps` lists the ops that stay on the CPU, with the reason for each.
 
+Two NNPA flags barely change placement here: `--nnpa-enable-scalar-bcast-binary` moves 36 `Div` ops to NNPA
+(and adds 36 layout conversions), and `--nnpa-disable-shape-restriction` moves none. The elementwise ops left on
+the CPU broadcast `[N, 1]` against `[N, 96]` (the `TransformerConv` skip mix) or work on 1-D per-bus vectors in
+the physics block, so moving them would take model changes, not flags.
+
 ## 3. Check
 
 ```bash
