@@ -45,7 +45,7 @@ def main():
         "--tol",
         type=float,
         default=3e-4,
-        help="max relative error vs float64 (3e-4 suits CPU; NNPA computes in 16-bit)",
+        help="max relative error vs float64: 3e-4 for a CPU build, 3e-2 for NNPA (16-bit)",
     )
     p.add_argument("--repeats", type=int, default=5)
     cli = p.parse_args()
@@ -56,15 +56,21 @@ def main():
 
     # dlopen treats a bare file name as a library-path search, not the current directory
     session = OMExecutionSession(os.path.abspath(cli.model_so))
-    ref = np.load(cli.reference)
-    batches = list(dict.fromkeys(k.split("/")[0] for k in ref.files))
+    # The .npz is written little-endian; IBM Z is big-endian, and the runtime reads raw bytes.
+    with np.load(cli.reference) as npz:
+        ref = {
+            k: np.ascontiguousarray(v.astype(v.dtype.newbyteorder("=")))
+            for k, v in npz.items()
+        }
+    batches = list(dict.fromkeys(k.split("/")[0] for k in ref))
+    session.run([ref[f"{batches[0]}/{n}"] for n in INPUT_ORDER])  # warm-up
 
     print(
         f"{'batch':<20} {'buses':>6} {'gens':>6}   {'PyTorch f32':>11} {'model.so':>9}  worst   ms/run",
     )
     worst = 0.0
     for b in batches:
-        inputs = [np.ascontiguousarray(ref[f"{b}/{n}"]) for n in INPUT_ORDER]
+        inputs = [ref[f"{b}/{n}"] for n in INPUT_ORDER]
         out = session.run(inputs)
         start = time.perf_counter()
         for _ in range(cli.repeats):

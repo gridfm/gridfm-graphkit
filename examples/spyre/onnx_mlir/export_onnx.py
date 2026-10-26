@@ -3,12 +3,14 @@
 The model is the one ``genco_forward.py`` loads, so the graph computes exactly what
 ``gridfm_graphkit predict`` computes. ``--exporter dynamo`` (the default) produces the file
 onnx-mlir compiles. The checked batches are saved as a reference ``.npz`` next to the
-``.onnx``, for ``check_model_so.py`` to test a compiled model with. See ``README.md``.
+``.onnx``, for ``check_model_so.py`` to test a compiled model with, and an NNPA placement
+config that keeps the voltage head and the physics block on the CPU. See ``README.md``.
 """
 
-import contextlib
-
 import argparse
+import ast
+import contextlib
+import json
 import os
 import sys
 import types
@@ -136,6 +138,44 @@ def export(wrapped, inputs, path, opset, exporter, static):
     onnx.save_model(onnx.load(path), path, save_as_external_data=False)
     if os.path.exists(path + ".data"):
         os.remove(path + ".data")
+
+
+def nnpa_cpu_config(path):
+    """onnx-mlir ``--config-file`` that pins precision-sensitive nodes to the CPU.
+
+    NNPA computes in 16-bit (DLFLOAT16, ~3 significant digits). Two parts of GENCO can't take
+    it: ``mlp_bus``, which outputs voltages near 1.0 p.u., and the physics block
+    (``models/utils.py``), which multiplies them by large branch admittances at every layer.
+    Run in 16-bit, they put QG errors at ~0.3 of its range; kept in float32, ~1e-2.
+
+    Nodes are matched by name, so the config only fits the ``.onnx`` exported with it. Needs
+    the dynamo exporter, whose nodes carry module scopes and source locations.
+    """
+    graph = onnx.load(path).graph
+    names = []
+    for node in graph.node:
+        meta = {p.key: p.value for p in node.metadata_props}
+        scopes = ast.literal_eval(meta.get("pkg.torch.onnx.name_scopes", "[]"))
+        in_head = any(s.startswith("model.mlp_bus") for s in scopes)
+        in_physics = "gridfm_graphkit/models/utils.py" in meta.get(
+            "pkg.torch.onnx.stack_trace",
+            "",
+        )
+        if in_head or in_physics:
+            names.append(node.name)
+    return {
+        "nnpa_ops_config": [
+            {
+                "pattern": {
+                    "match": {
+                        "node_type": "onnx.*",
+                        "onnx_node_name": "^(" + "|".join(names) + ")$",
+                    },
+                    "rewrite": {"device": "cpu"},
+                },
+            },
+        ],
+    }, len(names)
 
 
 def make_batch(dataset, ids):
@@ -267,6 +307,14 @@ def main():
     print(
         f"saved reference batches to {ref_path}  ({os.path.getsize(ref_path) / 1e6:.1f} MB)",
     )
+    if cli.exporter == "dynamo":
+        config, n = nnpa_cpu_config(cli.output)
+        config_path = os.path.splitext(cli.output)[0] + "_nnpa_config.json"
+        with open(config_path, "w") as f:
+            json.dump(config, f)
+        print(
+            f"saved NNPA placement config to {config_path}  ({n} nodes pinned to CPU)",
+        )
 
 
 if __name__ == "__main__":
