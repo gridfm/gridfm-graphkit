@@ -49,17 +49,31 @@ don't:
 | `mlp_bus`, the head that predicts Vm and Va | Vm sits near 1.0 p.u., where 16-bit steps are 0.002 |
 | The physics block (`gridfm_graphkit/models/utils.py`) | Multiplies those voltages by branch admittances of ~30 to get branch flows and power balance, at every one of the 12 layers |
 
-Emulating DLFLOAT16 in PyTorch gives the error below, relative to the largest value per output column against
-float64. QG is always the worst column:
+We emulated DLFLOAT16 in PyTorch by rounding every op the compiler places on NNPA: the linear layers,
+activations, and the attention's scores, softmax and mixing. Gathers and scatters stay exact, as on the CPU.
+Errors are relative to the largest value per output column, on the export batch (32-scenario batch in
+brackets):
 
-| 16-bit applied to | QG, export batch | QG, 32 scenarios |
-|---|---:|---:|
-| Nothing (float32) | 4.8e-05 | 7.5e-05 |
-| Every linear layer and the physics | 3.3e-01 | 2.7e-01 |
-| Everything except `mlp_bus` and the physics | 9.6e-03 | 1.9e-02 |
+| Build | QG worst, vs float64 | QG mean, vs solver | QG worst, vs solver | VM mean, vs solver |
+|---|---:|---:|---:|---:|
+| Float32 (PyTorch) | 4.8e-05 (7.5e-05) | 7.2e-03 (3.1e-03) | 0.22 (0.43) | 2.3e-04 (1.3e-04) |
+| NNPA, default placement | 0.31 (0.31) | 2.3e-02 (1.6e-02) | 0.60 (0.45) | 9.3e-04 (9.1e-04) |
+| NNPA, with the config | 1.4e-02 (2.9e-02) | 7.0e-03 (3.0e-03) | 0.20 (0.43) | 2.2e-04 (1.2e-04) |
 
-The model's own QG error against the power-flow solver is 1.8e-01 on the export batch, so ~1e-2 from 16-bit is
-small next to it.
+"vs float64" measures what NNPA changes. "vs solver" compares with the power-flow solution in the dataset, which
+is what users of the model see. The default-placement emulation lands inside the 0.25 to 0.66 measured on z17.
+With the config, accuracy against the solver is the same as float32.
+
+Both pinned parts are needed. QG worst vs float64, export batch (32 scenarios):
+
+| Pinned to CPU | QG worst |
+|---|---:|
+| Nothing (default) | 0.31 (0.31) |
+| `mlp_bus` only | 0.19 (0.26) |
+| Physics only | 0.25 (0.27) |
+| `mlp_bus` and physics (the config) | 0.014 (0.029) |
+
+Everything else tolerates 16-bit: the input projections, all 12 attention layers, `physics_mlp` and `mlp_gen`.
 
 Keeping only the last layers in float32 doesn't work: the 16-bit errors from earlier layers have already reached
 the hidden state through the physics feedback. Removing the physics isn't an option either: without its
@@ -133,4 +147,13 @@ Fixing the shapes doesn't help: a static legacy export still has the `If` nodes,
 | CPU build | Compiles to `model.so`. `check_model_so.py` passes: worst error 1.2e-04, PyTorch float32 7.5e-05. |
 | NNPA build, default placement | On z17: worst error 2.5e-01 to 6.6e-01, from 16-bit precision. 81 ms for the export batch, single thread. |
 | NNPA build, with the config | All model stages pass, and placement is as in the table above. Not yet run on z17. |
-| CPU timings | PyTorch 35 ms, onnxruntime 40 ms for the export batch, single thread, Apple M4 Max (not IBM Z) |
+
+CPU timings on the reference batches, single thread, Apple M4 Max (not IBM Z), median of 30 runs:
+
+| Batch | Buses | PyTorch | onnxruntime | z17 NNPA, default placement |
+|---|---:|---:|---:|---:|
+| `export_batch` | 944 | 32.6 ms | 38.1 ms | 81.2 ms |
+| `other_gen_count_x8` | 944 | 30.4 ms | 37.5 ms | 82.2 ms |
+| `mixed_sizes_x3` | 354 | 14.9 ms | 14.5 ms | 19.0 ms |
+| `single_scenario` | 118 | 9.2 ms | 5.8 ms | 7.2 ms |
+| `32_scenarios` | 3,776 | 128.4 ms | 149.0 ms | 338.0 ms |
