@@ -201,10 +201,42 @@ def read_baseline(test_key: str) -> dict:
     return {k: tuple(v) for k, v in bounds[test_key].items()}
 
 
-def execute_and_live_output(cmd) -> None:
+def execute_and_live_output(cmd, fast: bool = False) -> None:
     env = os.environ.copy()
-    env.setdefault("CUBLAS_WORKSPACE_CONFIG", ":4096:8")
+    if not fast:
+        # Deterministic cuBLAS workspace; required for reproducible numerics but
+        # forbids faster nondeterministic kernels. Skipped in --fast mode.
+        env.setdefault("CUBLAS_WORKSPACE_CONFIG", ":4096:8")
     subprocess.run(cmd, text=True, shell=True, check=True, env=env)
+
+
+def train_command(
+    config_path: str,
+    data_path: str,
+    exp_name: str,
+    run_name: str,
+    log_dir: str,
+    fast: bool = False,
+) -> str:
+    """Build a ``gridfm_graphkit train`` command.
+
+    In the default (deterministic) mode the run passes ``--deterministic warn``
+    for reproducible metrics. ``--fast`` drops it so faster nondeterministic
+    kernels can be used; only valid when the calibrated bounds tolerate the
+    extra numerical jitter.
+    """
+    cmd = (
+        f"gridfm_graphkit train "
+        f"--config {config_path} "
+        f"--data_path {data_path} "
+        f"--exp_name {exp_name} "
+        f"--run_name {run_name} "
+        f"--log_dir {log_dir} "
+        f"--mp_context spawn"
+    )
+    if not fast:
+        cmd += " --deterministic warn"
+    return cmd
 
 
 def collect_metrics_from_log(log_base: str, metric_keys: list) -> dict:
@@ -272,9 +304,9 @@ def print_calibration_stats(
     print("=" * (len(header)) + "\n")
 
 
-def prepare_training_config():
+def prepare_training_config(epochs: int = 20):
     """
-    Modify the PF training config to set epochs to 20 and hidden_size to 12 for testing.
+    Modify the PF training config to set epochs and hidden_size to 12 for testing.
     """
     config_path = "examples/config/HGNS_PF_datakit_case14.yaml"
 
@@ -286,7 +318,7 @@ def prepare_training_config():
     if "model" not in config:
         config["model"] = {}
 
-    config["training"]["epochs"] = 20
+    config["training"]["epochs"] = epochs
     config["model"]["hidden_size"] = 12
 
     with open(config_path, "w") as f:
@@ -299,9 +331,9 @@ def prepare_training_config():
     return config_path
 
 
-def prepare_opf_training_config():
+def prepare_opf_training_config(epochs: int = 20):
     """
-    Modify the OPF training config to set epochs to 20 and hidden_size to 12 for testing.
+    Modify the OPF training config to set epochs and hidden_size to 12 for testing.
     """
     config_path = "examples/config/HGNS_OPF_datakit_case14.yaml"
 
@@ -313,7 +345,7 @@ def prepare_opf_training_config():
     if "model" not in config:
         config["model"] = {}
 
-    config["training"]["epochs"] = 20
+    config["training"]["epochs"] = epochs
     config["model"]["hidden_size"] = 12
 
     with open(config_path, "w") as f:
@@ -354,7 +386,16 @@ def cleanup_test_artifacts():
             shutil.rmtree(d, ignore_errors=True)
 
 
-def test_train_pf(cleanup_test_artifacts, calibrate_runs, ci_level, calibrate_pad):
+@pytest.mark.integration
+def test_train_pf(
+    cleanup_test_artifacts,
+    calibrate_runs,
+    ci_level,
+    calibrate_pad,
+    train_epochs,
+    max_retries,
+    fast_mode,
+):
     """
     Integration test for power flow (PF): gridfm-datakit data generation and gridfm-graphkit training.
 
@@ -392,20 +433,21 @@ def test_train_pf(cleanup_test_artifacts, calibrate_runs, ci_level, calibrate_pa
     else:
         print(f"Data directory '{data_dir}' already exists, skipping download.")
 
-    training_config_path = prepare_training_config()
+    training_config_path = prepare_training_config(train_epochs)
     all_runs = []
 
     for run_i in range(n_runs):
         print(f"\n--- PF Training run {run_i + 1}/{n_runs} ---")
         execute_and_live_output(
-            f"gridfm_graphkit train "
-            f"--config {training_config_path} "
-            f"--data_path data_out/ "
-            f"--exp_name exp1 "
-            f"--run_name run{run_i + 1} "
-            f"--log_dir logs "
-            f"--mp_context spawn "
-            f"--deterministic warn",
+            train_command(
+                config_path=training_config_path,
+                data_path="data_out/",
+                exp_name="exp1",
+                run_name=f"run{run_i + 1}",
+                log_dir="logs",
+                fast=fast_mode,
+            ),
+            fast=fast_mode,
         )
         metrics = collect_metrics_from_log("logs", pf_metric_keys)
         all_runs.append(metrics)
@@ -423,22 +465,23 @@ def test_train_pf(cleanup_test_artifacts, calibrate_runs, ci_level, calibrate_pa
 
     checks = read_baseline("pf")
 
-    MAX_RETRIES = 5
+    max_attempts = max(max_retries, 0) + 1
     last_error = None
-    for attempt in range(1, MAX_RETRIES + 1):
+    for attempt in range(1, max_attempts + 1):
         if attempt > 1:
             print(
-                f"\n--- PF Retry attempt {attempt}/{MAX_RETRIES} after metric interval failure ---",
+                f"\n--- PF Retry attempt {attempt}/{max_attempts} after metric interval failure ---",
             )
             execute_and_live_output(
-                f"gridfm_graphkit train "
-                f"--config {training_config_path} "
-                f"--data_path data_out/ "
-                f"--exp_name exp1 "
-                f"--run_name retry{attempt} "
-                f"--log_dir logs "
-                f"--mp_context spawn "
-                f"--deterministic warn",
+                train_command(
+                    config_path=training_config_path,
+                    data_path="data_out/",
+                    exp_name="exp1",
+                    run_name=f"retry{attempt}",
+                    log_dir="logs",
+                    fast=fast_mode,
+                ),
+                fast=fast_mode,
             )
             metrics = collect_metrics_from_log("logs", pf_metric_keys)
         else:
@@ -459,7 +502,7 @@ def test_train_pf(cleanup_test_artifacts, calibrate_runs, ci_level, calibrate_pa
             last_error = None
             break
         except AssertionError as e:
-            print(f"Attempt {attempt}/{MAX_RETRIES} failed: {e}")
+            print(f"Attempt {attempt}/{max_attempts} failed: {e}")
             last_error = e
 
     if last_error is not None:
@@ -470,15 +513,30 @@ def test_train_pf(cleanup_test_artifacts, calibrate_runs, ci_level, calibrate_pa
 def cleanup_opf_test_artifacts():
     """
     Remove generated artifacts after the OPF test.
+
+    Only the training logs are removed. The downloaded dataset in ``data_out_opf``
+    is intentionally kept so subsequent runs reuse it instead of re-downloading
+    the multi-GB zip from Google Drive every time (mirroring the PF test, which
+    leaves ``data_out`` in place). Delete ``data_out_opf`` manually to force a
+    fresh download.
     """
     yield
 
-    for d in ["data_out_opf", "logs_opf"]:
+    for d in ["logs_opf"]:
         if os.path.exists(d):
             shutil.rmtree(d, ignore_errors=True)
 
 
-def test_train_opf(cleanup_opf_test_artifacts, calibrate_runs, ci_level, calibrate_pad):
+@pytest.mark.integration
+def test_train_opf(
+    cleanup_opf_test_artifacts,
+    calibrate_runs,
+    ci_level,
+    calibrate_pad,
+    train_epochs,
+    max_retries,
+    fast_mode,
+):
     """
     Integration test for OPF data download and gridfm-graphkit OPF training.
 
@@ -531,20 +589,21 @@ def test_train_opf(cleanup_opf_test_artifacts, calibrate_runs, ci_level, calibra
     else:
         print(f"OPF data directory '{opf_data_dir}' already exists, skipping download.")
 
-    training_config_path = prepare_opf_training_config()
+    training_config_path = prepare_opf_training_config(train_epochs)
     all_runs = []
 
     for run_i in range(n_runs):
         print(f"\n--- OPF Training run {run_i + 1}/{n_runs} ---")
         execute_and_live_output(
-            f"gridfm_graphkit train "
-            f"--config {training_config_path} "
-            f"--data_path {opf_data_dir}/ "
-            f"--exp_name exp_opf "
-            f"--run_name run{run_i + 1} "
-            f"--log_dir logs_opf "
-            f"--mp_context spawn "
-            f"--deterministic warn",
+            train_command(
+                config_path=training_config_path,
+                data_path=f"{opf_data_dir}/",
+                exp_name="exp_opf",
+                run_name=f"run{run_i + 1}",
+                log_dir="logs_opf",
+                fast=fast_mode,
+            ),
+            fast=fast_mode,
         )
         metrics = collect_metrics_from_log("logs_opf", opf_metric_keys)
         all_runs.append(metrics)
@@ -562,22 +621,23 @@ def test_train_opf(cleanup_opf_test_artifacts, calibrate_runs, ci_level, calibra
 
     checks = read_baseline("opf")
 
-    MAX_RETRIES = 5
+    max_attempts = max(max_retries, 0) + 1
     last_error = None
-    for attempt in range(1, MAX_RETRIES + 1):
+    for attempt in range(1, max_attempts + 1):
         if attempt > 1:
             print(
-                f"\n--- OPF Retry attempt {attempt}/{MAX_RETRIES} after metric interval failure ---",
+                f"\n--- OPF Retry attempt {attempt}/{max_attempts} after metric interval failure ---",
             )
             execute_and_live_output(
-                f"gridfm_graphkit train "
-                f"--config {training_config_path} "
-                f"--data_path {opf_data_dir}/ "
-                f"--exp_name exp_opf "
-                f"--run_name retry{attempt} "
-                f"--log_dir logs_opf "
-                f"--mp_context spawn "
-                f"--deterministic warn",
+                train_command(
+                    config_path=training_config_path,
+                    data_path=f"{opf_data_dir}/",
+                    exp_name="exp_opf",
+                    run_name=f"retry{attempt}",
+                    log_dir="logs_opf",
+                    fast=fast_mode,
+                ),
+                fast=fast_mode,
             )
             metrics = collect_metrics_from_log("logs_opf", opf_metric_keys)
         else:
@@ -598,7 +658,7 @@ def test_train_opf(cleanup_opf_test_artifacts, calibrate_runs, ci_level, calibra
             last_error = None
             break
         except AssertionError as e:
-            print(f"Attempt {attempt}/{MAX_RETRIES} failed: {e}")
+            print(f"Attempt {attempt}/{max_attempts} failed: {e}")
             last_error = e
 
     if last_error is not None:
