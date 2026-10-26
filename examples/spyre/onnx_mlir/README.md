@@ -22,10 +22,10 @@ This writes three files to `examples/spyre/onnx_mlir/`:
 | File | Size | Content |
 |---|---:|---|
 | `genco_case118_tiny_opset18_dynamo.onnx` | 9.2 MB | The model, opset 18, all graph sizes dynamic |
-| `genco_case118_tiny_opset18_dynamo_reference.npz` | 0.3 MB | 5 input batches of different sizes, with the PyTorch outputs in float32 and float64 |
+| `genco_case118_tiny_opset18_dynamo_reference.npz` | 1.4 MB | 5 small batches of different sizes plus an `accuracy` batch of all 200 scenarios, with the PyTorch outputs in float32 and float64, and the power-flow solution for the `accuracy` batch |
 | `genco_case118_tiny_opset18_dynamo_nnpa_config.json` | 12 KB | Pins the voltage head and the physics block to the CPU (see below) |
 
-The script checks the ONNX file in onnxruntime on those 5 batches and ends with a `PASS` or `FAIL` line. The
+The script checks the ONNX file in onnxruntime on those batches and ends with a `PASS` or `FAIL` line. The
 config matches nodes by name, so it only fits the `.onnx` exported in the same run.
 
 ## 2. Compile
@@ -99,14 +99,34 @@ abort in onnx-mlir 0.5.1 (`PerfModel.cpp:66`, an assertion on unranked operands)
 ```bash
 python check_model_so.py genco_case118_tiny_opset18_dynamo.so \
     genco_case118_tiny_opset18_dynamo_reference.npz \
-    --runtime_dir <onnx-mlir build>/lib --tol 3e-2  # the directory with PyRuntime.py
+    --runtime_dir <onnx-mlir build>/lib              # the directory with PyRuntime.py
 ```
 
 It needs only numpy and onnx-mlir's `PyRuntime`, and converts the reference data to the machine's byte order
-(IBM Z is big-endian). It reports the error per batch, relative to the largest value in each output column,
-against the float64 reference. PyTorch's own float32 error is shown for comparison.
+(IBM Z is big-endian).
 
-Use `--tol 3e-4` (the default) for a CPU build and `--tol 3e-2` for NNPA.
+**Pass or fail asks whether the compiled model is as accurate as PyTorch.** On the `accuracy` batch (200
+scenarios, 23,600 buses), it compares each output with the power-flow solver's solution, on the entries the model
+predicts. For each column (VM, VA, slack PG, QG) it takes the mean and the 99th-percentile error, divides by
+PyTorch float32's, and passes if every ratio is at most 1.25 (`--max_ratio`).
+
+| Build | Worst ratio | Result |
+|---|---:|---|
+| CPU (`-O3`) | 1.000 | Pass |
+| NNPA with the config, emulated | 1.059 | Pass |
+| NNPA default placement, emulated | 5.4 | Fail |
+
+The limit leaves room for the real NNPA rounding to differ a little from the emulation, and is well below the
+default build. A fixed tolerance against float64 doesn't work for NNPA: 16-bit rounding always moves outputs by
+1e-2, whether or not that harms accuracy.
+
+The test needs many scenarios. On batches of 1 to 32, a few buses decide the result, and the emulated NNPA
+ratio swings from 0.85 to 2.35 by chance. With 200, it is stable. The emulation gives the same result on the
+lightest, median and heaviest-loaded partitions of the dataset (all ratios 0.98 to 1.06), so partition 0 is
+representative.
+
+It also prints the error against float64 for every batch, as a diagnostic: a miscompile shows there as 1e-1 or
+worse.
 
 ## Inputs and outputs
 
@@ -144,7 +164,7 @@ Fixing the shapes doesn't help: a static legacy export still has the `If` nodes,
 |---|---|
 | Exporter | PyTorch 2.12.1, onnx 1.23.2, onnxscript 0.7.2, onnxruntime 1.31.0 |
 | Compiler | `ghcr.io/onnxmlir/onnx-mlir-dev` (amd64), onnx-mlir 0.5.1, Debug build |
-| CPU build | Compiles to `model.so`. `check_model_so.py` passes: worst error 1.2e-04, PyTorch float32 7.5e-05. |
+| CPU build | Compiles to `model.so`. `check_model_so.py` passes: error ratio 1.000 on every column; worst error vs float64 1.2e-04 (PyTorch float32 7.5e-05). |
 | NNPA build, default placement | On z17: worst error 2.5e-01 to 6.6e-01, from 16-bit precision. 81 ms for the export batch, single thread. |
 | NNPA build, with the config | All model stages pass, and placement is as in the table above. Not yet run on z17. |
 

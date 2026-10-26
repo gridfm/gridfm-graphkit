@@ -20,9 +20,13 @@ import onnx
 import onnxruntime as ort
 import torch
 from torch_geometric.loader import DataLoader
+from torch_scatter import scatter_add
+
+from gridfm_graphkit.datasets.globals import PG_H, QG_H, VA_H, VM_H
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 import genco_forward as gf  # noqa: E402
+from check_model_so import MAX_RATIO, accuracy_ratios  # noqa: E402
 
 BB = ("bus", "connects", "bus")
 GB = ("gen", "connected_to", "bus")
@@ -178,6 +182,27 @@ def nnpa_cpu_config(path):
     }, len(names)
 
 
+def solver_targets(batch):
+    """Power-flow solution per bus as [VM, VA, PG, QG], and which entries the model predicts.
+
+    Same layout and masks as ``pf_task.py``: PG is the generators' output summed per bus,
+    and is predicted only at the slack (REF) bus.
+    """
+    y, mask = batch["bus"].y, batch.mask_dict["bus"]
+    pg = scatter_add(
+        batch["gen"].y[:, PG_H],
+        batch.edge_index_dict[GB][1],
+        dim=0,
+        dim_size=y.shape[0],
+    )
+    target = torch.stack([y[:, VM_H], y[:, VA_H], pg, y[:, QG_H]], dim=1)
+    predicted = torch.stack(
+        [mask[:, VM_H], mask[:, VA_H], batch.mask_dict["REF"], mask[:, QG_H]],
+        dim=1,
+    )
+    return target.numpy(), predicted.numpy()
+
+
 def make_batch(dataset, ids):
     return next(iter(DataLoader([dataset[i] for i in ids], batch_size=len(ids))))
 
@@ -250,6 +275,8 @@ def main():
             "mixed sizes x3": [cli.scenarios[0], other[0], cli.scenarios[-1]],
             "single scenario": [other[1]],
             "32 scenarios": list(range(40, 72)),
+            # every scenario: enough buses for a stable accuracy statistic (see check_model_so.py)
+            "accuracy": list(range(len(dataset))),
         }
     # Reference: the same model in float64, which has almost no rounding error. Each
     # output column is scored as max |error| / max |value|, so VM (~1) and PG (~7) are
@@ -285,6 +312,13 @@ def main():
         reference |= {f"{key}/{n}": v for n, v in feeds.items()}
         reference |= {f"{key}/f64_bus_output": f64[0], f"{key}/f64_gen_output": f64[1]}
         reference |= {f"{key}/f32_bus_output": f32[0], f"{key}/f32_gen_output": f32[1]}
+        if key == "accuracy":
+            target, predicted = solver_targets(b)
+            reference |= {
+                f"{key}/solver_bus": target,
+                f"{key}/solver_predicted": predicted,
+            }
+            ort_ratios = accuracy_ratios(got[0], f32[0], target, predicted)[2]
 
         def rel(a, ref):
             # one value per output column: bus VM, VA, PG, QG, then gen PG
@@ -299,9 +333,14 @@ def main():
             f"  {label:<18} {shape:<34} {rel_torch.max():>12.1e} {rel_ort.max():>12.1e}  "
             f"{cols[int(rel_ort.argmax())]}",
         )
-    print(
-        f"{'PASS' if worst < tol else 'FAIL'}: worst onnxruntime relative error {worst:.1e}",
-    )
+    ok = worst < tol
+    if "accuracy" in checks:
+        ok &= bool(ort_ratios.max() <= MAX_RATIO)
+        print(
+            f"accuracy vs power-flow solver, {len(checks['accuracy'])} scenarios: onnxruntime / "
+            f"PyTorch float32 error ratio {ort_ratios.min():.3f} to {ort_ratios.max():.3f}",
+        )
+    print(f"{'PASS' if ok else 'FAIL'}: worst onnxruntime relative error {worst:.1e}")
     ref_path = os.path.splitext(cli.output)[0] + "_reference.npz"
     np.savez_compressed(ref_path, **reference)
     print(
