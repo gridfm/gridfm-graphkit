@@ -157,29 +157,38 @@ def _load_scenario_tensors(processed_dir: str) -> dict:
 
 
 def _compare_hetero(golden, fresh, scenario: str, rtol: float, atol: float) -> list:
-    """Compare two HeteroData objects tensor-by-tensor; return list of diffs."""
+    """Compare two HeteroData objects tensor-by-tensor; return list of diffs.
+
+    Superset semantics: the fresh (regenerated) object must contain every store
+    and every tensor attribute present in the golden (shipped) object, with
+    matching shapes and values. The fresh object is *allowed* to have additional
+    stores or attributes the golden one lacks (e.g. new columns added by an
+    updated pipeline) — those extras are not a divergence. Only missing or
+    mismatched golden content fails.
+    """
     import torch
 
     diffs = []
     g_stores = {s._key: s for s in golden.stores if getattr(s, "_key", None)}
     f_stores = {s._key: s for s in fresh.stores if getattr(s, "_key", None)}
-    if set(g_stores) != set(f_stores):
+    missing_stores = set(g_stores) - set(f_stores)
+    if missing_stores:
         diffs.append(
-            f"scenario {scenario}: store keys differ "
-            f"(golden={sorted(map(str, g_stores))} fresh={sorted(map(str, f_stores))})",
+            f"scenario {scenario}: fresh output is missing stores present in the "
+            f"shipped tensors: {sorted(map(str, missing_stores))}",
         )
-        return diffs
-    for key, g_store in g_stores.items():
+    for key in set(g_stores) & set(f_stores):
+        g_store = g_stores[key]
         f_store = f_stores[key]
         g_attrs = {k for k, v in g_store.items() if torch.is_tensor(v)}
         f_attrs = {k for k, v in f_store.items() if torch.is_tensor(v)}
-        if g_attrs != f_attrs:
+        missing_attrs = g_attrs - f_attrs
+        if missing_attrs:
             diffs.append(
-                f"scenario {scenario} store {key}: tensor attrs differ "
-                f"(golden={sorted(g_attrs)} fresh={sorted(f_attrs)})",
+                f"scenario {scenario} store {key}: fresh output is missing tensor "
+                f"attrs present in the shipped tensors: {sorted(missing_attrs)}",
             )
-            continue
-        for attr in sorted(g_attrs):
+        for attr in sorted(g_attrs & f_attrs):
             gt, ft = g_store[attr], f_store[attr]
             if gt.shape != ft.shape:
                 diffs.append(
@@ -208,9 +217,13 @@ def verify_preprocessing(
       2. Delete ``processed/`` and re-instantiate ``HeteroGridDatasetDisk``,
          which triggers ``process()`` to rebuild the tensors from ``raw/``.
       3. Compare every regenerated ``data_index_*.pt`` against the golden copy
-         via ``torch.allclose`` and fail on any divergence.
-      4. Restore the shipped ``processed/`` so the subsequent training step uses
-         the original tensors (and no re-download is needed next run).
+         via ``torch.allclose``. Superset semantics: every tensor the shipped
+         copy has must be reproduced identically, but the fresh output may carry
+         *extra* columns/attrs the shipped copy lacks. Fail on any missing or
+         mismatched shipped tensor.
+      4. Keep the freshly regenerated ``processed/`` (discard the golden
+         snapshot) so the subsequent training step trains on the newly
+         preprocessed samples, not the shipped ones.
 
     The dataset's normalizer is only used at access time (``get()``), never in
     ``process()``, so ``None`` is passed as the normalizer here.
@@ -241,9 +254,13 @@ def verify_preprocessing(
             fresh = _load_scenario_tensors(processed)
 
             assert golden, f"grid '{name}': no golden data_index_*.pt tensors found"
-            if set(golden) != set(fresh):
+            # Every shipped scenario must be regenerated; the fresh output may
+            # contain additional scenarios but must not drop any shipped one.
+            missing_scenarios = set(golden) - set(fresh)
+            if missing_scenarios:
                 all_diffs.append(
-                    f"grid '{name}': scenario set differs "
+                    f"grid '{name}': fresh output is missing shipped scenarios "
+                    f"{sorted(missing_scenarios)[:10]} "
                     f"(golden has {len(golden)}, fresh has {len(fresh)})",
                 )
             for scenario in sorted(set(golden) & set(fresh)):
@@ -260,14 +277,19 @@ def verify_preprocessing(
                 f"[preprocess-check] grid '{name}': compared {len(golden)} scenarios.",
             )
         finally:
-            # Restore the shipped processed tensors for the training step.
-            shutil.rmtree(processed, ignore_errors=True)
-            shutil.move(golden_backup, processed)
+            # Discard the golden snapshot and KEEP the freshly regenerated
+            # processed/ so training runs on the newly preprocessed samples.
+            shutil.rmtree(golden_backup, ignore_errors=True)
 
     assert not all_diffs, (
         "Preprocessing from raw did NOT reproduce the shipped processed tensors "
-        f"(rtol={rtol}, atol={atol}). This indicates a regression in the "
-        "raw->processed pipeline:\n  " + "\n  ".join(all_diffs[:50])
+        f"(rtol={rtol}, atol={atol}). Every tensor in the shipped copy must be "
+        "regenerated identically (extra columns in the fresh output are allowed). "
+        "A divergence indicates a regression in the raw->processed pipeline:\n  "
+        + "\n  ".join(all_diffs[:50])
         + ("\n  ..." if len(all_diffs) > 50 else "")
     )
-    print("\n[preprocess-check] PASSED: preprocessing reproduces shipped tensors.")
+    print(
+        "\n[preprocess-check] PASSED: preprocessing reproduces all shipped tensors; "
+        "training will use the freshly preprocessed samples.",
+    )
