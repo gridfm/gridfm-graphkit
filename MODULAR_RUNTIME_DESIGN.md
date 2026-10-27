@@ -157,3 +157,41 @@ Open question for T1: how much graph-schema generality do we actually need? If e
 realistic 3rd-party model still speaks `bus`/`gen` + 3 relations, the adapter only
 remaps feature columns (easy). If they bring new node/edge types, the physics decoders
 and metrics need the schema too — bigger. Worth deciding the target before building T1.
+
+---
+
+## Implemented (this branch)
+
+Two of the additive tiers are now live in graphkit; both are backward-compatible
+(existing configs behave exactly as before).
+
+**Entry-point auto-discovery (T2.2).** `cli.py` gains `_load_entrypoint_plugins()`,
+which scans the `gridfm_graphkit.plugins` entry-point group at startup and loads each
+(callable → called, module → imported). Run alongside `_load_plugins` at both CLI
+entry sites. Effect: a pip-installed plugin registers itself with **no `--plugins`
+flag**; `--plugins` still works for packages that aren't installed as distributions.
+A failing plugin warns rather than aborting the CLI.
+
+**Config-declared transform lists with task-name fallback.** `get_task_transforms`
+(`io/param_handler.py`) now checks `data.transforms` first:
+
+```yaml
+data:
+  transforms:
+    - RemoveInactiveBranches                       # bare name
+    - name: AddPFHeteroMask                        # name + per-transform kwargs
+      mask_ref_vm: true
+    - ApplyMasking
+```
+
+If present, it composes exactly those transforms in order, resolving each from
+`TRANSFORM_REGISTRY` (built-in *or* plugin-registered). If absent, it falls back to the
+historical single composition keyed by `task.task_name` — so every current config is
+untouched. The individual built-in transforms are now registered under their class
+names (`task_transforms.py`) so they can be referenced in such a list; `_build_transform`
+handles their non-uniform constructors via a `(args, **kwargs)` → `(**kwargs)` →
+`(args)` → `()` call convention.
+
+Still not done here: T0 (`GraphSchema` + Protocols), T1 (adapter/neck + `GridModelFactory`),
+T2.1 (`custom_modules_path`), T3 (config schema validation). The hello-world template at
+`gridfm/gridfm-graphkit-module-template` exercises the two implemented tiers.

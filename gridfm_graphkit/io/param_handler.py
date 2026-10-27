@@ -139,13 +139,87 @@ def load_model(args) -> torch.nn.Module:
         raise ValueError(f"Unknown model type: {model_type}")
 
 
+def _build_transform(name, args, entry_kwargs):
+    """Instantiate one registered transform for the config-declared list path.
+
+    Transform constructors are not uniform: some take ``(args)``, some take
+    specific keyword arguments (e.g. ``mask_ratio``), and some take no
+    arguments. To let a YAML list mix all of them, resolve the registered
+    class/factory and call it with the convention:
+
+      1. ``cls(args, **entry_kwargs)`` — transforms that read the config namespace
+      2. ``cls(**entry_kwargs)``       — transforms configured purely by kwargs
+      3. ``cls(args)`` / ``cls()``     — fallbacks for the two simple shapes
+
+    ``entry_kwargs`` are the extra keys on a list entry, e.g.
+    ``{name: AddPFHeteroMask, mask_ref_vm: true}`` -> ``{"mask_ref_vm": True}``.
+    """
+    cls = TRANSFORM_REGISTRY.get(name)
+    attempts = (
+        lambda: cls(args, **entry_kwargs),
+        lambda: cls(**entry_kwargs),
+        lambda: cls(args),
+        lambda: cls(),
+    )
+    last_err = None
+    for attempt in attempts:
+        try:
+            return attempt()
+        except TypeError as e:  # signature mismatch -> try the next convention
+            last_err = e
+    raise TypeError(
+        f"Could not instantiate transform '{name}' with any supported "
+        f"constructor convention: {last_err}",
+    )
+
+
 def get_task_transforms(args) -> Compose:
     """
-    Load the task-specific transforms
+    Load the task transforms.
+
+    Two modes, checked in order:
+
+    * **Config-declared override.** If ``data.transforms`` is present it is a
+      list of transforms to compose, in order. Each entry is either a bare
+      registry name (``"RemoveInactiveBranches"``) or a mapping with a ``name``
+      key plus per-transform kwargs (``{name: AddPFHeteroMask, mask_ref_vm: true}``).
+      This lets a config assemble an arbitrary pipeline from any registered
+      transform — built-in or plugin-provided — without touching code.
+    * **Default (task-name) composition.** If ``data.transforms`` is absent,
+      fall back to the historical behaviour: look up the single composition
+      registered under ``task.task_name`` (``PowerFlow`` / ``OptimalPowerFlow`` /
+      ``StateEstimation`` / any plugin-registered name). This keeps every
+      existing config working unchanged.
     """
+    declared = getattr(args.data, "transforms", None)
+
+    if declared:
+        transforms = []
+        for entry in declared:
+            if isinstance(entry, str):
+                name, entry_kwargs = entry, {}
+            elif isinstance(entry, NestedNamespace):
+                entry_dict = entry.to_dict()
+                name = entry_dict.pop("name")
+                entry_kwargs = entry_dict
+            elif isinstance(entry, dict):
+                entry_kwargs = dict(entry)
+                name = entry_kwargs.pop("name")
+            else:
+                raise ValueError(
+                    f"Invalid data.transforms entry {entry!r}: expected a name "
+                    "string or a mapping with a 'name' key.",
+                )
+            try:
+                transforms.append(_build_transform(name, args, entry_kwargs))
+            except KeyError:
+                raise ValueError(
+                    f"Unknown transform '{name}' in data.transforms. Register it "
+                    "(built-in or via a plugin) before referencing it.",
+                )
+        return Compose(transforms)
 
     task_transforms = args.task.task_name
-
     try:
         return TRANSFORM_REGISTRY.create(task_transforms, args)
     except KeyError:

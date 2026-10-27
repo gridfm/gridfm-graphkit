@@ -71,6 +71,38 @@ def _load_plugins(plugins: list[str]) -> None:
             ) from e
 
 
+def _load_entrypoint_plugins() -> None:
+    """Auto-discover installed plugins via the ``gridfm_graphkit.plugins`` group.
+
+    Any installed distribution that declares an entry point in this group is
+    loaded at startup so its registry decorators fire — making ``--plugins``
+    unnecessary for pip-installed plugins. An entry point may point at either a
+    callable (invoked with no args) or a module (importing it is enough). A
+    failing plugin is reported but does not abort the run, so one broken
+    third-party package cannot take down the CLI.
+    """
+    from importlib.metadata import entry_points
+
+    try:
+        eps = entry_points(group="gridfm_graphkit.plugins")
+    except TypeError:
+        # Python <3.10 fallback: entry_points() takes no kwargs.
+        eps = entry_points().get("gridfm_graphkit.plugins", [])
+
+    for ep in eps:
+        try:
+            loaded = ep.load()
+            if callable(loaded):
+                loaded()
+        except Exception as e:  # noqa: BLE001 — isolate a bad plugin from the CLI
+            import warnings
+
+            warnings.warn(
+                f"Failed to load gridfm_graphkit plugin entry point "
+                f"'{ep.name}': {e}",
+            )
+
+
 def _predictions_to_dataframe(predictions: list[dict[str, np.ndarray]]) -> pd.DataFrame:
     """Convert a list of prediction batch dicts into one concatenated DataFrame."""
     rows = {key: [] for key in predictions[0].keys()}
@@ -117,6 +149,7 @@ def benchmark_cli(args):
     if num_workers_override is not None:
         config_args.data.workers = num_workers_override
 
+    _load_entrypoint_plugins()
     _load_plugins(getattr(args, "plugins", []))
 
     dataset_wrapper = getattr(args, "dataset_wrapper", None)
@@ -239,6 +272,7 @@ def main_cli(args):
     if stream_partitions_override is not None:
         config_args.data.stream_partitions = stream_partitions_override
 
+    _load_entrypoint_plugins()
     _load_plugins(getattr(args, "plugins", []))
     _validate_dataset_wrapper(dataset_wrapper)
 
