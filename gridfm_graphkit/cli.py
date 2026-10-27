@@ -98,8 +98,7 @@ def _load_entrypoint_plugins() -> None:
             import warnings
 
             warnings.warn(
-                f"Failed to load gridfm_graphkit plugin entry point "
-                f"'{ep.name}': {e}",
+                f"Failed to load gridfm_graphkit plugin entry point '{ep.name}': {e}"
             )
 
 
