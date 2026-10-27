@@ -182,9 +182,12 @@ jobs:
       - name: Install package (editable) and dev/test extras if present
         run: |
           # NOTE: torch<2.13 pins setuptools<82, so a setuptools>=83 upgrade is
-          # downgraded back to 81 at install time -> PYSEC-2026-3447 cannot be
-          # resolved by upgrading and is ignored below (build-time sdist issue,
-          # macOS-only NFC/NFD MANIFEST.in bypass; not reachable in CI/runtime).
+          # downgraded back to 81 at install time -> the setuptools wheel advisory
+          # cannot be resolved by upgrading and is ignored below. The PyPI service
+          # reports it under GHSA-xmj3-9gf7-h52w (aka PYSEC-2026-3447); both IDs
+          # are ignored since the matched alias varies. Windows-only, triggered
+          # only when install_as_egg() processes a crafted wheel; not reachable in
+          # CI/runtime (Linux, no legacy egg installs of untrusted wheels).
           python -m pip install --upgrade pip
           pip install -e .[dev,test] || pip install -e .
       - name: Run pip-audit
@@ -210,6 +213,7 @@ jobs:
             CVE-2026-69247
             PYSEC-2026-3624
             PYSEC-2026-3447
+            GHSA-xmj3-9gf7-h52w
 
   trivy_repo:
       name: Trivy (repo scan)
