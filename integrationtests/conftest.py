@@ -53,6 +53,16 @@ def pytest_addoption(parser):
         "Only use when the calibrated bounds are wide enough to tolerate "
         "nondeterministic numerics; the baseline should be calibrated with --fast too.",
     )
+    parser.addoption(
+        "--preprocess-check",
+        choices=["on", "off"],
+        default="on",
+        help="Re-run the raw->processed preprocessing from the downloaded raw/ "
+        "tables and assert the regenerated tensors match the pre-generated "
+        "processed/ tensors shipped in the zip (default on). This exercises the "
+        "real preprocessing pipeline end to end. Pass 'off' for a lightweight run "
+        "(e.g. CI) that trains directly on the shipped processed tensors.",
+    )
 
 
 @pytest.fixture
@@ -89,3 +99,10 @@ def max_retries(request):
 def fast_mode(request):
     """Whether to drop deterministic knobs for faster kernels via --fast (False if omitted)."""
     return request.config.getoption("--fast")
+
+
+@pytest.fixture
+def preprocess_check(request):
+    """Whether to re-run preprocessing from raw and compare to shipped tensors via
+    --preprocess-check ('on' if omitted; pass 'off' for a lightweight CI run)."""
+    return request.config.getoption("--preprocess-check") == "on"

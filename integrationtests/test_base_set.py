@@ -9,11 +9,10 @@ import importlib.metadata as importlib_metadata
 import pandas as pd
 import yaml
 import shutil
-import zipfile
-import gdown
-import tempfile
 import numpy as np
 from scipy import stats
+
+from data_integrity import ensure_dataset, verify_preprocessing
 
 
 def _cpu_model() -> str:
@@ -395,6 +394,7 @@ def test_train_pf(
     train_epochs,
     max_retries,
     fast_mode,
+    preprocess_check,
 ):
     """
     Integration test for power flow (PF): gridfm-datakit data generation and gridfm-graphkit training.
@@ -414,24 +414,16 @@ def test_train_pf(
 
     data_dir = "data_out"
 
-    if not os.path.exists(data_dir) or not os.listdir(data_dir):
-        print("Data directory not found or empty, downloading pre-generated data...")
+    ensure_dataset(
+        data_dir,
+        gdrive_file_id="1NtE_4Fn3-1_BNWidZVFeSTfXf3-B50Yr",
+        zip_filename="case14_ieee.10000_scenarios_2_variants.zip",
+    )
 
-        gdrive_file_id = "1NtE_4Fn3-1_BNWidZVFeSTfXf3-B50Yr"
-        zip_filename = "case14_ieee.10000_scenarios_2_variants.zip"
-        gdrive_url = f"https://drive.google.com/uc?id={gdrive_file_id}"
-
-        print(f"Downloading {zip_filename} from Google Drive...")
-        gdown.download(gdrive_url, zip_filename, quiet=False)
-
-        print(f"Extracting {zip_filename}...")
-        with zipfile.ZipFile(zip_filename, "r") as zf:
-            zf.extractall(".")
-
-        os.remove(zip_filename)
-        print(f"Data extracted to '{data_dir}'.")
+    if preprocess_check:
+        verify_preprocessing(data_dir)
     else:
-        print(f"Data directory '{data_dir}' already exists, skipping download.")
+        print("Preprocessing check disabled (--preprocess-check off); using shipped tensors.")
 
     training_config_path = prepare_training_config(train_epochs)
     all_runs = []
@@ -536,6 +528,7 @@ def test_train_opf(
     train_epochs,
     max_retries,
     fast_mode,
+    preprocess_check,
 ):
     """
     Integration test for OPF data download and gridfm-graphkit OPF training.
@@ -566,28 +559,16 @@ def test_train_opf(
 
     opf_data_dir = "data_out_opf"
 
-    if not os.path.exists(opf_data_dir) or not os.listdir(opf_data_dir):
-        print(
-            "OPF data directory not found or empty, downloading pre-generated data...",
-        )
+    ensure_dataset(
+        opf_data_dir,
+        gdrive_file_id="1p5f5mRvmBQh8lZpIyWWbTbU42aHAIsdT",  # pragma: allowlist secret
+        zip_filename="case14_ieee.10000_scenarios_2_variants_opf.zip",
+    )
 
-        gdrive_file_id = "1p5f5mRvmBQh8lZpIyWWbTbU42aHAIsdT"  # pragma: allowlist secret
-        zip_filename = "case14_ieee.10000_scenarios_2_variants_opf.zip"
-        gdrive_url = f"https://drive.google.com/uc?id={gdrive_file_id}"
-
-        print(f"Downloading {zip_filename} from Google Drive...")
-        gdown.download(gdrive_url, zip_filename, quiet=False)
-
-        print(f"Extracting {zip_filename}...")
-        with tempfile.TemporaryDirectory() as tmpdir:
-            with zipfile.ZipFile(zip_filename, "r") as zf:
-                zf.extractall(tmpdir)
-            shutil.move(os.path.join(tmpdir, "data_out"), opf_data_dir)
-
-        os.remove(zip_filename)
-        print(f"OPF data extracted to '{opf_data_dir}'.")
+    if preprocess_check:
+        verify_preprocessing(opf_data_dir)
     else:
-        print(f"OPF data directory '{opf_data_dir}' already exists, skipping download.")
+        print("Preprocessing check disabled (--preprocess-check off); using shipped tensors.")
 
     training_config_path = prepare_opf_training_config(train_epochs)
     all_runs = []
