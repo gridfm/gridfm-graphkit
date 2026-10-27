@@ -190,6 +190,16 @@ def get_task_transforms(args) -> Compose:
       registered under ``task.task_name`` (``PowerFlow`` / ``OptimalPowerFlow`` /
       ``StateEstimation`` / any plugin-registered name). This keeps every
       existing config working unchanged.
+
+    .. warning::
+        The override only changes *how the transform pipeline is assembled* — it
+        does **not** decouple the task from the data schema. The task module
+        selected by ``task.task_name`` still assumes the batch carries whatever
+        its default composition would have produced (e.g. OPF/PF expect the mask
+        fields added by ``Add*HeteroMask`` + ``ApplyMasking``). If your list
+        omits a step the task relies on, data will load fine but the task will
+        fail downstream. A safe override reproduces the default pipeline and
+        adds/swaps steps around it, rather than dropping the ones the task needs.
     """
     declared = getattr(args.data, "transforms", None)
 
