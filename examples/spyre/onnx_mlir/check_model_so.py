@@ -14,6 +14,7 @@ diagnostic: a miscompile shows there as 1e-1 or worse.
 
 import argparse
 import os
+import statistics
 import sys
 import time
 
@@ -71,7 +72,12 @@ def main():
         default=MAX_RATIO,
         help="max model.so / PyTorch float32 error ratio vs the solver, per column",
     )
-    p.add_argument("--repeats", type=int, default=5)
+    p.add_argument(
+        "--repeats",
+        type=int,
+        default=30,
+        help="timed runs per batch; the median is reported (the accuracy batch uses at most 5)",
+    )
     cli = p.parse_args()
 
     if cli.runtime_dir:
@@ -100,11 +106,15 @@ def main():
     outputs = {}
     for b in batches:
         inputs = [ref[f"{b}/{n}"] for n in INPUT_ORDER]
-        outputs[b] = session.run(inputs)
-        start = time.perf_counter()
-        for _ in range(cli.repeats):
+        outputs[b] = session.run(inputs)  # also the per-batch warm-up
+        # run() is synchronous (CPU and on-chip NNPA alike), so wall time is the full run.
+        # Median: one slow run (page fault, scheduler) moves a mean but not a median.
+        times = []
+        for _ in range(min(cli.repeats, 5) if b == "accuracy" else cli.repeats):
+            start = time.perf_counter()
             session.run(inputs)
-        ms = (time.perf_counter() - start) / max(cli.repeats, 1) * 1e3
+            times.append(time.perf_counter() - start)
+        ms = statistics.median(times) * 1e3 if times else float("nan")
         f64 = [ref[f"{b}/f64_bus_output"], ref[f"{b}/f64_gen_output"]]
         f32 = [ref[f"{b}/f32_bus_output"], ref[f"{b}/f32_gen_output"]]
         err, err_torch = relative_error(outputs[b], f64), relative_error(f32, f64)

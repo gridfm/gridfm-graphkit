@@ -7,6 +7,7 @@ normalizer and runs the plain ``nn.Module``. See ``examples/spyre/README.md``.
 
 import argparse
 import hashlib
+import statistics
 import time
 
 import torch
@@ -100,7 +101,7 @@ def main():
         help="scenario ids that form the batch, in this order",
     )
     p.add_argument("--device", default="cpu", help="torch device, e.g. cpu, cuda, mps")
-    p.add_argument("--repeats", type=int, default=10, help="timed forward passes")
+    p.add_argument("--repeats", type=int, default=30, help="timed forward passes")
     p.add_argument("--save_io", help="save the batch inputs and outputs here (.pt)")
     cli = p.parse_args()
 
@@ -127,21 +128,26 @@ def main():
         for name, t in getattr(batch, key).items():
             print(f"  {key:<16}{str(name):<36}{str(tuple(t.shape)):<14}{t.dtype}")
 
+    # CUDA and MPS queue work and return at once; wait for it, or the timer stops early.
+    sync = {"cuda": torch.cuda.synchronize, "mps": torch.mps.synchronize}.get(
+        torch.device(cli.device).type,
+        lambda: None,
+    )
     with torch.no_grad():
         out = model(batch)
-        if cli.device.startswith("cuda"):
-            torch.cuda.synchronize()
-        t0 = time.perf_counter()
+        sync()
+        times = []
         for _ in range(cli.repeats):
+            t0 = time.perf_counter()
             out = model(batch)
-        if cli.device.startswith("cuda"):
-            torch.cuda.synchronize()
-        ms = (time.perf_counter() - t0) / max(cli.repeats, 1) * 1e3
+            sync()
+            times.append(time.perf_counter() - t0)
+        ms = statistics.median(times) * 1e3
 
     print(
         f"output   bus {tuple(out['bus'].shape)} [VM, VA, PG, QG]   gen {tuple(out['gen'].shape)} [PG]",
     )
-    print(f"latency  {ms:.2f} ms / forward (mean of {cli.repeats}, after 1 warm-up)")
+    print(f"latency  {ms:.2f} ms / forward (median of {cli.repeats}, after 1 warm-up)")
 
     # Sanity check against the solver's solution, on the masked (= predicted) entries,
     # in normalized units: VM in p.u., VA in rad, PG/QG in p.u. of the fitted baseMVA.

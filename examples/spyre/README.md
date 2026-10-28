@@ -88,7 +88,7 @@ python examples/spyre/genco_forward.py \
 | `--network` | `case118_ieee` | Key into `normalizer_stats.pt` |
 | `--scenarios` | `0 1 2 3 4 5 6 7` | Scenario ids that make up the batch, in this order; the batch size is their count |
 | `--device` | `cpu` | Any `torch` device string |
-| `--repeats` | `10` | Timed forward passes after one warm-up |
+| `--repeats` | `30` | Timed forward passes after one warm-up; the median is reported. On `cuda` and `mps`, each pass waits for the device to finish, since both queue work asynchronously. |
 | `--save_io` | off | Save the batch's input tensors, model outputs, scenario ids and fingerprint to a `.pt` file |
 
 ### Same scenarios on every run
@@ -123,7 +123,7 @@ inputs   sha256 c5c9512bc7d8e9a3
   mask_dict       PV                                  (944,)        torch.bool
   mask_dict       REF                                 (944,)        torch.bool
 output   bus (944, 4) [VM, VA, PG, QG]   gen (431, 1) [PG]
-latency  59.79 ms / forward (mean of 10, after 1 warm-up)
+latency  58.51 ms / forward (median of 30, after 1 warm-up)
 rmse     (normalized, masked entries only)
   VM 0.00114   VA 0.00445   QG 0.05142   PG(slack) 0.03780
   mean |power-balance residual| at last layer: 0.00074

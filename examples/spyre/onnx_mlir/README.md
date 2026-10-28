@@ -128,6 +128,10 @@ representative.
 It also prints the error against float64 for every batch, as a diagnostic: a miscompile shows there as 1e-1 or
 worse.
 
+The `ms/run` column is the median of `--repeats` runs (default 30; at most 5 for the `accuracy` batch), after a
+warm-up run. `session.run` is synchronous on the CPU and on the on-chip NNPA, so no explicit sync is needed. For
+timing, use a build without profiling instrumentation, and the same thread count on both sides of a comparison.
+
 ## Inputs and outputs
 
 All sizes are dynamic: one compiled file runs any number of scenarios and any grid.
