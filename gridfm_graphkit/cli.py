@@ -7,7 +7,6 @@ from gridfm_graphkit.training.callbacks import (
     SaveBestModelStateDict,
     EpochTimerCallback,
 )
-import importlib
 import numpy as np
 import os
 import socket
@@ -59,27 +58,14 @@ def _load_config(args) -> NestedNamespace:
     return NestedNamespace(**base_config)
 
 
-def _load_plugins(plugins: list[str]) -> None:
-    """Import plugin packages so their registry decorators fire."""
-    for plugin_pkg in plugins:
-        try:
-            importlib.import_module(plugin_pkg)
-        except ModuleNotFoundError as e:
-            raise ModuleNotFoundError(
-                f"Plugin package '{plugin_pkg}' could not be imported: {e}. "
-                "Make sure it is installed in the current environment.",
-            ) from e
-
-
 def _load_entrypoint_plugins() -> None:
     """Auto-discover installed plugins via the ``gridfm_graphkit.plugins`` group.
 
     Any installed distribution that declares an entry point in this group is
-    loaded at startup so its registry decorators fire — making ``--plugins``
-    unnecessary for pip-installed plugins. An entry point may point at either a
-    callable (invoked with no args) or a module (importing it is enough). A
-    failing plugin is reported but does not abort the run, so one broken
-    third-party package cannot take down the CLI.
+    loaded at startup so its registry decorators fire. An entry point may point
+    at either a callable (invoked with no args) or a module (importing it is
+    enough). A failing plugin is reported but does not abort the run, so one
+    broken third-party package cannot take down the CLI.
     """
     from importlib.metadata import entry_points
 
@@ -134,7 +120,8 @@ def _validate_dataset_wrapper(name: str | None) -> None:
         raise KeyError(
             f"Dataset wrapper '{name}' is not registered. "
             f"Available wrappers: {available}. "
-            "If it lives in a plugin package, pass it via --plugins.",
+            "If it lives in a plugin package, install it so its "
+            "gridfm_graphkit.plugins entry point is discovered at startup.",
         )
 
 
@@ -147,7 +134,6 @@ def benchmark_cli(args):
         config_args.data.workers = num_workers_override
 
     _load_entrypoint_plugins()
-    _load_plugins(getattr(args, "plugins", []))
 
     dataset_wrapper = getattr(args, "dataset_wrapper", None)
     dataset_wrapper_cache_dir = getattr(args, "dataset_wrapper_cache_dir", None)
@@ -270,7 +256,6 @@ def main_cli(args):
         config_args.data.stream_partitions = stream_partitions_override
 
     _load_entrypoint_plugins()
-    _load_plugins(getattr(args, "plugins", []))
     _validate_dataset_wrapper(dataset_wrapper)
 
     litGrid = LitGridHeteroDataModule(
