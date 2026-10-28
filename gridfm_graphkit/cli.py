@@ -83,11 +83,9 @@ def _load_entrypoint_plugins() -> None:
     """
     from importlib.metadata import entry_points
 
-    try:
-        eps = entry_points(group="gridfm_graphkit.plugins")
-    except TypeError:
-        # Python <3.10 fallback: entry_points() takes no kwargs.
-        eps = entry_points().get("gridfm_graphkit.plugins", [])
+    # entry_points(group=...) is available on Python 3.10+ (this package
+    # requires >=3.10), so no legacy no-kwargs fallback is needed.
+    eps = entry_points(group="gridfm_graphkit.plugins")
 
     for ep in eps:
         try:
