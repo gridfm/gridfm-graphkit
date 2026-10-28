@@ -1,0 +1,93 @@
+Bootstrap: docker
+From: ubuntu:24.04
+
+# Apptainer image for gridfm-graphkit (GPU PyTorch, CUDA 12.6 wheels).
+#
+# Build (from the repository root, no root needed on most clusters):
+#   apptainer build --fakeroot gridfm-graphkit.sif gridfm-graphkit.def
+# Run (add --nv to expose the host NVIDIA GPU):
+#   apptainer run --nv gridfm-graphkit.sif                      # smoke test
+#   apptainer exec --nv gridfm-graphkit.sif gridfm_graphkit train --config ...
+#
+# Only public sources are used: Docker Hub (ubuntu), PyPI, download.pytorch.org
+# and data.pyg.org. Mirror them with the pip/apt settings of your site if needed.
+
+%arguments
+    # Keep in sync with pyproject.toml ([project.dependencies] and [tool.uv] find-links).
+    TORCH_VERSION=2.12.0
+    CUDA_TAG=cu126
+
+%labels
+    Description gridfm-graphkit with GPU PyTorch (CUDA {{ CUDA_TAG }}) on Python 3.12
+    Source https://github.com/gridfm/gridfm-graphkit
+
+%files
+    pyproject.toml /opt/gridfm-graphkit/pyproject.toml
+    README.md /opt/gridfm-graphkit/README.md
+    LICENSE /opt/gridfm-graphkit/LICENSE
+    gridfm_graphkit /opt/gridfm-graphkit/gridfm_graphkit
+
+%environment
+    export LC_ALL=C.UTF-8
+    export PATH=/opt/venv/bin:$PATH
+    export PYTHONUNBUFFERED=1
+    # Ignore ~/.local of the host: Apptainer mounts $HOME and it could shadow the image packages.
+    export PYTHONNOUSERSITE=1
+    # MLflow 3.x rejects its default local file store unless this is set.
+    export MLFLOW_ALLOW_FILE_STORE=true
+
+%post
+    set -eu
+    export DEBIAN_FRONTEND=noninteractive
+
+    # The apt sandbox user cannot be switched to in rootless (--fakeroot) builds.
+    echo 'APT::Sandbox::User "root";' > /etc/apt/apt.conf.d/99-apptainer-sandbox
+    apt-get update
+    # Ubuntu 24.04 ships Python 3.12, within pyproject's requires-python (>=3.10,<3.13).
+    apt-get install -y --no-install-recommends \
+        python3 python3-venv ca-certificates
+    rm -rf /var/lib/apt/lists/*
+
+    python3 -m venv /opt/venv
+    export PATH=/opt/venv/bin:$PATH
+    pip install --no-cache-dir --upgrade pip
+
+    # 1) GPU PyTorch. The CUDA runtime comes with the wheels, so the host only needs
+    #    an NVIDIA driver (use `apptainer run --nv`).
+    pip install --no-cache-dir \
+        --index-url https://download.pytorch.org/whl/{{ CUDA_TAG }} \
+        "torch=={{ TORCH_VERSION }}"
+
+    # 2) Prebuilt torch-scatter wheel matching the exact torch build (no compiler needed).
+    pip install --no-cache-dir torch-scatter \
+        -f "https://data.pyg.org/whl/torch-{{ TORCH_VERSION }}+{{ CUDA_TAG }}.html"
+
+    # 3) Freeze the torch stack so installing gridfm-graphkit cannot replace it
+    #    (this is what would otherwise break torch-scatter with "undefined symbol").
+    pip freeze | grep -iE '^(torch|torch-scatter)==' > /opt/venv/torch-constraints.txt
+    cat /opt/venv/torch-constraints.txt
+    grep -q '^torch==.*+{{ CUDA_TAG }}' /opt/venv/torch-constraints.txt
+    grep -q '^torch-scatter==' /opt/venv/torch-constraints.txt
+
+    # 4) gridfm-graphkit from the checkout (with the test extra), remaining deps from PyPI.
+    pip install --no-cache-dir -c /opt/venv/torch-constraints.txt "/opt/gridfm-graphkit[test]"
+
+    pip freeze > /opt/venv/pip-freeze.txt
+    # The package is installed into the venv, the sources copied in %files are not needed.
+    rm -rf /opt/gridfm-graphkit
+
+%runscript
+    if [ "$#" -eq 0 ]; then
+        exec python -c "import importlib.metadata as m, torch, torch_scatter, gridfm_graphkit; print('torch', torch.__version__, '| CUDA runtime', torch.version.cuda); print('CUDA device available:', torch.cuda.is_available()); print('torch-scatter', m.version('torch-scatter')); print('gridfm-graphkit', m.version('gridfm-graphkit')); print('OK')"
+    fi
+    exec "$@"
+
+%test
+    set -eu
+    python --version
+    # No GPU is visible at build time: only check that the wheel is a CUDA build.
+    python -c "import torch; assert torch.version.cuda is not None, 'GPU PyTorch required'; print('PyTorch:', torch.__version__, 'CUDA runtime:', torch.version.cuda)"
+    python -c "import torch_scatter; from torch_scatter import scatter_add; print('torch_scatter:', torch_scatter.__version__)"
+    python -c "import torch_geometric, lightning, mlflow, gridfm_graphkit, gridfm_datakit; print('torch_geometric:', torch_geometric.__version__)"
+    gridfm_graphkit --help > /dev/null
+    python -m pytest --version
