@@ -153,6 +153,16 @@ def _build_transform(name, args, entry_kwargs):
 
     ``entry_kwargs`` are the extra keys on a list entry, e.g.
     ``{name: AddPFHeteroMask, mask_ref_vm: true}`` -> ``{"mask_ref_vm": True}``.
+
+    .. note::
+        The four-way call convention is tolerant but silent: an unexpected or
+        misspelled kwarg falls through to the next attempt rather than being
+        reported. A future enhancement could introspect each constructor via
+        ``inspect.signature`` and raise a precise error listing the accepted
+        kwargs (e.g. "AddPFHeteroMask accepts: mask_ref_vm"). That is worth doing
+        only if it stays backward-compatible with every existing config — the
+        transforms that take the whole ``args`` namespace must keep working — so
+        it is deferred rather than done here.
     """
     cls = TRANSFORM_REGISTRY.get(name)
     attempts = (
