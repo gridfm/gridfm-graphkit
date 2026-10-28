@@ -1,0 +1,80 @@
+# Same minimal case14 PowerFlow setup as hello_world_train_case14.yaml, but it
+# DECLARES the transform pipeline explicitly via `data.transforms` instead of
+# letting `task.task_name` pick a whole composition. graphkit composes exactly
+# these, in order, resolving each from TRANSFORM_REGISTRY (built-in or plugin).
+#
+# Entries are either a bare registry name or a mapping with `name` + per-transform
+# kwargs. The list below deliberately reproduces the default PowerFlow pipeline:
+# the override changes HOW the pipeline is assembled, not the task's data-schema
+# assumptions, so dropping a step the task needs (e.g. the mask steps) would load
+# data fine but fail the task downstream. Add/swap steps around these.
+#   gridfm_graphkit train --config hello_world_transforms_case14.yaml --data_path /work/data
+version: 1
+callbacks:
+  patience: 100
+  tol: 0
+  early_stopping_monitor: Validation loss
+  checkpoint_monitor: Validation layer_11_residual
+  lr_scheduler_monitor: Validation loss
+task:
+  task_name: PowerFlow
+data:
+  baseMVA: 100
+  mask_value: 0.0
+  normalization: HeteroDataMVANormalizer
+  networks:
+  - case14_ieee
+  scenarios:
+  - 20
+  test_ratio: 0.1
+  val_ratio: 0.1
+  workers: 0
+  split_by_load_scenario_idx: true
+  stream_partitions: auto
+  # Explicit transform pipeline — overrides the default PowerFlow composition.
+  transforms:
+  - RemoveInactiveBranches          # bare registry name
+  - RemoveInactiveGenerators
+  - name: AddPFHeteroMask           # mapping form: name + per-transform kwargs
+    mask_ref_vm: false
+  - ApplyMasking
+model:
+  attention_head: 8
+  edge_dim: 10
+  hidden_size: 12
+  input_bus_dim: 15
+  input_gen_dim: 6
+  output_bus_dim: 2
+  output_gen_dim: 1
+  num_layers: 12
+  type: GNS_heterogeneous
+optimizer:
+  type: AdamW
+  learning_rate: 0.0005
+  optimizer_params:
+    betas:
+    - 0.9
+    - 0.999
+  scheduler_type: ReduceLROnPlateau
+  scheduler_params:
+    mode: min
+    factor: 0.7
+    patience: 5
+seed: 0
+training:
+  batch_size: 8
+  epochs: 1
+  loss_weights:
+  - 0.1
+  - 0.9
+  losses:
+  - LayeredWeightedPhysics
+  - MaskedBusMSE
+  loss_args:
+  - base_weight: 0.5
+  - {}
+  base_weight: 0.5
+  accelerator: auto
+  devices: auto
+  strategy: auto
+verbose: true
