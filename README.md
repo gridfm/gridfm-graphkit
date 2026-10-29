@@ -54,6 +54,11 @@ If you also used `gridfm-datakit`, please also cite:
 > See [docs/install/docker.md](docs/install/docker.md) for a build + `datagen → train`
 > hello-world and VS Code Dev Container setup.
 
+> **On an HPC cluster?** Build the GPU [Apptainer](https://apptainer.org/) image from
+> [`gridfm-graphkit.def`](gridfm-graphkit.def) with
+> `apptainer build --fakeroot gridfm-graphkit.sif gridfm-graphkit.def`.
+> See [docs/install/apptainer.md](docs/install/apptainer.md) for run and Slurm examples.
+
 Create and activate a virtual environment (make sure you use the right python version = 3.10, 3.11 or 3.12. I highly recommend 3.12)
 ```bash
 python -m venv venv
