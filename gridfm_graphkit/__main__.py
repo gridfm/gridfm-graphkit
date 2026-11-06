@@ -33,7 +33,18 @@ def is_lsf():
 
 def fix_infiniband():
     """Configure NCCL to skip Ethernet-only IB ports on this host."""
-    ibv = subprocess.run("ibv_devinfo", stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    try:
+        ibv = subprocess.run(
+            "ibv_devinfo",
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+    except FileNotFoundError:
+        warnings.warn(
+            "ibv_devinfo not found; leaving NCCL_IB_HCA unchanged.",
+            stacklevel=2,
+        )
+        return
     lines = ibv.stdout.decode("utf-8").split("\n")
     exclude = ""
     for line in lines:
