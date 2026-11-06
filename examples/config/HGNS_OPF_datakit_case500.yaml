@@ -41,7 +41,7 @@ training:
   - 0.1
   - 0.1
   - 0.75
-  - 0.001
+  - 0.1
   losses:
   - LayeredWeightedPhysics
   - MaskedGenMSE

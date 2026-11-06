@@ -33,6 +33,7 @@ from gridfm_graphkit.tasks.utils import (
     embedding_table_from_tensor,
     local_index_per_graph,
     compute_angle_violation,
+    forward_edge_mask,
     plot_correlation_by_node_type,
     plot_residuals_histograms,
     residual_stats_by_type,
@@ -131,21 +132,21 @@ class OptimalPowerFlowTask(ReconstructionTask):
         branch_thermal_limits = bus_edge_attr[:, RATE_A]
         branch_thermal_excess = F.relu(Sft - branch_thermal_limits)
 
-        num_edges = bus_edge_index.size(1)
-        half_edges = num_edges // 2
-        forward_excess = branch_thermal_excess[:half_edges]
-        reverse_excess = branch_thermal_excess[half_edges:]
+        edge_is_forward = forward_edge_mask(batch.batch_dict["bus"][bus_edge_index[0]])
+        forward_excess = branch_thermal_excess[edge_is_forward]
+        reverse_excess = branch_thermal_excess[~edge_is_forward]
 
         mean_thermal_violation_forward = torch.mean(forward_excess)
         mean_thermal_violation_reverse = torch.mean(reverse_excess)
 
-        # Compute branch angle difference violation
+        # Compute branch angle difference violation (forward edges only).
         branch_angle_violation_mean = compute_angle_violation(
             bus_edge_attr=bus_edge_attr,
             bus_angles=output["bus"][:, VA_OUT],
             bus_edge_index=bus_edge_index,
             ang_min_col=ANG_MIN,
             ang_max_col=ANG_MAX,
+            edge_is_forward=edge_is_forward,
         )
 
         P_in, Q_in = node_injection_layer(Pft, Qft, bus_edge_index, num_bus)

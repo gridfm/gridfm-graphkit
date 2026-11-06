@@ -172,11 +172,13 @@ def test_get_loss_function_without_warmup_key_is_unchanged(loss_config):
     [
         # 4 buses x [VM, VA, QG] masked, error 1.0 on the 4 QG entries -> 4 / 12
         ("OptimalPowerFlow", 1.0 / 3.0),
-        # PowerFlow supervises only VM and VA, so a QG error is invisible
-        ("PowerFlow", 0.0),
+        # PowerFlow also predicts Qg at PV/REF buses (issue #136, fix #1)
+        ("PowerFlow", 1.0 / 3.0),
+        # StateEstimation supervises only VM and VA, so a QG error is invisible
+        ("StateEstimation", 0.0),
     ],
 )
-def test_masked_bus_mse_supervises_qg_only_for_opf(task_name, expected):
+def test_masked_bus_mse_supervises_qg_for_pf_and_opf(task_name, expected):
     # args.task is a NestedNamespace, as built from the YAML config
     args = NestedNamespace(task={"task_name": task_name})
     num_bus = 4
@@ -194,3 +196,21 @@ def test_masked_bus_mse_supervises_qg_only_for_opf(task_name, expected):
         {"bus": mask},
     )
     assert out["loss"].item() == pytest.approx(expected)
+
+
+# ---------------------------------------------------------------------------
+# Fix #5 – get_loss_function must raise when list lengths differ
+# ---------------------------------------------------------------------------
+
+
+def test_get_loss_function_raises_on_mismatched_lengths(loss_config):
+    """get_loss_function must raise ValueError when losses/loss_args/loss_weights
+    have different lengths, not silently drop entries."""
+    for key in ("loss_args", "loss_weights"):
+        bad_config = dict(loss_config)
+        bad_config["training"] = dict(loss_config["training"])
+        # Drop one entry of `key` while keeping the other two lists intact.
+        bad_config["training"][key] = loss_config["training"][key][:1]
+
+        with pytest.raises(ValueError):
+            get_loss_function(NestedNamespace(**bad_config))
