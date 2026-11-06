@@ -15,6 +15,24 @@ from gridfm_graphkit.datasets.masking import (
 )
 from gridfm_graphkit.io.registries import TRANSFORM_REGISTRY
 
+# Register the individual (primitive) transforms under their class names so a
+# config can reference them in a `data.transforms` list (see
+# `get_task_transforms`). The named `Compose` subclasses below remain the
+# default task compositions when no list is declared; registering the
+# primitives is purely additive and does not change default behaviour.
+for _primitive in (
+    RemoveInactiveBranches,
+    RemoveInactiveGenerators,
+    ApplyMasking,
+    LoadGridParamsFromPath,
+    AddOPFHeteroMask,
+    AddPFHeteroMask,
+    AddRandomHeteroMask,
+    SimulateMeasurements,
+):
+    if _primitive.__name__ not in TRANSFORM_REGISTRY:
+        TRANSFORM_REGISTRY.register(_primitive.__name__)(_primitive)
+
 
 @TRANSFORM_REGISTRY.register("PowerFlow")
 class PowerFlowTransforms(Compose):
