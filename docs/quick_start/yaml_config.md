@@ -38,7 +38,7 @@ optimizer:
 training:
   batch_size: 64
   epochs: 200
-  loss_weights: [0.1, 0.1, 0.75, 0.001]
+  loss_weights: [0.1, 0.1, 0.75, 0.1]
   losses: [LayeredWeightedPhysics, MaskedGenMSE, MaskedBusMSE, QgViolationPenalty]
   loss_args:
   - base_weight: 0.5

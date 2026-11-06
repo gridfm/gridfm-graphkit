@@ -656,7 +656,7 @@ class PBELoss(BaseLoss):
 
 @LOSS_REGISTRY.register("QgViolationPenalty")
 class QgViolationPenaltyLoss(BaseLoss):
-    """Standard Mean Squared Error loss."""
+    """Mean Qg limit violation, relu(Qg - Qg_max) + relu(Qg_min - Qg), over all PV and REF buses."""
 
     def __init__(self, loss_args, args):
         super().__init__()
