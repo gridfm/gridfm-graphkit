@@ -1,0 +1,93 @@
+name: Integration Tests
+
+# Runs the end-to-end training integration tests (integrationtests/) on pull
+# requests. These are heavier than the unit tests in ci-build.yaml, so this
+# workflow is kept deliberately lean for a GitHub-hosted CPU runner:
+#
+#   * CPU-only torch (no GPU on hosted runners) with a short training budget
+#     (--epochs 2 --retries 1) so a run finishes in minutes, not hours.
+#   * --preprocess-check off: the raw->processed reproducibility check is a
+#     Claude-Code / local concern; CI only needs the train-and-assert path.
+#   * The metric-bounds baseline is CPU/runner-specific, so it cannot be shared
+#     with the GPU baselines. Instead it is calibrated once on this runner image
+#     and cached via actions/cache. On a cache hit the job asserts against it; on
+#     a miss it calibrates first (self-healing) and the cache is populated for
+#     subsequent runs.
+#
+# Gate it behind a label so it only runs when a maintainer opts in (training is
+# still minutes of CPU per PR). Remove the `if:` / `types` label trigger to run
+# it on every PR.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled]
+    branches:
+      - main
+
+env:
+  # torch-scatter ships no PyPI wheels; pull the prebuilt CPU wheel from the PyG
+  # index (same rationale as ci-build.yaml).
+  PIP_FIND_LINKS: "https://data.pyg.org/whl/torch-2.12.0+cpu.html"
+  # Short training budget for the CPU runner. The cached baseline MUST be
+  # calibrated with the same values it is asserted against.
+  INTEG_EPOCHS: "2"
+  INTEG_RETRIES: "1"
+
+jobs:
+  integration:
+    # Only run when the PR carries the 'run-integration-tests' label (or when the
+    # label is added). Keeps the heavy job opt-in.
+    if: contains(github.event.pull_request.labels.*.name, 'run-integration-tests')
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip wheel "setuptools>=83.0.0"
+          # Pin torch to the newest release with prebuilt torch-scatter wheels on
+          # the PyG index (2.12.x); newer torch has no wheel and the sdist build
+          # fails under build isolation. Matches ci-build.yaml.
+          pip install -e ".[test]" "torch==2.12.*"
+          TORCH_VERSION=$(python -c "import torch; print(torch.__version__.split('+')[0])")
+          pip install torch-scatter -f "https://data.pyg.org/whl/torch-${TORCH_VERSION}+cpu.html"
+
+      # The calibrated metric bounds are specific to this runner's CPU + library
+      # stack, so they are NOT committed. Cache them across runs keyed on the
+      # torch version, the runner OS and the training budget — any change to
+      # those invalidates the baseline and forces a fresh calibration.
+      - name: Restore calibration baseline
+        id: baseline-cache
+        uses: actions/cache@v4
+        with:
+          path: integrationtests/ci_baseline.json
+          key: integ-baseline-${{ runner.os }}-torch212cpu-e${{ env.INTEG_EPOCHS }}-r${{ env.INTEG_RETRIES }}
+
+      - name: Calibrate baseline (cache miss)
+        if: steps.baseline-cache.outputs.cache-hit != 'true'
+        env:
+          MLFLOW_ALLOW_FILE_STORE: "true"
+          GRIDFM_CALIBRATION_BASELINE: integrationtests/ci_baseline.json
+        run: |
+          echo "No cached baseline — calibrating on this runner (CPU)."
+          pytest integrationtests -s -rA \
+            --calibrate 3 \
+            --epochs "${INTEG_EPOCHS}" \
+            --preprocess-check off
+
+      - name: Run integration tests (assert)
+        env:
+          MLFLOW_ALLOW_FILE_STORE: "true"
+          GRIDFM_CALIBRATION_BASELINE: integrationtests/ci_baseline.json
+        run: |
+          pytest integrationtests -s -rA \
+            --epochs "${INTEG_EPOCHS}" \
+            --retries "${INTEG_RETRIES}" \
+            --preprocess-check off
