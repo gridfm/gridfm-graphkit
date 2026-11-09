@@ -298,6 +298,9 @@ def compute_branch_predictions(
     ``* pi / 180``. Do not call this on training-space (post-``transform``) graphs:
     those limits are already in radians, so the extra conversion would be wrong.
 
+    A zero MATPOWER thermal rating imposes no limit. The raw zero remains in
+    exported ratings; only the effective limit for excess evaluation changes.
+
     Bidirectional edges reuse the same ``angmin`` / ``angmax``. That is correct
     while limits are symmetric (e.g. ±30°). An asymmetric pair would be wrong
     on the reverse copy.
@@ -325,11 +328,17 @@ def compute_branch_predictions(
     angle_min = bus_edge_attr[:, ANG_MIN] * torch.pi / 180.0
     angle_max = bus_edge_attr[:, ANG_MAX] * torch.pi / 180.0
     branch_thermal_limits = bus_edge_attr[:, RATE_A]
+    # Keep the raw rating in exported data; use an effective limit below.
+    effective_thermal_limits = torch.where(
+        branch_thermal_limits == 0,
+        torch.full_like(branch_thermal_limits, torch.inf),
+        branch_thermal_limits,
+    )
 
     def _branch_flows(bus_state):
         Pft, Qft = branch_flow_layer(bus_state, bus_edge_index, bus_edge_attr)
         Sft = torch.sqrt(Pft**2 + Qft**2)
-        thermal_excess = F.relu(Sft - branch_thermal_limits)
+        thermal_excess = F.relu(Sft - effective_thermal_limits)
         return Pft, Qft, thermal_excess
 
     def _angle_violations(bus_state):
