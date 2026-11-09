@@ -1,6 +1,7 @@
 """Tests for compute_branch_predictions in gridfm_graphkit.tasks.utils."""
 
 import numpy as np
+import pytest
 import torch
 import yaml
 from torch_geometric.data import HeteroData
@@ -270,3 +271,37 @@ def test_branch_flows_match_stored_values():
 
     np.testing.assert_allclose(result["Pft"], stored_P, atol=1e-4)
     np.testing.assert_allclose(result["Qft"], stored_Q, atol=1e-4)
+
+
+# ---------------------------------------------------------------------------
+# Reverse edges are checked against mirrored limits (issue #136 bug #6)
+# ---------------------------------------------------------------------------
+
+
+def test_reverse_edge_uses_mirrored_angle_limits():
+    # One branch 0->1 stored as forward + reverse, asymmetric limits [-2°, 5°].
+    # Va0 - Va1 = 4°: inside the limits, so neither direction violates.
+    bus = torch.zeros(2, 4)
+    bus[:, 0] = 1.0
+    bus[0, 1] = 4.0 * torch.pi / 180.0
+    edge_index = torch.tensor([[0, 1], [1, 0]])
+    edge_attr = _make_edge_attr(2, ang_min_deg=-2.0, ang_max_deg=5.0)
+    args = (
+        bus,
+        bus.clone(),
+        edge_index,
+        edge_attr,
+        torch.zeros(2, dtype=torch.long),
+        torch.arange(2),
+    )
+
+    result = compute_branch_predictions(
+        *args,
+        edge_is_forward=torch.tensor([True, False]),
+    )
+    np.testing.assert_allclose(result["angle_excess_low"], 0.0, atol=1e-6)
+    np.testing.assert_allclose(result["angle_excess_high"], 0.0, atol=1e-6)
+
+    # Without the flag the reverse edge (-4°) is wrongly 2° below ang_min.
+    legacy = compute_branch_predictions(*args)
+    assert legacy["angle_excess_low"][1] == pytest.approx(2.0 * np.pi / 180.0, rel=1e-5)
