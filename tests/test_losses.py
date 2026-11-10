@@ -172,13 +172,13 @@ def test_get_loss_function_without_warmup_key_is_unchanged(loss_config):
     [
         # 4 buses x [VM, VA, QG] masked, error 1.0 on the 4 QG entries -> 4 / 12
         ("OptimalPowerFlow", 1.0 / 3.0),
-        # PowerFlow also predicts Qg at PV/REF buses (issue #136, fix #1)
-        ("PowerFlow", 1.0 / 3.0),
+        # PowerFlow supervises only VM and VA, so a QG error is invisible
+        ("PowerFlow", 0.0),
         # StateEstimation supervises only VM and VA, so a QG error is invisible
         ("StateEstimation", 0.0),
     ],
 )
-def test_masked_bus_mse_supervises_qg_for_pf_and_opf(task_name, expected):
+def test_masked_bus_mse_supervises_qg_only_for_opf(task_name, expected):
     # args.task is a NestedNamespace, as built from the YAML config
     args = NestedNamespace(task={"task_name": task_name})
     num_bus = 4
