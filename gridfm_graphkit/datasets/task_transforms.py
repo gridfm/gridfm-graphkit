@@ -7,6 +7,7 @@ from gridfm_graphkit.datasets.transforms import (
     ApplyMasking,
     LoadGridParamsFromPath,
 )
+from gridfm_graphkit.datasets.effective_resistance import EffectiveResistancePE
 from gridfm_graphkit.datasets.masking import (
     AddOPFHeteroMask,
     AddPFHeteroMask,
@@ -29,6 +30,7 @@ for _primitive in (
     AddPFHeteroMask,
     AddRandomHeteroMask,
     SimulateMeasurements,
+    EffectiveResistancePE,
 ):
     if _primitive.__name__ not in TRANSFORM_REGISTRY:
         TRANSFORM_REGISTRY.register(_primitive.__name__)(_primitive)
