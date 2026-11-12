@@ -151,6 +151,38 @@ Controls whether `process()` reads raw parquet data partition-by-partition (stre
 
 The CLI flag `--stream-partitions` overrides this YAML value.
 
+### `data.transforms`
+
+Optional list of registered transforms, applied in order to every sample after
+normalization. When absent, the default pipeline of the task is used. An entry
+is a name, or a mapping with a `name` key plus arguments:
+
+```yaml
+data:
+  transforms:
+  - RemoveInactiveBranches
+  - RemoveInactiveGenerators
+  - AddOPFHeteroMask
+  - ApplyMasking
+  - name: EffectiveResistancePE
+    cache_dir: path/to/pe_cache
+```
+
+The task still expects what its default pipeline produces, so keep those steps
+and add to them. The defaults are `RemoveInactiveBranches`,
+`RemoveInactiveGenerators`, a masking step (`AddOPFHeteroMask`,
+`AddPFHeteroMask` or `SimulateMeasurements`) and `ApplyMasking`.
+
+`EffectiveResistancePE` adds the positional encoding required by `HH_MPNN`:
+for every bus, the mean, median, standard deviation, maximum and minimum of its
+effective resistance to the other buses, on the in-service grid weighted by
+branch susceptance. It is computed once per distinct in-service topology and
+cached in memory. Arguments:
+
+- `cache_dir` (optional): also cache on disk, so that dataloader workers and
+  later runs reuse the encodings.
+- `memory_cache_size` (default `1024`): encodings kept in memory per process.
+
 ## `model` section
 
 Current configs use the heterogeneous GNS model:
@@ -164,6 +196,32 @@ Current configs use the heterogeneous GNS model:
 - `hidden_size`: hidden feature width.
 - `num_layers`: number of stacked message-passing layers.
 - `attention_head`: attention head count per layer.
+
+### HH-MPNN
+
+`type: HH_MPNN` selects the Hybrid Heterogeneous Message Passing Neural Network
+of [Arowolo & Cremer](https://arxiv.org/abs/2510.06860): each layer combines
+type-specific message passing with Performer attention over all nodes of a
+grid. See `examples/config/HHMPNN_OPF_datakit_case14.yaml`.
+
+It uses `hidden_size`, `num_layers`, `input_bus_dim`, `input_gen_dim`,
+`edge_dim` and `attention_head` (default `1`), and requires
+`EffectiveResistancePE` in `data.transforms`. Two switches choose between the
+setup of the paper and the graphkit conventions:
+
+- `load_shunt_nodes` (default `true`): `true` creates a load node for every bus
+  with a non-zero load and a shunt node for every bus with a non-zero shunt, as
+  in the paper, and removes `Pd`, `Qd`, `GS`, `BS` from the bus features.
+  `false` keeps bus and generator nodes only.
+- `physics_decoder` (default `false`): `false` predicts `Vm`, `Va`, `Qg` per
+  bus and `Pg` per generator directly and bounds them by their limits with a
+  sigmoid, as in the paper; this supports `OptimalPowerFlow` only. `true`
+  predicts `Vm`, `Va`, `Pg` and derives the remaining quantities from the power
+  balance, as `GNS_heterogeneous` does; this supports all tasks, but `Qg` can
+  then exceed its limits.
+
+HH-MPNN has no per-layer physics residuals, so `LayeredWeightedPhysics` cannot
+be used with it.
 
 ---
 

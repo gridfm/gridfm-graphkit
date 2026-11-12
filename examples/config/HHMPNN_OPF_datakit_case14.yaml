@@ -1,0 +1,77 @@
+# HH-MPNN (Arowolo & Cremer, arXiv:2510.06860) for AC optimal power flow.
+# Model size, optimizer, batch size and epochs follow the paper; the loss
+# weights are not tuned.
+version: 1
+task:
+  task_name: OptimalPowerFlow
+data:
+  baseMVA: 100
+  mask_value: 0.0
+  normalization: HeteroDataMVANormalizer
+  networks:
+  - case14_ieee
+  scenarios:
+  - 250000
+  test_ratio: 0.1
+  val_ratio: 0.1
+  workers: 32
+  split_by_load_scenario_idx: true
+  stream_partitions: auto
+  # The default OptimalPowerFlow pipeline, followed by the positional encoding
+  # HH-MPNN needs. The encoding is cached per distinct in-service topology.
+  transforms:
+  - RemoveInactiveBranches
+  - RemoveInactiveGenerators
+  - AddOPFHeteroMask
+  - ApplyMasking
+  - EffectiveResistancePE
+  # To also cache the encodings on disk, replace the last entry with:
+  # - name: EffectiveResistancePE
+  #   cache_dir: path/to/pe_cache
+model:
+  type: HH_MPNN
+  hidden_size: 256
+  num_layers: 5
+  attention_head: 1
+  input_bus_dim: 15
+  input_gen_dim: 6
+  edge_dim: 10
+  # true: separate load and shunt nodes, as in the paper.
+  # false: bus and generator nodes only.
+  load_shunt_nodes: true
+  # false: bounded output heads, as in the paper (OptimalPowerFlow only).
+  # true: Qg from the task's physics decoder (all tasks).
+  physics_decoder: false
+optimizer:
+  type: Adam
+  learning_rate: 0.00001
+  optimizer_params:
+    weight_decay: 0.00000005
+  scheduler_type: ReduceLROnPlateau
+  scheduler_params:
+    mode: min
+    factor: 0.5
+    patience: 20
+training:
+  batch_size: 256
+  epochs: 100
+  loss_weights:
+  - 0.5
+  - 0.5
+  losses:
+  - MaskedBusMSE
+  - MaskedGenMSE
+  loss_args:
+  - {}
+  - {}
+  accelerator: auto
+  devices: auto
+  strategy: auto
+seed: 0
+verbose: true
+callbacks:
+  patience: 100
+  tol: 0
+  early_stopping_monitor: Validation loss
+  checkpoint_monitor: Validation loss
+  lr_scheduler_monitor: Validation loss
