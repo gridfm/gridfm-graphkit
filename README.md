@@ -64,35 +64,16 @@ source venv/bin/activate
 On Windows, run `venv\Scripts\activate` instead.
 
 ```bash
-pip install gridfm-graphkit "torch==2.12.*" \
-    --find-links https://data.pyg.org/whl/torch-2.12.0+cpu.html
+pip install "torch==2.12.*"
+python -c "import subprocess, sys, torch; c = torch.version.cuda; tag = 'cu' + c.replace('.', '') if c else 'cpu'; subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'gridfm-graphkit', 'torch==2.12.*', 'torch-scatter', '-f', f'https://data.pyg.org/whl/torch-2.12.0+{tag}.html'])"
 ```
 
-For a GPU, use the same command with `cu118`, `cu121`, or `cu126` instead of `cpu`:
-
-```bash
-pip install gridfm-graphkit "torch==2.12.*" \
-    --find-links https://data.pyg.org/whl/torch-2.12.0+cu126.html
-```
-
-`torch-sparse` is optional. Install it, with the same link, only if you use RRWP positional encodings:
-
-```bash
-pip install torch-sparse -f https://data.pyg.org/whl/torch-2.12.0+cpu.html
-```
+The second command installs GraphKit and the matching `torch-scatter` wheel. For RRWP positional encodings, add `torch-sparse` next to `torch-scatter` in that command. For the docs and the tests, use `gridfm-graphkit[dev,test]` instead of `gridfm-graphkit`.
 
 If no wheel exists for your machine, compile `torch-scatter`. You need a C++ compiler, and `nvcc` for a GPU build.
 
 ```bash
-pip install "torch==2.12.*"
 pip install torch-scatter --no-build-isolation
-```
-
-For the docs and the tests:
-
-```bash
-pip install "gridfm-graphkit[dev,test]" "torch==2.12.*" \
-    --find-links https://data.pyg.org/whl/torch-2.12.0+cpu.html
 ```
 
 
