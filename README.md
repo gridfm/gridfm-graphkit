@@ -54,56 +54,43 @@ If you also used `gridfm-datakit`, please also cite:
 > See [docs/install/docker.md](docs/install/docker.md) for a build + `datagen → train`
 > hello-world and VS Code Dev Container setup.
 
-Create and activate a virtual environment (make sure you use the right python version = 3.10, 3.11 or 3.12. I highly recommend 3.12)
+Python 3.10, 3.11, or 3.12. Use 3.12.
+
 ```bash
 python -m venv venv
 source venv/bin/activate
 ```
 
-Install gridfm-graphkit from PyPI. `torch-scatter` is a required dependency, and its
-prebuilt wheels live on a PyG index that must match the installed PyTorch build.
-pip does not read the `find-links` list under `[tool.uv]` in `pyproject.toml`
-(uv uses that table; pip ignores it), so pass the index on the command line.
-
-The package already pins `torch>=2.10,<2.13`. That is the newest line with
-prebuilt `torch-scatter` wheels. Passing `torch==2.12.*` on the command keeps
-pip on the same line as the wheel index.
+On Windows, run `venv\Scripts\activate` instead.
 
 ```bash
 pip install gridfm-graphkit "torch==2.12.*" \
     --find-links https://data.pyg.org/whl/torch-2.12.0+cpu.html
 ```
 
-The URL above is the CPU index. For a CUDA build, swap `cpu` for the matching tag
-(`cu126`, `cu118`, …); see [CONTRIBUTING.md](CONTRIBUTING.md). Then install
-`torch-scatter` from the index for the torch version pip actually selected:
+Keep the `torch==2.12.*` pin. The current release also allows PyTorch 2.13, and that version has no ready-made `torch-scatter` wheel.
+
+For a GPU, use the same command with `cu118`, `cu121`, or `cu126` instead of `cpu`:
 
 ```bash
-TORCH_VERSION=$(python -c "import torch; print(torch.__version__.split('+')[0])")
-pip install torch-scatter -f "https://data.pyg.org/whl/torch-${TORCH_VERSION}+cpu.html"
+pip install gridfm-graphkit "torch==2.12.*" \
+    --find-links https://data.pyg.org/whl/torch-2.12.0+cu126.html
 ```
 
-`torch-sparse` is optional. It is required only for RRWP positional encodings:
+`torch-sparse` is optional. Install it, with the same link, only if you use RRWP positional encodings:
 
 ```bash
-pip install torch-sparse -f "https://data.pyg.org/whl/torch-${TORCH_VERSION}+cpu.html"
+pip install torch-sparse -f https://data.pyg.org/whl/torch-2.12.0+cpu.html
 ```
 
-When `data.pyg.org` has no prebuilt wheel for your platform, install torch
-first (still inside `>=2.10,<2.13`) and compile scatter against it:
+If no wheel exists for your machine, compile `torch-scatter`. You need a C++ compiler, and `nvcc` for a GPU build.
 
 ```bash
-pip install "torch>=2.10,<2.13"
+pip install "torch==2.12.*"
 pip install torch-scatter --no-build-isolation
 ```
 
-Building from source requires a C++ compiler (and a matching CUDA toolkit with
-`nvcc` for GPU builds).
-
-
-For documentation generation and unit testing, install the `dev` and `test`
-extras the same way. The `test` extra includes `gdown`, which the integration
-tests use to download fixtures.
+For the docs and the tests:
 
 ```bash
 pip install "gridfm-graphkit[dev,test]" "torch==2.12.*" \
