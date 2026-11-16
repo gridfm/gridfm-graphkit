@@ -68,8 +68,6 @@ pip install gridfm-graphkit "torch==2.12.*" \
     --find-links https://data.pyg.org/whl/torch-2.12.0+cpu.html
 ```
 
-Keep the `torch==2.12.*` pin. The current release also allows PyTorch 2.13, and that version has no ready-made `torch-scatter` wheel.
-
 For a GPU, use the same command with `cu118`, `cu121`, or `cu126` instead of `cpu`:
 
 ```bash
