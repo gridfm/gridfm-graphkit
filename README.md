@@ -54,7 +54,7 @@ If you also used `gridfm-datakit`, please also cite:
 > See [docs/install/docker.md](docs/install/docker.md) for a build + `datagen → train`
 > hello-world and VS Code Dev Container setup.
 
-Python 3.10, 3.11, or 3.12. Use 3.12.
+Python 3.10, 3.11 or 3.12.
 
 ```bash
 python -m venv venv
@@ -63,19 +63,33 @@ source venv/bin/activate
 
 On Windows, run `venv\Scripts\activate` instead.
 
-```bash
-pip install "torch==2.12.*"
-python -c "import subprocess, sys, torch; c = torch.version.cuda; tag = 'cu' + c.replace('.', '') if c else 'cpu'; subprocess.check_call([sys.executable, '-m', 'pip', 'install', 'gridfm-graphkit', 'torch==2.12.*', 'torch-scatter', '-f', f'https://data.pyg.org/whl/torch-2.12.0+{tag}.html'])"
-```
+Then run one of these:
 
-The second command installs GraphKit and the matching `torch-scatter` wheel. For RRWP positional encodings, add `torch-sparse` next to `torch-scatter` in that command. For the docs and the tests, use `gridfm-graphkit[dev,test]` instead of `gridfm-graphkit`.
-
-If no wheel exists for your machine, compile `torch-scatter`. You need a C++ compiler, and `nvcc` for a GPU build.
+CPU (Linux, Windows, macOS on Apple silicon):
 
 ```bash
-pip install torch-scatter --no-build-isolation
+pip install gridfm-graphkit "torch==2.12.*" torch-scatter --extra-index-url https://download.pytorch.org/whl/cpu -f https://data.pyg.org/whl/torch-2.12.0+cpu.html
 ```
 
+NVIDIA GPU (Linux, Windows; `nvidia-smi` must report CUDA Version 12.6 or higher):
+
+```bash
+pip install gridfm-graphkit "torch==2.12.*" torch-scatter --extra-index-url https://download.pytorch.org/whl/cu126 -f https://data.pyg.org/whl/torch-2.12.0+cu126.html
+```
+
+RTX 50xx and other Blackwell GPUs need CUDA 13: replace `cu126` with `cu130` in both URLs (Linux only, `nvidia-smi` must report CUDA Version 13.0 or higher).
+
+For RRWP positional encodings, add `torch-sparse` after `torch-scatter`.
+
+Check the install:
+
+```bash
+python -c "import torch, torch_scatter, gridfm_graphkit; print(torch.__version__, torch.cuda.is_available())"
+```
+
+MLflow 3 refuses the default local `mlruns` folder unless you set `MLFLOW_ALLOW_FILE_STORE=true` before running `gridfm_graphkit` (`export` on Linux and macOS, `set` on Windows).
+
+To run the tests, clone the repository and install with `".[test]"` in place of `gridfm-graphkit` in the command above, then run `pytest tests/`.
 
 # CLI commands
 
