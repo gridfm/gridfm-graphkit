@@ -89,8 +89,8 @@ def plot_correlation_by_node_type(
             preds_masked = preds[mask]
             targets_masked = targets[mask]
         else:
-            preds_masked = torch.where(mask, preds, 0)
-            targets_masked = torch.where(mask, targets, 0)
+            preds_masked = torch.where(mask, preds, 1)
+            targets_masked = torch.where(mask, targets, 1)
 
         if preds_masked.numel() == 0:
             continue

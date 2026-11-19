@@ -9,6 +9,7 @@ from gridfm_graphkit.models.utils import (
     ComputeNodeInjection,
     ComputeNodeResiduals,
     bound_with_sigmoid,
+    compute_shunt_power,
 )
 from gridfm_graphkit.datasets.globals import (
     # Bus feature indices
@@ -18,6 +19,7 @@ from gridfm_graphkit.datasets.globals import (
     MAX_VM_H,
     # Output feature indices
     VM_OUT,
+    VA_OUT,
     PG_OUT_GEN,
     # Generator feature indices
     PG_H,
@@ -29,7 +31,7 @@ from gridfm_graphkit.datasets.globals import (
 @MODELS_REGISTRY.register("GNS_heterogeneous")
 class GNS_heterogeneous(nn.Module):
     """
-    Heterogeneous version of your Transformer-based GNN for buses and generators.
+    Heterogeneous Transformer-based GNN for buses and generators.
     - Expects node features as dict: x_dict = {"bus": Tensor[num_bus, bus_feat], "gen": Tensor[num_gen, gen_feat]}
     - Expects edge_index_dict and edge_attr_dict with keys:
         ("bus","connects","bus"), ("gen","connected_to","bus"), ("bus","connected_to","gen")
@@ -49,6 +51,9 @@ class GNS_heterogeneous(nn.Module):
         self.heads = args.model.attention_head
         self.task = args.task.task_name
         self.dropout = getattr(args.model, "dropout", 0.0)
+
+        # StateEstimation only: also predict branch r, x.
+        self.parameter_estimation = getattr(args.task, "parameter_estimation", False)
 
         # projections for each node type
         self.input_proj_bus = nn.Sequential(
@@ -136,7 +141,6 @@ class GNS_heterogeneous(nn.Module):
             nn.Linear(self.hidden_dim, self.output_gen_dim),
         )
 
-        # mask param (kept similar to your original)
         self.activation = nn.LeakyReLU()
         self.branch_flow_layer = ComputeBranchFlow()
         self.node_injection_layer = ComputeNodeInjection()
@@ -146,12 +150,31 @@ class GNS_heterogeneous(nn.Module):
         # container for monitoring residual norms per layer and type
         self.layer_residuals = {}
 
-    def forward(self, x_dict, edge_index_dict, edge_attr_dict, mask_dict):
+        if self.parameter_estimation:
+            # Outputs r, x, bc per branch. Only r and x are evaluated.
+            self.mlp_impedance = nn.Sequential(
+                nn.Linear(
+                    2 * self.hidden_dim * self.heads + 2 * self.hidden_dim,
+                    self.hidden_dim,
+                ),
+                nn.LayerNorm(self.hidden_dim),
+                nn.LeakyReLU(),
+                nn.Linear(self.hidden_dim, 3),
+            )
+
+    def forward(
+        self,
+        x_dict,
+        edge_index_dict,
+        edge_attr_dict,
+        mask_dict,
+        batch_dict=None,
+    ):
         """
         x_dict: {"bus": Tensor[num_bus, bus_feat], "gen": Tensor[num_gen, gen_feat]}
         edge_index_dict: keys like ("bus","connects","bus"), ("gen","connected_to","bus"), ("bus","connected_to","gen")
         edge_attr_dict: same keys -> edge attributes (bus-bus requires G,B)
-        batch_dict: dict mapping node types to batch tensors (if using batching). Not used heavily here but kept for API parity.
+        batch_dict: graph index of every node, per node type. Needed only for parameter estimation.
         mask: optional mask per node (applies when computing residuals)
         """
 
@@ -199,83 +222,158 @@ class GNS_heterogeneous(nn.Module):
             bus_temp = self.mlp_bus(h_bus)  # [Nb, 2]  -> Vm, Va
             gen_temp = self.mlp_gen(h_gen)  # [Ng, 1]  -> Pg
 
-            if self.task == "StateEstimation":
-                if i == self.num_layers - 1:
-                    Pft, Qft = self.branch_flow_layer(
-                        bus_temp,
-                        bus_edge_index,
-                        bus_edge_attr,
-                    )
-                    P_in, Q_in = self.node_injection_layer(
-                        Pft,
-                        Qft,
-                        bus_edge_index,
-                        num_bus,
-                    )
-                    output_temp = self.physics_decoder(
-                        P_in,
-                        Q_in,
-                        bus_temp,
-                        x_dict["bus"],
-                        None,
-                        None,
-                    )
-
-            else:
+            if self.task != "StateEstimation":
                 bus_temp = torch.where(bus_mask, bus_temp, bus_fixed)
                 gen_temp = torch.where(gen_mask, gen_temp, gen_fixed)
+            else:
+                # SE predicts voltages only. Generator Pg stays at its measured value.
+                gen_temp = gen_fixed.detach().clone()
 
-                if self.task == "OptimalPowerFlow":
-                    bus_temp[:, VM_OUT] = bound_with_sigmoid(
-                        bus_temp[:, VM_OUT],
-                        x_dict["bus"][:, MIN_VM_H],
-                        x_dict["bus"][:, MAX_VM_H],
+            if self.task == "OptimalPowerFlow":
+                bus_temp[:, VM_OUT] = bound_with_sigmoid(
+                    bus_temp[:, VM_OUT],
+                    x_dict["bus"][:, MIN_VM_H],
+                    x_dict["bus"][:, MAX_VM_H],
+                )
+                gen_temp[:, PG_OUT_GEN] = bound_with_sigmoid(
+                    gen_temp[:, PG_OUT_GEN],
+                    x_dict["gen"][:, MIN_PG],
+                    x_dict["gen"][:, MAX_PG],
+                )
+
+            Pft, Qft = self.branch_flow_layer(
+                bus_temp,
+                bus_edge_index,
+                bus_edge_attr,
+            )
+            P_in, Q_in = self.node_injection_layer(
+                Pft,
+                Qft,
+                bus_edge_index,
+                num_bus,
+            )
+            agg_bus = scatter_add(
+                gen_temp.squeeze(),
+                gen_to_bus_index,
+                dim=0,
+                dim_size=num_bus,
+            )
+            output_temp = self.physics_decoder(
+                P_in,
+                Q_in,
+                bus_temp,
+                x_dict["bus"],
+                agg_bus,
+                mask_dict,
+            )
+            residual_P, residual_Q = self.node_residuals_layer(
+                P_in,
+                Q_in,
+                output_temp,
+                x_dict["bus"],
+            )
+
+            bus_residuals = torch.stack([residual_P, residual_Q], dim=-1)
+
+            # Save and project residuals to latent space
+            self.layer_residuals[i] = torch.linalg.norm(
+                bus_residuals,
+                dim=-1,
+            ).mean()
+            h_bus = h_bus + self.physics_mlp(bus_residuals)
+
+        if self.task == "StateEstimation":
+            # Final output: voltages and the injections and flows they imply.
+            Pft, Qft = self.branch_flow_layer(
+                bus_temp,
+                bus_edge_index,
+                bus_edge_attr,
+            )
+            P_in, Q_in = self.node_injection_layer(
+                Pft,
+                Qft,
+                bus_edge_index,
+                num_bus,
+            )
+            p_shunt, q_shunt = compute_shunt_power(bus_temp, x_dict["bus"])
+            Vm_out = bus_temp[:, VM_OUT]
+            Va_out = bus_temp[:, VA_OUT]
+            output_temp = torch.stack(
+                [Vm_out, Va_out, P_in - p_shunt, Q_in - q_shunt],
+                dim=1,
+            )
+            result = {
+                "bus": output_temp,
+                "gen": gen_temp,
+                "branch": torch.stack([Pft, Qft], dim=-1),
+            }
+
+            if self.parameter_estimation:
+                # One r, x prediction per branch. In each graph the first half of the
+                # edges are forward edges and the second half the matching reverse edges.
+                edge_proj = edge_attr_proj_dict[("bus", "connects", "bus")]
+                device = edge_proj.device
+                forward_edge_attr_proj = torch.zeros(
+                    int(edge_proj.size(0) / 2),
+                    edge_proj.size(1),
+                ).to(device)
+                reverse_edge_attr_proj = torch.zeros_like(forward_edge_attr_proj).to(
+                    device,
+                )
+                forward_edge_index = torch.zeros(
+                    bus_edge_index.size(0),
+                    int(bus_edge_index.size(1) / 2),
+                    dtype=torch.int32,
+                ).to(device)
+
+                current_start = 0
+                batch_indices_branch = batch_dict["bus"][bus_edge_index[0]]
+
+                for batch_idx in batch_indices_branch.unique():
+                    num_edges = (batch_indices_branch == batch_idx).sum().item()
+                    new_start = current_start + num_edges
+                    midpoint = int(current_start + num_edges / 2)
+
+                    assert (
+                        torch.where(batch_indices_branch == batch_idx)[0].min()
+                        == current_start
                     )
-                    gen_temp[:, PG_OUT_GEN] = bound_with_sigmoid(
-                        gen_temp[:, PG_OUT_GEN],
-                        x_dict["gen"][:, MIN_PG],
-                        x_dict["gen"][:, MAX_PG],
+                    assert (
+                        torch.where(batch_indices_branch == batch_idx)[0].max()
+                        == new_start - 1
                     )
+                    current_start_out = int(current_start / 2)
+                    new_start_out = int(new_start / 2)
+                    forward_edge_attr_proj[current_start_out:new_start_out, :] = (
+                        edge_proj[current_start:midpoint, :]
+                    )
+                    reverse_edge_attr_proj[current_start_out:new_start_out, :] = (
+                        edge_proj[midpoint:new_start, :]
+                    )
+                    forward_edge_index[:, current_start_out:new_start_out] = (
+                        bus_edge_index[:, current_start:midpoint]
+                    )
+                    reverse_edge_index = bus_edge_index[:, midpoint:new_start]
+                    assert (
+                        bus_edge_index[:, current_start:midpoint]
+                        == reverse_edge_index[[1, 0], :]
+                    ).all()
+                    current_start = new_start
 
-                Pft, Qft = self.branch_flow_layer(
-                    bus_temp,
-                    bus_edge_index,
-                    bus_edge_attr,
+                # Edge embeddings come only from the input projection, so the final bus
+                # embeddings at both ends are added to the decoder input.
+                impedance = self.mlp_impedance(
+                    torch.cat(
+                        (
+                            h_bus[forward_edge_index[0]],
+                            h_bus[forward_edge_index[1]],
+                            forward_edge_attr_proj,
+                            reverse_edge_attr_proj,
+                        ),
+                        dim=1,
+                    ),
                 )
-                P_in, Q_in = self.node_injection_layer(
-                    Pft,
-                    Qft,
-                    bus_edge_index,
-                    num_bus,
-                )
-                agg_bus = scatter_add(
-                    gen_temp.squeeze(),
-                    gen_to_bus_index,
-                    dim=0,
-                    dim_size=num_bus,
-                )
-                output_temp = self.physics_decoder(
-                    P_in,
-                    Q_in,
-                    bus_temp,
-                    x_dict["bus"],
-                    agg_bus,
-                    mask_dict,
-                )
-                residual_P, residual_Q = self.node_residuals_layer(
-                    P_in,
-                    Q_in,
-                    output_temp,
-                    x_dict["bus"],
-                )
+                result["impedance"] = impedance  # [num_branches, 3]: r, x, bc
 
-                bus_residuals = torch.stack([residual_P, residual_Q], dim=-1)
-
-                # Save and project residuals to latent space
-                self.layer_residuals[i] = torch.linalg.norm(
-                    bus_residuals,
-                    dim=-1,
-                ).mean()
-                h_bus = h_bus + self.physics_mlp(bus_residuals)
-
+            return result
         return {"bus": output_temp, "gen": gen_temp}

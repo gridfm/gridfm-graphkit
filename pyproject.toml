@@ -66,7 +66,15 @@ dev = [
 
 test = [
   "pytest",
-  "pytest-cov"
+  "pytest-cov",
+  "pandapower==3.3.0",
+  "numpy<2.4",
+]
+
+# WLS state estimation baseline.
+se = [
+  "pandapower==3.3.0",
+  "numpy<2.4",
 ]
 
 [project.scripts]

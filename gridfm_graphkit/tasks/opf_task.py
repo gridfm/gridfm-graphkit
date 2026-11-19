@@ -48,8 +48,8 @@ import pandas as pd
 @TASK_REGISTRY.register("OptimalPowerFlow")
 class OptimalPowerFlowTask(ReconstructionTask):
     """
-    Concrete Optimal Power Flow task.
-    Extends ReconstructionTask and adds OPF-specific metrics.
+    Optimal power flow task.
+    Extends ReconstructionTask and adds optimal power flow metrics.
     """
 
     def __init__(self, args, data_normalizers):
@@ -97,7 +97,6 @@ class OptimalPowerFlowTask(ReconstructionTask):
             dim=0,
             dim_size=num_bus,
         )
-        # output_agg = torch.cat([batch.y_dict["bus"], agg_gen_on_bus], dim=1)
         target = torch.stack(
             [
                 batch.y_dict["bus"][:, VM_H],
@@ -108,11 +107,8 @@ class OptimalPowerFlowTask(ReconstructionTask):
             dim=1,
         )
 
-        # UN-COMMENT THIS TO CHECK PBE ON GROUND TRUTH
-        # output["bus"] = target
-
         Pft, Qft = branch_flow_layer(output["bus"], bus_edge_index, bus_edge_attr)
-        # Compute branch termal limits violations
+        # Branch thermal limit violations
         Sft = torch.sqrt(Pft**2 + Qft**2)  # apparent power flow per branch
         branch_thermal_limits = bus_edge_attr[:, RATE_A]
         branch_thermal_excess = F.relu(Sft - branch_thermal_limits)

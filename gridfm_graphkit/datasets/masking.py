@@ -1,3 +1,4 @@
+from typing import List
 import torch
 from torch_geometric.transforms import BaseTransform
 from gridfm_graphkit.datasets.globals import (
@@ -29,7 +30,6 @@ from gridfm_graphkit.datasets.globals import (
     ANG_MAX,
     RATE_A,
 )
-from torch_geometric.utils import degree
 from torch_geometric.nn import MessagePassing
 
 
@@ -157,15 +157,16 @@ class AddOPFHeteroMask(BaseTransform):
 
 
 class BusToGenBroadcaster(MessagePassing):
+    """Copy a bus feature to every generator on that bus."""
+
     def __init__(self, aggr="add"):
+        # Each generator is on one bus and gets one message, so the aggregation does not matter.
         super().__init__(aggr=aggr)
 
     def forward(self, x_bus, edge_index_bus2gen, num_gen):
-        # TODO propagate the standard deviation by dividing by sqrt of number of gens per bus
-        deg = degree(edge_index_bus2gen[0], num_nodes=x_bus.shape[0]).unsqueeze(-1)
         return self.propagate(
             edge_index_bus2gen,
-            x=x_bus / torch.sqrt(deg),
+            x=x_bus,
             size=(x_bus.size(0), num_gen),
         )
 
@@ -174,14 +175,48 @@ class BusToGenBroadcaster(MessagePassing):
 
 
 class SimulateMeasurements(BaseTransform):
+    """Turn the true state of a scenario into noisy, partial SCADA measurements.
+
+    Measured values are voltage magnitude, bus injections (loads, bus Qg and
+    generator Pg) and branch flows. For each measurement type:
+
+    - a fraction `mask_ratio` is not measured and is masked,
+    - each measured value gets Gaussian noise with relative standard deviation `std`,
+    - a fraction `outlier_ratio` of the measured values is shifted by 3 standard deviations.
+
+    The random draws are seeded from the scenario's voltage magnitudes, so one
+    scenario always gets the same measurements. The neural estimator and the
+    WLS baseline therefore see the same measurements.
+    """
+
     def __init__(self, args):
         super().__init__()
         self.measurements = args.task.measurements
         self.relative_measurement = getattr(args.task, "relative_measurement", True)
-        self.measurement_distribution = getattr(args.task, "noise_type", "Gaussian")
+        if not self.relative_measurement:
+            raise ValueError(
+                "Only relative measurement noise is supported. Set task.relative_measurement to true.",
+            )
+        noise_type = getattr(args.task, "noise_type", "Gaussian")
+        if noise_type != "Gaussian":
+            raise ValueError(
+                f"Only Gaussian measurement noise is supported, got noise_type {noise_type}.",
+            )
         self.bus2gen_broadcaster = BusToGenBroadcaster()
 
-    def place_measurement_std_and_outliers(self, std, outliers, features, measurement):
+    def place_measurement_std_and_outliers(
+        self,
+        std: torch.Tensor,
+        outliers: torch.Tensor,
+        features: List[int],
+        measurement,
+    ):
+        """Pick which rows are measured and which measured rows are outliers.
+
+        All `features` of a row share one draw. For example, P and Q of a branch
+        flow are measured together and are outliers together.
+        """
+        # True means not measured.
         measurement_mask = torch.rand(std.shape[0]) < measurement.mask_ratio
         outliers_mask = torch.rand(std.shape[0]) < measurement.outlier_ratio
         outliers_mask = torch.logical_and(outliers_mask, ~measurement_mask)
@@ -190,33 +225,28 @@ class SimulateMeasurements(BaseTransform):
             outliers[outliers_mask, feature] = True
         return std, outliers
 
-    def add_noise(self, in_tensor, mask, std):
-        if self.measurement_distribution == "Gaussian":
-            return torch.where(
-                mask,
-                in_tensor,
-                in_tensor + std * torch.randn(std.shape),
-            )
+    def add_noise(self, in_tensor: torch.Tensor, mask: torch.Tensor, std: torch.Tensor):
+        """Add zero-mean Gaussian noise with standard deviation `std` to the entries where `mask` is False."""
+        return torch.where(mask, in_tensor, in_tensor + std * torch.randn(std.shape))
 
-        elif self.measurement_distribution == "Laplace":
-            b = std / torch.sqrt(torch.tensor(2))
-            dist = torch.distributions.laplace.Laplace(0, 1)
-            return torch.where(mask, in_tensor, in_tensor + b * dist.sample(b.shape))
-
-        elif self.measurement_distribution == "Uniform":
-            dist = torch.distributions.uniform.Uniform(-1, 1)
-            return torch.where(
-                mask,
-                in_tensor,
-                in_tensor + torch.sqrt(torch.tensor(3)) * std * dist.sample(std.shape),
-            )
-
-    def add_outliers(self, in_tensor, mask_outliers, std):
+    def add_outliers(
+        self,
+        in_tensor: torch.Tensor,
+        mask_outliers: torch.Tensor,
+        std: torch.Tensor,
+    ):
+        """Shift the entries where `mask_outliers` is True by 3 standard deviations, with a random sign."""
         random_signs = 2 * torch.randint(0, 2, in_tensor.shape) - 1
         outlier_samples = 3 * std * random_signs
         return torch.where(mask_outliers, in_tensor + outlier_samples, in_tensor)
 
     def forward(self, data):
+        # Seed from the scenario itself. The global random state is restored at the end.
+        cpu_state = torch.random.get_rng_state()
+        random_seed = int((data["bus"].x[:, VM_H] * 1000).sum())
+        torch.manual_seed(random_seed)
+
+        # Relative standard deviation for PD, QD, QG, VM, VA. Infinity means not measured.
         std_bus = torch.full_like(data["bus"].y, float("inf"), dtype=torch.float)
         outliers_bus = torch.full_like(data["bus"].y, False, dtype=torch.bool)
 
@@ -232,11 +262,15 @@ class SimulateMeasurements(BaseTransform):
             [PD_H, QD_H, QG_H],
             self.measurements.power_inj,
         )
+
+        # A bus injection measurement also covers the Pg of the generators on that bus.
         std_gen = self.bus2gen_broadcaster(
             std_bus[:, [PD_H]],
             data[("bus", "connected_to", "gen")].edge_index,
             data["gen"].x.shape[0],
         )
+
+        # Generator Pg measurements never get outliers.
 
         std_branch = torch.full_like(
             data[("bus", "connects", "bus")].edge_attr[:, :2],
@@ -261,17 +295,15 @@ class SimulateMeasurements(BaseTransform):
             torch.isinf(std_gen),
         )
 
-        if self.relative_measurement:
-            std_bus = torch.where(mask_bus, std_bus, std_bus * torch.abs(data["bus"].y))
-            std_branch = torch.where(
-                mask_branch,
-                std_branch,
-                std_branch
-                * torch.abs(data[("bus", "connects", "bus")].edge_attr[:, :2]),
-            )
-        else:
-            std_bus = torch.where(mask_bus, std_bus, std_bus * data.baseMVA)
-            std_branch = torch.where(mask_branch, std_branch, std_branch * data.baseMVA)
+        # Relative to absolute standard deviation. torch.where keeps unmeasured entries
+        # at infinity instead of inf * 0 = nan.
+        std_bus = torch.where(mask_bus, std_bus, std_bus * torch.abs(data["bus"].y))
+        std_gen = torch.where(mask_gen, std_gen, std_gen * torch.abs(data["gen"].y))
+        std_branch = torch.where(
+            mask_branch,
+            std_branch,
+            std_branch * torch.abs(data[("bus", "connects", "bus")].edge_attr[:, :2]),
+        )
 
         data["bus"].x[:, : data["bus"].y.size(1)] = self.add_noise(
             data["bus"].x[:, : data["bus"].y.size(1)],
@@ -301,23 +333,28 @@ class SimulateMeasurements(BaseTransform):
             std_branch,
         )
 
-        # Save all masks and stds
+        # std and outlier tensors have y.size(1) columns. Masks are padded to x.size(1)
+        # columns for ApplyMasking. The padded columns are not masked here.
         extra_dims_bus = data["bus"].x.size(1) - data["bus"].y.size(1)
         extra_dims_gen = data["gen"].x.size(1) - data["gen"].y.size(1)
         extra_dims_branch = (
             data[("bus", "connects", "bus")]["edge_attr"].shape[1]
             - mask_branch.shape[1]
         )
+        mask_bus = torch.nn.functional.pad(mask_bus, (0, extra_dims_bus))
+        mask_gen = torch.nn.functional.pad(mask_gen, (0, extra_dims_gen))
+        mask_branch = torch.nn.functional.pad(mask_branch, (0, extra_dims_branch))
 
+        # OPF limits and costs are zeroed in StateEstimationTask.shared_step, because the WLS baseline needs them.
         data.mask_dict = {
-            "bus": torch.nn.functional.pad(mask_bus, (0, extra_dims_bus)),
+            "bus": mask_bus,
             "std_bus": std_bus,
             "outliers_bus": outliers_bus,
-            "gen": torch.nn.functional.pad(mask_gen, (0, extra_dims_gen)),
+            "gen": mask_gen,
             "std_gen": std_gen,
-            "branch": torch.nn.functional.pad(mask_branch, (0, extra_dims_branch)),
+            "branch": mask_branch,
             "std_branch": std_branch,
             "outliers_branch": outliers_branch,
         }
-
+        torch.random.set_rng_state(cpu_state)
         return data

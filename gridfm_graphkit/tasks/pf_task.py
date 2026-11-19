@@ -35,8 +35,8 @@ import pandas as pd
 @TASK_REGISTRY.register("PowerFlow")
 class PowerFlowTask(ReconstructionTask):
     """
-    Concrete Optimal Power Flow task.
-    Extends ReconstructionTask and adds OPF-specific metrics.
+    Power flow task.
+    Extends ReconstructionTask and adds power flow metrics.
     """
 
     def __init__(self, args, data_normalizers):
@@ -64,7 +64,6 @@ class PowerFlowTask(ReconstructionTask):
             dim=0,
             dim_size=num_bus,
         )
-        # output_agg = torch.cat([batch.y_dict["bus"], agg_gen_on_bus], dim=1)
         target = torch.stack(
             [
                 batch.y_dict["bus"][:, VM_H],
@@ -74,9 +73,6 @@ class PowerFlowTask(ReconstructionTask):
             ],
             dim=1,
         )
-
-        # UN-COMMENT THIS TO CHECK PBE ON GROUND TRUTH
-        # output["bus"] = target
 
         Pft, Qft = branch_flow_layer(output["bus"], bus_edge_index, bus_edge_attr)
         P_in, Q_in = node_injection_layer(Pft, Qft, bus_edge_index, num_bus)

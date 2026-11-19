@@ -18,7 +18,7 @@ def test_yaml_config_valid(yaml_path):
         config_dict = yaml.safe_load(f)
 
     args = NestedNamespace(**config_dict)
-    # Call your param handler functions; they should not raise exceptions
+    # The param handler functions should not raise exceptions
     normalizer = load_normalizer(args)
     get_task(args, normalizer)
     load_model(args)

@@ -26,15 +26,11 @@ def test_simulate_measurements():
         weights_only=True,
     )
     data = HeteroData.from_dict(data_dict)
-    node_stats = torch.load(
-        "tests/data/case14_ieee/processed/data_stats_HeteroDataMVANormalizer.pt",
-        weights_only=True,
-    )
     with open("tests/config/SE_simulate_measurements.yaml", "r") as f:
         args = yaml.safe_load(f)
     args = NestedNamespace(**args)
     normalizer = HeteroDataMVANormalizer(args)
-    normalizer.fit_from_dict(node_stats)
+    normalizer.fit("tests/data/case14_ieee/raw", list(range(72)))
     normalizer.transform(data)
     transform = SimulateMeasurements(args)
     out = transform(deepcopy(data))

@@ -50,7 +50,6 @@ def test_pbe_loss_zero_with_real_data(small_grid_data_module):
         dim=0,
         dim_size=num_bus,
     )
-    # output_agg = torch.cat([batch.y_dict["bus"], agg_gen_on_bus], dim=1)
     target = torch.stack(
         [
             batch.y_dict["bus"][:, VM_H],

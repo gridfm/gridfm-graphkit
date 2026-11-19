@@ -19,6 +19,8 @@ from gridfm_graphkit.datasets.globals import (
     PG_OUT,
     # Generator feature indices
     PG_H,
+    P_E,
+    Q_E,
 )
 
 
@@ -273,7 +275,7 @@ class LossPerDim(BaseLoss):
         self.reduction = "mean"
         self.loss_str = loss_args.loss_str
         self.dim = loss_args.dim
-        if self.dim not in ["VM", "VA", "P_in", "Q_in"]:
+        if self.dim not in ["VM", "VA", "P_in", "Q_in", "P_E", "Q_E", "impedance"]:
             raise ValueError(
                 f"LossPerDim initialized with not valid dim: {self.dim}",
             )
@@ -312,13 +314,23 @@ class LossPerDim(BaseLoss):
         elif self.dim == "Q_in":
             temp_pred = pred_dict["bus"][:, QG_OUT]
             temp_target = target_dict["bus"][:, QG_H] - target_dict["bus"][:, QD_H]
+        elif self.dim == "P_E":
+            temp_pred = pred_dict["branch"][:, P_E]
+            temp_target = target_dict[("bus", "connects", "bus")][:, P_E]
+        elif self.dim == "Q_E":
+            temp_pred = pred_dict["branch"][:, Q_E]
+            temp_target = target_dict[("bus", "connects", "bus")][:, Q_E]
+        elif self.dim == "impedance":
+            # Branch r, x, bc. The loss covers all three columns.
+            temp_pred = pred_dict["impedance"]
+            temp_target = target_dict["impedance"]
 
         mse_loss = F.mse_loss(temp_pred, temp_target, reduction=self.reduction)
         mae_loss = F.l1_loss(temp_pred, temp_target, reduction=self.reduction)
 
-        loss = mse_loss if self.loss_str == "mse" else mae_loss
+        loss = mse_loss if self.loss_str == "MSE" else mae_loss
         return {
             "loss": loss,
-            f"MSE loss {self.dim}": mse_loss.detach(),
-            f"MAE loss {self.dim}": mae_loss.detach(),
+            f"MSE loss {self.dim}": mse_loss.clone().detach(),
+            f"MAE loss {self.dim}": mae_loss.clone().detach(),
         }

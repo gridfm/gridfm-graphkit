@@ -1,3 +1,4 @@
+import os
 from copy import deepcopy
 import torch
 from torch_geometric.transforms import BaseTransform
@@ -11,6 +12,7 @@ from gridfm_graphkit.datasets.globals import (
     YFF_TT_R,
     YFT_TF_I,
     YFT_TF_R,
+    TAP,
 )
 from gridfm_graphkit.datasets.normalizers import HeteroDataMVANormalizer
 
@@ -96,30 +98,109 @@ class ApplyMasking(BaseTransform):
 
 
 class LoadGridParamsFromPath(BaseTransform):
+    """Replace the admittances and element status with those of a reference grid.
+
+    The measurements and the target state still come from the scenario. Only
+    the grid model given to the estimator changes. This simulates admittance
+    and topology errors the estimator does not know about. Use it for
+    evaluation only.
+
+    `task.grid_path` points to one processed scenario (`processed/data_index_<i>.pt`)
+    of a dataset generated without admittance or topology perturbations.
+    The reference grid must have the same branches, in the same order, as the scenario.
+    The file is read on first use, so that dataset only has to be processed by then.
+    """
+
     def __init__(self, args):
         super().__init__()
         self.grid_path = args.task.grid_path
-        self.grid_data = HeteroData.from_dict(
-            torch.load(self.grid_path, weights_only=True),
-        )
-
-        # Normalizer is needed in order to normalize the grid_data in case the input data is normalized
+        self.grid_data = None
+        # Only the admittances are copied, so vn_kv_max does not matter.
         self.normalizer = HeteroDataMVANormalizer(args)
-
-        # Set to a dummy value since it is needed for the normalizer transform, but the column vn_kv will be ignored.
         self.normalizer.vn_kv_max = 1
 
     def forward(self, data):
-        if hasattr(data, "is_normalized"):
-            self.normalizer.baseMVA = data.baseMVA
-            grid_data = deepcopy(self.grid_data)
-            self.normalizer.transform(grid_data)
-        else:
-            grid_data = deepcopy(self.grid_data)
+        if self.grid_data is None:
+            if not os.path.exists(self.grid_path):
+                raise FileNotFoundError(
+                    f"Reference grid {self.grid_path} not found. Process the unperturbed dataset first, "
+                    "for example by evaluating once with --data_path on it.",
+                )
+            self.grid_data = HeteroData.from_dict(
+                torch.load(self.grid_path, weights_only=True),
+            )
+        # The scenario is already normalized. Normalize the reference grid the same way.
+        self.normalizer.baseMVA = data.baseMVA
+        grid_data = deepcopy(self.grid_data)
+        self.normalizer.transform(grid_data)
 
         cols = [YFF_TT_R, YFF_TT_I, YFT_TF_R, YFT_TF_I, B_ON]
         data[("bus", "connects", "bus")].edge_attr[:, cols] = grid_data[
             ("bus", "connects", "bus")
         ].edge_attr[:, cols]
         data["gen"].x[:, G_ON] = grid_data["gen"].x[:, G_ON]
+        return data
+
+
+class NoiseGridParameters(BaseTransform):
+    """Give the estimator noisy branch resistance and reactance.
+
+    Each branch r and x is multiplied by a factor drawn from U(1 - sigma, 1 + sigma),
+    with sigma = `task.grid_noise_r` and `task.grid_noise_x`. The admittances in
+    the input are rebuilt from the noisy values. Line charging is not changed.
+    The true and noisy (r, x, bc) are stored in `data["impedance"].y` and `.x`.
+    With both sigmas at 0 the data is unchanged.
+    """
+
+    def __init__(self, args):
+        super().__init__()
+        self.grid_noise_r = getattr(args.task, "grid_noise_r", 0)
+        self.grid_noise_x = getattr(args.task, "grid_noise_x", 0)
+        self.grid_noise_bc = getattr(args.task, "grid_noise_bc", 0)
+
+    @staticmethod
+    def add_noise_admittance(adm: torch.Tensor, sigma: float):
+        """Multiply by U(1 - sigma, 1 + sigma)."""
+        if sigma == 0:
+            return adm
+        assert sigma > 0
+        dist = torch.distributions.uniform.Uniform(1 - sigma, 1 + sigma)
+        return adm * dist.sample(adm.shape)
+
+    def forward(self, data):
+        if (
+            (self.grid_noise_bc == 0)
+            and (self.grid_noise_r == 0)
+            and (self.grid_noise_x == 0)
+        ):
+            return data
+
+        # Forward edges come first, then the reverse edges in the same order.
+        edge_attr = deepcopy(data[("bus", "connects", "bus")].edge_attr)
+        assert edge_attr.shape[0] % 2 == 0
+        n = edge_attr.shape[0] // 2
+        tap = edge_attr[:n, TAP]
+        g = -tap * edge_attr[:n, YFT_TF_R]
+        b = -tap * edge_attr[:n, YFT_TF_I]
+        bc = 2 * (tap**2 * edge_attr[:n, YFF_TT_I] - b)
+        r, x = g / (g**2 + b**2), -b / (g**2 + b**2)
+
+        data["impedance"].y = torch.stack([r, x, bc], dim=1)
+        r_n = self.add_noise_admittance(r, self.grid_noise_r)
+        x_n = self.add_noise_admittance(x, self.grid_noise_x)
+        bc_n = self.add_noise_admittance(bc, self.grid_noise_bc)
+        data["impedance"].x = torch.stack([r_n, x_n, bc_n], dim=1)
+
+        g_n, b_n = r_n / (r_n**2 + x_n**2), -x_n / (r_n**2 + x_n**2)
+        edge_attr[:n, YFF_TT_R] = 1 / tap**2 * g_n
+        edge_attr[:n, YFF_TT_I] = 1 / tap**2 * (b_n + bc_n / 2)
+        edge_attr[:n, YFT_TF_R] = -1 / tap * g_n
+        edge_attr[:n, YFT_TF_I] = -1 / tap * b_n
+
+        edge_attr[n:, YFF_TT_R] = g_n
+        edge_attr[n:, YFF_TT_I] = b_n + bc_n / 2
+        edge_attr[n:, YFT_TF_R] = -1 / tap * g_n
+        edge_attr[n:, YFT_TF_I] = -1 / tap * b_n
+
+        data[("bus", "connects", "bus")].edge_attr = edge_attr
         return data

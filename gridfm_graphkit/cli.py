@@ -5,7 +5,6 @@ import numpy as np
 import os
 import yaml
 import torch
-import random
 import pandas as pd
 
 from gridfm_graphkit.io.param_handler import get_task
@@ -56,12 +55,14 @@ def main_cli(args):
 
     normalizer_stats_path = getattr(args, "normalizer_stats", None)
     litGrid = LitGridHeteroDataModule(
-        config_args, args.data_path, normalizer_stats_path=normalizer_stats_path,
+        config_args,
+        args.data_path,
+        normalizer_stats_path=normalizer_stats_path,
     )
     model = get_task(config_args, litGrid.data_normalizers)
     if args.command != "train":
         print(f"Loading model weights from {args.model_path}")
-        state_dict = torch.load(args.model_path, map_location="cpu")
+        state_dict = torch.load(args.model_path, map_location="cpu", weights_only=True)
         model.load_state_dict(state_dict)
 
     trainer = L.Trainer(

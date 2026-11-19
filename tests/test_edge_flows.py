@@ -5,7 +5,7 @@ import yaml
 from gridfm_graphkit.models.utils import (
     ComputeBranchFlow,
     ComputeNodeInjection,
-    PhysicsDecoderSE,
+    compute_shunt_power,
 )
 from gridfm_graphkit.training.loss import LossPerDim
 from gridfm_graphkit.datasets.globals import (
@@ -24,22 +24,17 @@ def test_edge_flows():
     )
     data = HeteroData.from_dict(data_dict)
 
-    node_stats = torch.load(
-        "tests/data/case14_ieee/processed/data_stats_HeteroDataMVANormalizer.pt",
-        weights_only=True,
-    )
     with open("tests/config/datamodule_test_base_config.yaml", "r") as f:
         args = yaml.safe_load(f)
     args = NestedNamespace(**args)
     normalizer = HeteroDataMVANormalizer(args)
-    normalizer.fit_from_dict(node_stats)
+    normalizer.fit("tests/data/case14_ieee/raw", list(range(72)))
     normalizer.transform(data)
 
     bus_edge_index = data[("bus", "connects", "bus")].edge_index
     bus_edge_attr = data[("bus", "connects", "bus")].edge_attr
     branch_flow_layer = ComputeBranchFlow()
     node_injection_layer = ComputeNodeInjection()
-    physics_decoder = PhysicsDecoderSE()
 
     Pft, Qft = branch_flow_layer(
         data["bus"].x[:, [VM_H, VA_H]],
@@ -57,13 +52,12 @@ def test_edge_flows():
         data["bus"].x.size(0),
     )
 
-    output_temp = physics_decoder(
-        P_in,
-        Q_in,
-        data["bus"].y[:, [VM_H, VA_H]],
-        data["bus"].x,
-        None,
-        None,
+    # Final SE output: voltages and the injections they imply, as in GNS_heterogeneous.
+    voltages = data["bus"].y[:, [VM_H, VA_H]]
+    p_shunt, q_shunt = compute_shunt_power(voltages, data["bus"].x)
+    output_temp = torch.stack(
+        [voltages[:, 0], voltages[:, 1], P_in - p_shunt, Q_in - q_shunt],
+        dim=1,
     )
 
     pred_dict = {"bus": output_temp, "gen": data["gen"].y}
@@ -111,8 +105,6 @@ def test_edge_flows():
         )["loss"]
         < 1e-4
     )
-
-    print("hi")
 
 
 if __name__ == "__main__":

@@ -4,6 +4,7 @@ from gridfm_graphkit.datasets.transforms import (
     RemoveInactiveGenerators,
     ApplyMasking,
     LoadGridParamsFromPath,
+    NoiseGridParameters,
 )
 from gridfm_graphkit.datasets.masking import (
     AddOPFHeteroMask,
@@ -51,6 +52,7 @@ class StateEstimationTransforms(Compose):
         transforms.append(RemoveInactiveBranches())
         transforms.append(RemoveInactiveGenerators())
         transforms.append(SimulateMeasurements(args=args))
+        transforms.append(NoiseGridParameters(args=args))
         transforms.append(ApplyMasking(args=args))
 
         # Pass the list of transforms to Compose

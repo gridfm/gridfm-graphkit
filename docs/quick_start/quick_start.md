@@ -8,7 +8,7 @@ gridfm_graphkit <command> [OPTIONS]
 
 Available commands:
 
-* `train` – Train a new model from scrathc
+* `train` – Train a new model from scratch
 * `finetune` – Fine-tune an existing pre-trained model
 * `evaluate` – Evaluate model performance on a dataset
 * `predict` – Run inference and save predictions
@@ -36,7 +36,7 @@ gridfm_graphkit train --config path/to/config.yaml
 **Standard Training:**
 
 ```bash
-gridfm_graphkit train --config examples/config/case30_ieee_base.yaml --data_path examples/data
+gridfm_graphkit train --config examples/config/HGNS_PF_datakit_case14.yaml --data_path data
 ```
 
 ---

@@ -24,7 +24,6 @@ def fix_infiniband():
 
 
 def set_env():
-    # print("Using " + str(torch.cuda.device_count()) + " GPUs---------------------------------------------------------------------")
     LSB_MCPU_HOSTS = os.environ[
         "LSB_MCPU_HOSTS"
     ].split(
@@ -36,20 +35,30 @@ def set_env():
     ]  # Parses Node list set by LSF, in format hostname proceeded by number of cores requested
     os.environ["MASTER_ADDR"] = HOST_LIST[
         0
-    ]  # Sets the MasterNode to thefirst node on the list of hosts
+    ]  # Sets the master node to the first node on the list of hosts
     os.environ["MASTER_PORT"] = "5" + LSB_JOBID[-5:-1]
     os.environ["NODE_RANK"] = str(
         HOST_LIST.index(os.environ["HOSTNAME"]),
     )  # Uses the list index for node rank, master node rank must be 0
     os.environ["NCCL_SOCKET_IFNAME"] = (
-        "ib,bond"  # avoids using docker of loopback interface
+        "ib,bond"  # avoids using the docker or loopback interface
     )
     os.environ["NCCL_IB_CUDA_SUPPORT"] = "1"  # Force use of infiniband
 
 
+def is_lsf():
+    """True when running inside an LSF batch job."""
+    return (
+        os.environ.get("LSB_JOBID") is not None
+        and os.environ.get("LSB_MCPU_HOSTS") is not None
+        and "LSF_ENVDIR" in os.environ
+    )
+
+
 def main():
-    set_env()
-    fix_infiniband()
+    if is_lsf():
+        set_env()
+        fix_infiniband()
     parser = argparse.ArgumentParser(
         prog="gridfm_graphkit",
         description="gridfm-graphkit CLI",
@@ -80,9 +89,13 @@ def main():
         help="Evaluate model performance",
     )
     evaluate_parser.add_argument("--model_path", type=str, default=None)
-    evaluate_parser.add_argument("--normalizer_stats", type=str, default=None,
-                                 help="Path to normalizer_stats.pt from a training run. "
-                                      "Restores normalizers from saved stats instead of re-fitting.")
+    evaluate_parser.add_argument(
+        "--normalizer_stats",
+        type=str,
+        default=None,
+        help="Path to normalizer_stats.pt from a training run. "
+        "Restores normalizers from saved stats instead of re-fitting.",
+    )
     evaluate_parser.add_argument("--config", type=str, required=True)
     evaluate_parser.add_argument("--exp_name", type=str, default=exp_name)
     evaluate_parser.add_argument("--run_name", type=str, default="run")
@@ -92,9 +105,13 @@ def main():
     # ---- PREDICT SUBCOMMAND ----
     predict_parser = subparsers.add_parser("predict", help="Evaluate model performance")
     predict_parser.add_argument("--model_path", type=str, required=None)
-    predict_parser.add_argument("--normalizer_stats", type=str, default=None,
-                                help="Path to normalizer_stats.pt from a training run. "
-                                     "Restores normalizers from saved stats instead of re-fitting.")
+    predict_parser.add_argument(
+        "--normalizer_stats",
+        type=str,
+        default=None,
+        help="Path to normalizer_stats.pt from a training run. "
+        "Restores normalizers from saved stats instead of re-fitting.",
+    )
     predict_parser.add_argument("--config", type=str, required=True)
     predict_parser.add_argument("--exp_name", type=str, default=exp_name)
     predict_parser.add_argument("--run_name", type=str, default="run")

@@ -163,11 +163,32 @@ class PhysicsDecoderPF(nn.Module):
 
 @PHYSICS_DECODER_REGISTRY.register("StateEstimation")
 class PhysicsDecoderSE(nn.Module):
+    """Bus generation used for the power balance residuals inside the SE model.
+
+    At buses without an injection measurement, Pg and Qg are set so that the
+    residual is zero. At measured buses they are the measured values.
+    """
+
     def forward(self, P_in, Q_in, bus_data_pred, bus_data_orig, agg_bus, mask_dict):
         p_shunt, q_shunt = compute_shunt_power(bus_data_pred, bus_data_orig)
         Vm_out = bus_data_pred[:, VM_OUT]
         Va_out = bus_data_pred[:, VA_OUT]
-        output = torch.stack([Vm_out, Va_out, P_in - p_shunt, Q_in - q_shunt], dim=1)
+        # True where the bus injection is not measured.
+        mask_meas = mask_dict["bus"][:, QG_H]
+
+        Pd = bus_data_orig[:, PD_H]
+        Qd = bus_data_orig[:, QD_H]
+
+        Pg_new = torch.zeros_like(agg_bus)
+        Qg_new = torch.zeros_like(bus_data_orig[:, QG_H])
+
+        Pg_new[mask_meas] = P_in[mask_meas] + Pd[mask_meas] - p_shunt[mask_meas]
+        Qg_new[mask_meas] = Q_in[mask_meas] + Qd[mask_meas] - q_shunt[mask_meas]
+
+        Pg_new[~mask_meas] = agg_bus[~mask_meas]
+        Qg_new[~mask_meas] = bus_data_orig[~mask_meas, QG_H]
+
+        output = torch.stack([Vm_out, Va_out, Pg_new, Qg_new], dim=1)
         return output
 
 
