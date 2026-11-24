@@ -87,7 +87,7 @@ Check the install:
 python -c "import torch, torch_scatter, gridfm_graphkit; print(torch.__version__, torch.cuda.is_available())"
 ```
 
-MLflow 3 refuses the default local `mlruns` folder unless you set `MLFLOW_ALLOW_FILE_STORE=true` before running `gridfm_graphkit` (`export` on Linux and macOS, `set` on Windows).
+Set `MLFLOW_ALLOW_FILE_STORE=true` before running `gridfm_graphkit` (`export` on Linux and macOS, `set` on Windows).
 
 To run the tests, clone the repository and install with `".[test]"` in place of `gridfm-graphkit` in the command above, then run `pytest tests/`.
 
@@ -319,11 +319,10 @@ gridfm_graphkit <command> --help
 
 ### Unit and Integration Tests
 
-Install the test dependencies first (if not already done):
+Install the test dependencies first (if not already done). This is the CPU command. For a GPU, replace `cpu` with `cu126` or `cu130` in both URLs:
 
 ```bash
-pip install -e ".[dev,test]" "torch==2.12.*" \
-    --find-links https://data.pyg.org/whl/torch-2.12.0+cpu.html
+pip install -e ".[dev,test]" "torch==2.12.*" torch-scatter --extra-index-url https://download.pytorch.org/whl/cpu -f https://data.pyg.org/whl/torch-2.12.0+cpu.html
 ```
 
 Run the full unit test suite:

@@ -133,59 +133,44 @@ Before opening a PR, make sure you complete all steps:
 
 ### 1. Development setup
 
-- [ ] Install dev, test, and torch-scatter dependencies.
+- [ ] Install the `dev` and `test` extras, `torch-scatter` and `torch-sparse`.
 
-  `torch-scatter` is not on PyPI — it needs a prebuilt wheel from `data.pyg.org`
-  that matches **both** your PyTorch version and your compute backend. Pick the
-  right `CUDA_TAG` from the table below:
+  `torch-scatter` and `torch-sparse` are not on PyPI. Their wheels are on
+  `data.pyg.org`. The wheel must match your PyTorch version and your hardware.
+  Pick the tag for your hardware:
 
-  | Hardware | `CUDA_TAG` |
-  |----------|-----------|
-  | CPU only | `cpu` |
-  | CUDA 11.8 | `cu118` |
-  | CUDA 12.1 | `cu121` |
-  | CUDA 12.6 | `cu126` |
+  | Hardware | Tag |
+  |----------|-----|
+  | No NVIDIA GPU (including Apple silicon) | `cpu` |
+  | NVIDIA GPU, `nvidia-smi` reports CUDA Version 12.6 or higher | `cu126` |
+  | RTX 50xx and other Blackwell GPUs, Linux only, CUDA Version 13.0 or higher | `cu130` |
 
-  Not sure which tag to use? If you don't have an NVIDIA GPU (including Apple
-  Silicon and CPU-only machines), use `cpu`. For NVIDIA GPUs, check your CUDA
-  version with `nvidia-smi` (top-right corner) or `nvcc --version`.
+  `nvidia-smi` shows the CUDA Version in the top-right corner.
 
-  Replace `<CUDA_TAG>` in the command below:
-
-  pip does not read `[tool.uv] find-links` in `pyproject.toml`. Pass the index
-  yourself, and pin `torch==2.12.*` in the same command. That matches the
-  package pin `torch>=2.10,<2.13` and the wheel index below.
+  From the repository root, run the command for your tag. CPU:
 
   ```bash
-  pip install -e ".[dev,test]" "torch==2.12.*" \
-      --find-links https://data.pyg.org/whl/torch-2.12.0+<CUDA_TAG>.html
+  pip install -e ".[dev,test]" "torch==2.12.*" torch-scatter torch-sparse --extra-index-url https://download.pytorch.org/whl/cpu -f https://data.pyg.org/whl/torch-2.12.0+cpu.html
   ```
 
-  For example, CPU-only:
-  ```bash
-  pip install -e ".[dev,test]" "torch==2.12.*" \
-      --find-links https://data.pyg.org/whl/torch-2.12.0+cpu.html
-  ```
+  For a GPU, replace `cpu` with `cu126` or `cu130` in both URLs.
 
-  Or CUDA 12.6:
-  ```bash
-  pip install -e ".[dev,test]" "torch==2.12.*" \
-      --find-links https://data.pyg.org/whl/torch-2.12.0+cu126.html
-  ```
-  > **Note:** The PyTorch version (`2.12.0`) in the URL must match what is
-  > installed. If you change the `torch` pin in `pyproject.toml`, update this
-  > URL and regenerate the lock file with `uv lock`.
+  > **Note:** The PyTorch version in the `data.pyg.org` URL (`2.12.0`) must
+  > match the `torch` pin. If you change the `torch` pin in `pyproject.toml`,
+  > update this URL, the URLs in `README.md` and `docs/install/installation.md`,
+  > and run `uv lock`.
 
-  **No prebuilt wheel for your combination?** If `data.pyg.org` has no prebuilt wheel for your combination, build from source instead. This compiles against the installed torch. Stay inside the package pin `torch>=2.10,<2.13`, and install torch first:
+  **No wheel for your platform?** Build `torch-scatter` and `torch-sparse` from
+  source. Install torch first, because the build compiles against it:
   ```bash
-  pip install torch==2.12.0
+  pip install "torch==2.12.*"
   pip install torch-scatter torch-sparse --no-build-isolation
   ```
-  Building from source requires a C++ compiler (and a matching CUDA toolkit with
-  `nvcc` for GPU builds).
+  The build needs a C++ compiler. A GPU build also needs a CUDA toolkit with
+  `nvcc`.
 
 * [ ] Install the git hooks (this repo runs pre-commit hooks at the **pre-push** stage):
-  ```pipbash
+  ```bash
   pre-commit install
   ```
 

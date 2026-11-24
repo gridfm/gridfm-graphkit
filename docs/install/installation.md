@@ -1,45 +1,41 @@
 # Installation
 
-The steps below mirror the [README](https://github.com/gridfm/gridfm-graphkit/blob/main/README.md#installation).
+The steps below match the [README](https://github.com/gridfm/gridfm-graphkit/blob/main/README.md#installation).
+To use a container instead, see [Docker / containers](docker.md).
 
-Create and activate a virtual environment (make sure you use the right python version = 3.10, 3.11 or 3.12. I highly recommend 3.12)
+Python 3.10, 3.11 or 3.12.
 
 ```bash
 python -m venv venv
 source venv/bin/activate
 ```
 
-Install gridfm-graphkit from PyPI. `torch-scatter` wheels are not on PyPI.
-pip does not read `[tool.uv] find-links` in `pyproject.toml`, so pass the PyG
-index on the command line. The package pins `torch>=2.10,<2.13`, the newest
-line with prebuilt scatter wheels. `torch==2.12.*` keeps pip on that same line.
+On Windows, run `venv\Scripts\activate` instead.
+
+Then run one of these:
+
+CPU (Linux, Windows, macOS on Apple silicon):
 
 ```bash
-pip install gridfm-graphkit "torch==2.12.*" \
-    --find-links https://data.pyg.org/whl/torch-2.12.0+cpu.html
+pip install gridfm-graphkit "torch==2.12.*" torch-scatter --extra-index-url https://download.pytorch.org/whl/cpu -f https://data.pyg.org/whl/torch-2.12.0+cpu.html
 ```
 
-The URL above is the CPU index. For CUDA, swap `cpu` for the matching tag
-(`cu126`, `cu118`, …). Then install `torch-scatter` for the torch version pip
-selected:
+NVIDIA GPU (Linux, Windows; `nvidia-smi` must report CUDA Version 12.6 or higher):
 
 ```bash
-TORCH_VERSION=$(python -c "import torch; print(torch.__version__.split('+')[0])")
-pip install torch-scatter -f "https://data.pyg.org/whl/torch-${TORCH_VERSION}+cpu.html"
+pip install gridfm-graphkit "torch==2.12.*" torch-scatter --extra-index-url https://download.pytorch.org/whl/cu126 -f https://data.pyg.org/whl/torch-2.12.0+cu126.html
 ```
 
-When no prebuilt wheel exists for your platform, install torch first (still
-inside `>=2.10,<2.13`) and build scatter against it. This needs a C++ compiler:
+RTX 50xx and other Blackwell GPUs need CUDA 13: replace `cu126` with `cu130` in both URLs (Linux only, `nvidia-smi` must report CUDA Version 13.0 or higher).
+
+For RRWP positional encodings, add `torch-sparse` after `torch-scatter`.
+
+Check the install:
 
 ```bash
-pip install "torch>=2.10,<2.13"
-pip install torch-scatter --no-build-isolation
+python -c "import torch, torch_scatter, gridfm_graphkit; print(torch.__version__, torch.cuda.is_available())"
 ```
 
-For documentation generation and unit testing, install the `dev` and `test`
-extras the same way (`gdown` is in the `test` extra):
+Set `MLFLOW_ALLOW_FILE_STORE=true` before running `gridfm_graphkit` (`export` on Linux and macOS, `set` on Windows).
 
-```bash
-pip install "gridfm-graphkit[dev,test]" "torch==2.12.*" \
-    --find-links https://data.pyg.org/whl/torch-2.12.0+cpu.html
-```
+To run the tests, clone the repository and install with `".[test]"` in place of `gridfm-graphkit` in the command above, then run `pytest tests/`.
