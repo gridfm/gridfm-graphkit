@@ -70,7 +70,8 @@ dev = [
 test = [
   "gdown>=6.0.0",
   "pytest",
-  "pytest-cov"
+  "pytest-cov",
+  "pytest-xdist"
 ]
 
 # Optional pieces for serving a trained GridFM model through vLLM's /pooling
@@ -124,6 +125,18 @@ find-links = [
 # torch-scatter's build-system.requires.)
 [tool.uv.extra-build-dependencies]
 torch-scatter = ["torch"]
+
+[tool.pytest.ini_options]
+# Register the `integration` marker so the GPU training tests under
+# integrationtests/ are selectable and so `--strict-markers` does not warn.
+# These tests are heavy (full training runs) and are NOT part of the default
+# unit-test CI job, which targets `tests/` only. Select them explicitly, e.g.:
+#   pytest integrationtests            # both tests, serial
+#   pytest -m integration integrationtests
+#   pytest -n 2 integrationtests       # PF and OPF concurrently (needs GPU room)
+markers = [
+    "integration: end-to-end GPU training tests (slow; run on demand, not in unit CI)",
+]
 
 [project.scripts]
 gridfm_graphkit = "gridfm_graphkit.__main__:main"
