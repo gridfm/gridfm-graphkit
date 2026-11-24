@@ -54,62 +54,42 @@ If you also used `gridfm-datakit`, please also cite:
 > See [docs/install/docker.md](docs/install/docker.md) for a build + `datagen → train`
 > hello-world and VS Code Dev Container setup.
 
-Create and activate a virtual environment (make sure you use the right python version = 3.10, 3.11 or 3.12. I highly recommend 3.12)
+Python 3.10, 3.11 or 3.12.
+
 ```bash
 python -m venv venv
 source venv/bin/activate
 ```
 
-Install gridfm-graphkit from PyPI. `torch-scatter` is a required dependency, and its
-prebuilt wheels live on a PyG index that must match the installed PyTorch build.
-pip does not read the `find-links` list under `[tool.uv]` in `pyproject.toml`
-(uv uses that table; pip ignores it), so pass the index on the command line.
+On Windows, run `venv\Scripts\activate` instead.
 
-The package already pins `torch>=2.10,<2.13`. That is the newest line with
-prebuilt `torch-scatter` wheels. Passing `torch==2.12.*` on the command keeps
-pip on the same line as the wheel index.
+Then run one of these:
+
+CPU (Linux, Windows, macOS on Apple silicon):
 
 ```bash
-pip install gridfm-graphkit "torch==2.12.*" \
-    --find-links https://data.pyg.org/whl/torch-2.12.0+cpu.html
+pip install gridfm-graphkit "torch==2.12.*" torch-scatter --extra-index-url https://download.pytorch.org/whl/cpu -f https://data.pyg.org/whl/torch-2.12.0+cpu.html
 ```
 
-The URL above is the CPU index. For a CUDA build, swap `cpu` for the matching tag
-(`cu126`, `cu118`, …); see [CONTRIBUTING.md](CONTRIBUTING.md). Then install
-`torch-scatter` from the index for the torch version pip actually selected:
+NVIDIA GPU (Linux, Windows; `nvidia-smi` must report CUDA Version 12.6 or higher):
 
 ```bash
-TORCH_VERSION=$(python -c "import torch; print(torch.__version__.split('+')[0])")
-pip install torch-scatter -f "https://data.pyg.org/whl/torch-${TORCH_VERSION}+cpu.html"
+pip install gridfm-graphkit "torch==2.12.*" torch-scatter --extra-index-url https://download.pytorch.org/whl/cu126 -f https://data.pyg.org/whl/torch-2.12.0+cu126.html
 ```
 
-`torch-sparse` is optional. It is required only for RRWP positional encodings:
+RTX 50xx and other Blackwell GPUs need CUDA 13: replace `cu126` with `cu130` in both URLs (Linux only, `nvidia-smi` must report CUDA Version 13.0 or higher).
+
+For RRWP positional encodings, add `torch-sparse` after `torch-scatter`.
+
+Check the install:
 
 ```bash
-pip install torch-sparse -f "https://data.pyg.org/whl/torch-${TORCH_VERSION}+cpu.html"
+python -c "import torch, torch_scatter, gridfm_graphkit; print(torch.__version__, torch.cuda.is_available())"
 ```
 
-When `data.pyg.org` has no prebuilt wheel for your platform, install torch
-first (still inside `>=2.10,<2.13`) and compile scatter against it:
+Set `MLFLOW_ALLOW_FILE_STORE=true` before running `gridfm_graphkit` (`export` on Linux and macOS, `set` on Windows).
 
-```bash
-pip install "torch>=2.10,<2.13"
-pip install torch-scatter --no-build-isolation
-```
-
-Building from source requires a C++ compiler (and a matching CUDA toolkit with
-`nvcc` for GPU builds).
-
-
-For documentation generation and unit testing, install the `dev` and `test`
-extras the same way. The `test` extra includes `gdown`, which the integration
-tests use to download fixtures.
-
-```bash
-pip install "gridfm-graphkit[dev,test]" "torch==2.12.*" \
-    --find-links https://data.pyg.org/whl/torch-2.12.0+cpu.html
-```
-
+To run the tests, clone the repository and install with `".[test]"` in place of `gridfm-graphkit` in the command above, then run `pytest tests/`.
 
 # CLI commands
 
@@ -339,11 +319,10 @@ gridfm_graphkit <command> --help
 
 ### Unit and Integration Tests
 
-Install the test dependencies first (if not already done):
+Install the test dependencies first (if not already done). This is the CPU command. For a GPU, replace `cpu` with `cu126` or `cu130` in both URLs:
 
 ```bash
-pip install -e ".[dev,test]" "torch==2.12.*" \
-    --find-links https://data.pyg.org/whl/torch-2.12.0+cpu.html
+pip install -e ".[dev,test]" "torch==2.12.*" torch-scatter --extra-index-url https://download.pytorch.org/whl/cpu -f https://data.pyg.org/whl/torch-2.12.0+cpu.html
 ```
 
 Run the full unit test suite:
