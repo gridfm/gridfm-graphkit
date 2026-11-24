@@ -151,6 +151,48 @@ Controls whether `process()` reads raw parquet data partition-by-partition (stre
 
 The CLI flag `--stream-partitions` overrides this YAML value.
 
+### `data.transforms`
+
+Optional list of registered transforms, applied in order to every sample after
+normalization. When absent, the default pipeline of the task is used. An entry
+is a name, or a mapping with a `name` key plus arguments:
+
+```yaml
+data:
+  transforms:
+  - RemoveInactiveBranches
+  - RemoveInactiveGenerators
+  - AddOPFHeteroMask
+  - ApplyMasking
+  - name: AddEffectiveResistancePE
+    cache_dir: path/to/pe_cache
+```
+
+The task still expects what its default pipeline produces, so keep those steps
+and add to them. The defaults are `RemoveInactiveBranches`,
+`RemoveInactiveGenerators`, a masking step (`AddOPFHeteroMask`,
+`AddPFHeteroMask` or `SimulateMeasurements`) and `ApplyMasking`.
+
+#### `AddEffectiveResistancePE`
+
+Adds `data["bus"].pestat_ER`, a positional encoding of shape `[num_bus, 5]`:
+for every bus, the mean, median, standard deviation, maximum and minimum of its
+effective resistance to the other buses
+([Arowolo & Cremer](https://doi.org/10.1016/j.egyai.2026.100842)). The graph is the
+in-service bus graph weighted by branch susceptance `|Im(Yft)| * tap`; islands
+are encoded separately and an isolated bus gets zeros. Out-of-service branches
+are excluded whether the transform runs before or after
+`RemoveInactiveBranches`.
+
+The encoding is computed once per distinct in-service topology and cached in
+memory. Each computation inverts a dense Laplacian, cubic in the number of
+buses. Arguments:
+
+- `cache_dir` (optional): also cache on disk, so that dataloader workers and
+  later runs reuse the encodings. Recommended when topologies or admittances
+  vary per scenario.
+- `memory_cache_size` (default `1024`): encodings kept in memory per process.
+
 ## `model` section
 
 Current configs use the heterogeneous GNS model:
