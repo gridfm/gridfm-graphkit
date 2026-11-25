@@ -67,6 +67,7 @@ class OptimalPowerFlowTask(ReconstructionTask):
         super().__init__(args, data_normalizers)
 
     def test_step(self, batch, batch_idx, dataloader_idx=0):
+        """Evaluate OPF predictions, interpreting zero thermal ratings as unbounded."""
         output, loss_dict = self.shared_step(batch)
         dataset_name = self.args.data.networks[dataloader_idx]
 
@@ -130,6 +131,12 @@ class OptimalPowerFlowTask(ReconstructionTask):
         # Compute branch thermal limits violations
         Sft = torch.sqrt(Pft**2 + Qft**2)  # apparent power flow per branch
         branch_thermal_limits = bus_edge_attr[:, RATE_A]
+        # MATPOWER zero rating means unbounded, not a zero-capacity line.
+        branch_thermal_limits = torch.where(
+            branch_thermal_limits == 0,
+            torch.full_like(branch_thermal_limits, torch.inf),
+            branch_thermal_limits,
+        )
         branch_thermal_excess = F.relu(Sft - branch_thermal_limits)
 
         edge_is_forward = forward_edge_mask(batch.batch_dict["bus"][bus_edge_index[0]])
