@@ -213,12 +213,6 @@ def main():
         help="Registered name of a dataset wrapper (see DATASET_WRAPPER_REGISTRY), e.g. SharedMemoryCacheDataset",
     )
     train_parser.add_argument(
-        "--plugins",
-        nargs="*",
-        default=[],
-        help="Python packages to import for plugin registration, e.g. gridfm_graphkit_ee",
-    )
-    train_parser.add_argument(
         "--num_workers",
         type=int,
         default=None,
@@ -272,12 +266,6 @@ def main():
         type=str,
         default=None,
         help="Registered name of a dataset wrapper (see DATASET_WRAPPER_REGISTRY), e.g. SharedMemoryCacheDataset",
-    )
-    finetune_parser.add_argument(
-        "--plugins",
-        nargs="*",
-        default=[],
-        help="Python packages to import for plugin registration, e.g. gridfm_graphkit_ee",
     )
     finetune_parser.add_argument(
         "--num_workers",
@@ -349,12 +337,6 @@ def main():
         help="Registered name of a dataset wrapper (see DATASET_WRAPPER_REGISTRY), e.g. SharedMemoryCacheDataset",
     )
     evaluate_parser.add_argument(
-        "--plugins",
-        nargs="*",
-        default=[],
-        help="Python packages to import for plugin registration, e.g. gridfm_graphkit_ee",
-    )
-    evaluate_parser.add_argument(
         "--num_workers",
         type=int,
         default=None,
@@ -415,12 +397,6 @@ def main():
         type=str,
         default=None,
         help="Registered name of a dataset wrapper (see DATASET_WRAPPER_REGISTRY), e.g. SharedMemoryCacheDataset",
-    )
-    predict_parser.add_argument(
-        "--plugins",
-        nargs="*",
-        default=[],
-        help="Python packages to import for plugin registration, e.g. gridfm_graphkit_ee",
     )
     predict_parser.add_argument(
         "--num_workers",
@@ -487,12 +463,6 @@ def main():
         type=int,
         default=None,
         help="Override data.workers from the YAML config.",
-    )
-    benchmark_parser.add_argument(
-        "--plugins",
-        nargs="*",
-        default=[],
-        help="Python packages to import for plugin registration.",
     )
     benchmark_parser.add_argument("--mp_context", **_mp_context_kwargs)
     benchmark_parser.add_argument("--config_conversion", **_config_conversion_kwargs)
