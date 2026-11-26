@@ -32,3 +32,6 @@ dist/
 
 # Machine-specific calibration baseline (each machine calibrates its own; see CONTRIBUTING.md)
 integrationtests/calibration_baseline.json
+
+# Apptainer images
+*.sif
